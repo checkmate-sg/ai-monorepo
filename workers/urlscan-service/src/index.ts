@@ -8,10 +8,7 @@ import { URLScanRequest, URLScanResult } from "@workspace/shared-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import { createLogger } from "@workspace/shared-utils";
 
-export default class extends WorkerEntrypoint<{
-  URLSCAN_APIKEY: string;
-  URLSCAN_HOSTNAME: string;
-}> {
+export default class extends WorkerEntrypoint<Env> {
   private logger = createLogger("search-service");
   private logContext: Record<string, any> = {};
 

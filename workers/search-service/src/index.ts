@@ -11,9 +11,7 @@ import { SearchRequest, SearchResult } from "@workspace/shared-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import { createLogger } from "@workspace/shared-utils";
 
-export default class extends WorkerEntrypoint<{
-  SERPER_API_KEY: string;
-}> {
+export default class extends WorkerEntrypoint<Env> {
   private logger = createLogger("search-service");
   private logContext: Record<string, any> = {};
 

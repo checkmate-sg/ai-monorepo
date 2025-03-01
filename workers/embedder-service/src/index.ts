@@ -8,9 +8,7 @@ import { EmbedRequest, EmbedResult } from "@workspace/shared-types";
  * via HTTP requests or service bindings from other workers.
  */
 
-export default class extends WorkerEntrypoint<{
-  AI: Ai; // AI binding
-}> {
+export default class extends WorkerEntrypoint<Env> {
   private logger = createLogger("embedder-service");
   private logContext: Record<string, any> = {};
 
