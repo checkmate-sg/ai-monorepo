@@ -28,7 +28,7 @@
     "develop": {
       // "vars": { "ENVIRONMENT": "develop" ,
       // "account_id": "<develop-account-id>",
-      "workers_dev" : true,
+      "workers_dev" : false,
       "ai": {
         "binding": "AI"
       }
