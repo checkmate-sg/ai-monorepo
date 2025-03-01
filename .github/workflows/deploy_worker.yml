@@ -35,7 +35,7 @@ jobs:
 
   deploy:
     name: Deploy workers
-    needs: scan-for-changes:
+    needs: scan-for-changes
     if: ${{ needs.scan-for-changes:.outputs.worker-dirs != '[]' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
