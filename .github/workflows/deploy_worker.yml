@@ -8,8 +8,8 @@ on:
       - 'workers/**'
 
 jobs:
-  detect-changes:
-    name: Detect changed workers
+  scan-for-changes:
+    name: Scan for Worker Code Changes
     runs-on: ubuntu-latest
     outputs:
       worker-dirs: ${{ steps.changed-workers.outputs.worker-dirs }}
@@ -48,11 +48,6 @@ jobs:
       - uses: pnpm/action-setup@v4.1.0
         with:
           version: 10.5.2
-      - name: Print current directory
-        run: |
-          echo "Current directory: $(pwd)"
-          echo "Worker directory: workers/${{ matrix.worker-dir }}"
-          ls -la workers/${{ matrix.worker-dir }}
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3.14.0
         with:
