@@ -7,6 +7,8 @@
   "name": "embedder-service",
   "main": "src/index.ts",
   "compatibility_date": "2025-02-24",
+  "keep_vars": false,
+  "minify": true,
   "observability": {
     "enabled": true
   },
@@ -17,6 +19,34 @@
   "dev": {
     "port": 8792
   },
+
+  // "vars": { "ENVIRONMENT": "local" },
+
+  "ai": {
+    "binding": "AI"
+  },
+
+  /**
+   * Environment-specific configuration
+   */
+  "env": {
+    "staging": {
+      // "vars": { "ENVIRONMENT": "staging" ,
+      // "account_id": "<staging-account-id>",
+      "workers_dev" : true,
+      "ai": {
+        "binding": "AI"
+      }
+    },
+    "production": {
+      // "vars": { "ENVIRONMENT": "production" ,
+      // "account_id": "<production-account-id>",
+      "workers_dev" : false,
+      "ai": {
+        "binding": "AI"
+      }
+    }
+  }
 
   /**
    * Smart Placement
@@ -30,9 +60,6 @@
    * databases, object storage, AI inference, real-time communication and more.
    * https://developers.cloudflare.com/workers/runtime-apis/bindings/
    */
-  "ai": {
-    "binding": "AI"
-  }
 
   /**
    * Environment Variables
