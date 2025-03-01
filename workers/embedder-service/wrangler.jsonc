@@ -30,17 +30,17 @@
    * Environment-specific configuration
    */
   "env": {
-    "staging": {
-      // "vars": { "ENVIRONMENT": "staging" ,
-      // "account_id": "<staging-account-id>",
+    "uat": {
+      // "vars": { "ENVIRONMENT": "uat" ,
+      // "account_id": "<uat-account-id>",
       "workers_dev" : true,
       "ai": {
         "binding": "AI"
       }
     },
-    "production": {
-      // "vars": { "ENVIRONMENT": "production" ,
-      // "account_id": "<production-account-id>",
+    "prod": {
+      // "vars": { "ENVIRONMENT": "prod" ,
+      // "account_id": "<prod-account-id>",
       "workers_dev" : false,
       "ai": {
         "binding": "AI"
