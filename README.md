@@ -2,44 +2,6 @@
 
 This is a monorepo for the Cloudflare Workers-based AI service that CheckMate users.
 
-# Repository Structure as follows:
-
-checkmate-ai-monorepo/
-│── package.json # Root workspace config
-│── turbo.json # Turborepo config (optional)
-│── workers/
-│ ├── api-entrypoint/
-│ │ ├── src/
-│ │ ├── package.json
-│ │ ├── wrangler.jsonc
-│ │ ├── .dev.vars
-│ ├── agent-service/
-│ │ ├── src/
-│ │ ├── package.json
-│ │ ├── wrangler.jsonc
-│ │ ├── .dev.vars
-│ ├── screenshot-service/
-│ │ ├── src/
-│ │ ├── package.json
-│ │ ├── wrangler.jsonc
-│ │ ├── .dev.vars
-│ ├── search-service/
-│ │ ├── src/
-│ │ ├── package.json
-│ │ ├── wrangler.jsonc
-│ │ ├── .dev.vars
-│ ├── urlscan-service/
-│ │ ├── src/
-│ │ ├── package.json
-│ │ ├── wrangler.jsonc
-│ │ ├── .dev.vars
-│── shared/ # Shared code across workers
-│ ├── utils/
-│ ├── package.json
-│── node_modules/ # Symlinked workspace dependencies
-│── pnpm-lock.yaml
-│── .gitignore
-
 # Installation
 
 1. Install pnpm globally (if not already installed):
