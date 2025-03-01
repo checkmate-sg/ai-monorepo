@@ -6,6 +6,17 @@ on:
       - develop
     paths:
       - 'workers/**'
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deploy all workers'
+        required: false
+        default: 'false'
+        type: boolean
+      specific_worker:
+        description: 'Deploy a specific worker (leave empty for automatic detection)'
+        required: false
+        type: string
 
 jobs:
   scan-for-changes:
@@ -21,15 +32,27 @@ jobs:
       - name: Determine changed workers
         id: changed-workers
         run: |
-          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep "^workers/" || true)
-          if [[ -z "$CHANGED_FILES" ]]; then
-            echo "No worker changes detected"
-            echo "worker-dirs=[]" >> $GITHUB_OUTPUT
-            exit 0
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
+            # If manually triggered with force_deploy, mark all workers as changed
+            echo "Force deploying all workers"
+            WORKER_DIRS='["agent-service", "api-entrypoint", "embedder-service", "screenshot-service", "search-service", "urlscan-service"]'
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.specific_worker }}" ]]; then
+            # If manually triggered with a specific worker
+            echo "Deploying specific worker: ${{ github.event.inputs.specific_worker }}"
+            WORKER_DIRS="[\"${{ github.event.inputs.specific_worker }}\"]"
+          else
+            # Normal push event - detect changes
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep "^workers/" || true)
+            if [[ -z "$CHANGED_FILES" ]]; then
+              echo "No worker changes detected"
+              echo "worker-dirs=[]" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            
+            # Extract all unique worker directory names
+            WORKER_DIRS=$(echo "$CHANGED_FILES" | grep -o "workers/[^/]*" | cut -d'/' -f2 | sort | uniq | jq -R -s -c 'split("\n") | map(select(length > 0))')
           fi
           
-          # Extract all unique worker directory names
-          WORKER_DIRS=$(echo "$CHANGED_FILES" | grep -o "workers/[^/]*" | cut -d'/' -f2 | sort | uniq | jq -R -s -c 'split("\n") | map(select(length > 0))')
           echo "worker-dirs=$WORKER_DIRS" >> $GITHUB_OUTPUT
           echo "Changed worker directories: $WORKER_DIRS"
 
@@ -42,13 +65,26 @@ jobs:
     environment: ${{ github.ref_name }}
     strategy:
       matrix:
-        worker-dir: ${{ fromJson(needs.scan-for-changes.outputs.worker-dirs) }}
+        worker-dir: [agent-service, api-entrypoint, embedder-service, screenshot-service, search-service, urlscan-service]
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: pnpm/action-setup@v4.1.0
         with:
           version: 10.5.2
+      - name: Check if worker has changes
+        id: check-changes
+        run: |
+          CHANGED_WORKERS='${{ needs.scan-for-changes.outputs.worker-dirs }}'
+          if echo $CHANGED_WORKERS | jq -e 'contains(["${{ matrix.worker-dir }}"])' > /dev/null; then
+            echo "Worker ${{ matrix.worker-dir }} has changes, will deploy"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "Worker ${{ matrix.worker-dir }} has no changes, skipping deployment"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+      
       - name: Deploy to Cloudflare Workers
+        if: steps.check-changes.outputs.has_changes == 'true'
         uses: cloudflare/wrangler-action@v3.14.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -57,4 +93,4 @@ jobs:
           packageManager: pnpm
           wranglerVersion: "3.111.0"
           environment: ${{ github.ref_name }} 
-          command: ${{ format('deploy --env {0}', github.ref_name) }}
+          command: ${{ format('deploy --env {0}', github.ref_name) }} 

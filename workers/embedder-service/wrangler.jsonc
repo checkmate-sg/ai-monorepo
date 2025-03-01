@@ -8,6 +8,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-02-24",
   "keep_vars": false,
+  "preview_urls": false,
   "minify": true,
   "observability": {
     "enabled": true
