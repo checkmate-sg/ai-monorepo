@@ -1,20 +1,53 @@
-name: Deploy Worker
+name: Deploy CF Worker
+
 on:
   push:
     branches:
-      - main
-      paths:
-      - 'workers/agent-service/**'
+      - develop
+    paths:
+      - 'workers/**'
 jobs:
-  deploy:
+  detect-changes:
+    name: Detect changed workers
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    needs: test
-    environment: develop
+    outputs:
+      worker-dirs: ${{ steps.changed-workers.outputs.worker-dirs }}
     steps:
       - uses: actions/checkout@v4
-      - name: Build & Deploy Worker
+        with:
+          fetch-depth: 0
+      
+      - name: Determine changed workers
+        id: changed-workers
+        run: |
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep "^workers/" || true)
+          if [[ -z "$CHANGED_FILES" ]]; then
+            echo "No worker changes detected"
+            echo "worker-dirs=[]" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Extract all unique worker directory names
+          WORKER_DIRS=$(echo "$CHANGED_FILES" | grep -o "workers/[^/]*" | cut -d'/' -f2 | sort | uniq | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "worker-dirs=$WORKER_DIRS" >> $GITHUB_OUTPUT
+          echo "Changed worker directories: $WORKER_DIRS"
+
+  deploy:
+    name: Deploy workers
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.worker-dirs != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: develop
+    strategy:
+      matrix:
+        worker-dir: ${{ fromJson(needs.detect-changes.outputs.worker-dirs) }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy worker
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: 'workers/${{ matrix.worker-dir }}' 
