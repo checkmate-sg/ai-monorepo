@@ -29,7 +29,8 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
-    "pino": "^9.6.0"
+    "pino": "^9.6.0",
+    "wrangler": "^3.111.0"
   },
   "private": true
 }
