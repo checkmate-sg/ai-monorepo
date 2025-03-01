@@ -6,6 +6,7 @@ on:
       - develop
     paths:
       - 'workers/**'
+
 jobs:
   detect-changes:
     name: Detect changed workers
@@ -46,7 +47,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Deploy worker
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v3.14.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
