@@ -58,6 +58,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: 'workers/${{ matrix.worker-dir }}' 
+          workingDirectory: './workers/${{ matrix.worker-dir }}' 
+          packageManager: pnpm
+          wranglerVersion: "3.111.0"
           environment: ${{ github.ref_name }} 
           command: ${{ format('deploy --env {0}', github.ref_name) }}
