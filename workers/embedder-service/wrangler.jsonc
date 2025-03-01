@@ -30,9 +30,9 @@
    * Environment-specific configuration
    */
   "env": {
-    "uat": {
-      // "vars": { "ENVIRONMENT": "uat" ,
-      // "account_id": "<uat-account-id>",
+    "develop": {
+      // "vars": { "ENVIRONMENT": "develop" ,
+      // "account_id": "<develop-account-id>",
       "workers_dev" : true,
       "ai": {
         "binding": "AI"
