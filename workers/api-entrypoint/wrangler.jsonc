@@ -21,9 +21,6 @@
     "port": 8787
   },
 
-  // "vars": { "ENVIRONMENT": "local" }
-  "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service"}],
-
   /**
    * Environment-specific configuration
    */
@@ -32,13 +29,13 @@
       // "vars": { "ENVIRONMENT": "develop" ,
       // "account_id": "<develop-account-id>",
       "workers_dev" : true,
-      "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service"}]
+      "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service-develop"}]
     },
-    "prod": {
+    "production": {
       // "vars": { "ENVIRONMENT": "prod" ,
-      // "account_id": "<prod-account-id>",
+      // "account_id": "<production-account-id>",
       "workers_dev" : false,
-      "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service"}]
+      "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service-production"}]
     }
   }
   
