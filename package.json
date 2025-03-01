@@ -1,0 +1,25 @@
+{
+  "name": "checkmate-ai-monorepo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "turbo dev --filter=!./",
+    "build": "turbo build --filter=!./",
+    "lint": "turbo lint"
+  },
+  "workspaces": [
+    "workers/*",
+    "shared/*"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.5.2",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250224.0",
+    "turbo": "^2.4.4",
+    "typescript": "^5.8.2"
+  }
+}

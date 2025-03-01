@@ -1,0 +1,25 @@
+# Dependencies
+node_modules
+.pnpm-store/
+
+# Build
+dist
+.wrangler
+.turbo
+
+# Environment
+.env
+.env.*
+.dev.vars
+
+# IDE
+.vscode
+.idea
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# System files
+.DS_Store
