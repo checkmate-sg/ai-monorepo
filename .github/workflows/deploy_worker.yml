@@ -55,4 +55,4 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: '${{ github.workspace }}/workers/${{ matrix.worker-dir }}' 
           environment: ${{ github.event.inputs.environment }} 
-          command: ${{ format('deploy --env {0}', ${{ github.ref_name }}) }}
+          command: ${{ format('deploy --env {0}', github.ref_name) }}
