@@ -20,11 +20,6 @@
     "port": 8792
   },
 
-  // "vars": { "ENVIRONMENT": "local" },
-
-  "ai": {
-    "binding": "AI"
-  },
 
   /**
    * Environment-specific configuration
@@ -38,9 +33,9 @@
         "binding": "AI"
       }
     },
-    "prod": {
-      // "vars": { "ENVIRONMENT": "prod" ,
-      // "account_id": "<prod-account-id>",
+    "production": {
+      // "vars": { "ENVIRONMENT": "production" ,
+      // "account_id": "<production-account-id>",
       "workers_dev" : false,
       "ai": {
         "binding": "AI"
