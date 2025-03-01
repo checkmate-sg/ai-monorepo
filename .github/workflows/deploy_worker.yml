@@ -54,3 +54,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: 'workers/${{ matrix.worker-dir }}' 
+          command: deploy --env ${{ github.event.inputs.environment }} "./src/index.ts"
