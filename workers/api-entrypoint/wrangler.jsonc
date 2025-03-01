@@ -30,13 +30,13 @@
       // "vars": { "ENVIRONMENT": "develop" ,
       // "account_id": "<develop-account-id>",
       "workers_dev" : false,
-      "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service-develop"}]
+      "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service-develop", "environment": "develop"}]
     },
     "production": {
-      // "vars": { "ENVIRONMENT": "prod" ,
+      // "vars": { "ENVIRONMENT": "production" ,
       // "account_id": "<production-account-id>",
       "workers_dev" : false,
-      "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service-production"}]
+      "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service-production", "environment": "production"}]
     }
   }
   
