@@ -13,7 +13,14 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@workspace/shared-utils": ["shared/utils"],
+      "@workspace/shared-utils/*": ["shared/utils/*"],
+      "@workspace/shared-types": ["shared/types"],
+      "@workspace/shared-types/*": ["shared/types/*"]
+    }
   },
   "exclude": ["node_modules"]
 }

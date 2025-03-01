@@ -4,20 +4,20 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "api-entrypoint",
+  "name": "embedder-service",
   "main": "src/index.ts",
   "compatibility_date": "2025-02-24",
   "observability": {
     "enabled": true
   },
-
   /**
    * Dev configuration
    * Configuration for local development environment
    */
   "dev": {
-    "port": 8787
+    "port": 8792
   },
+
   /**
    * Smart Placement
    * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
@@ -30,6 +30,9 @@
    * databases, object storage, AI inference, real-time communication and more.
    * https://developers.cloudflare.com/workers/runtime-apis/bindings/
    */
+  "ai": {
+    "binding": "AI"
+  }
 
   /**
    * Environment Variables
@@ -51,5 +54,5 @@
    * Service Bindings (communicate between multiple Workers)
    * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
    */
-  "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service" }]
+  // "services": [{ "binding": "MY_SERVICE", "service": "my-service" }]
 }

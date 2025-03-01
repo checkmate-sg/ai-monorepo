@@ -1,23 +1,22 @@
 {
-  "name": "api-entrypoint",
-  "version": "0.0.1",
+  "name": "embedder-service",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "deploy": "wrangler deploy",
-    "dev": "wrangler dev  --inspector-port 9229",
+    "dev": "wrangler dev  --inspector-port 9234",
     "start": "wrangler dev",
+    "test": "vitest",
     "cf-typegen": "wrangler types"
   },
-  "dependencies": {
-    "chanfana": "^2.0.2",
-    "hono": "^4.4.7",
-    "zod": "^3.23.8"
-  },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.6.4",
     "@cloudflare/workers-types": "^4.20250224.0",
-    "@types/node": "20.8.3",
-    "@types/service-worker-mock": "^2.0.1",
-    "wrangler": "^3.111.0",
+    "typescript": "^5.5.2",
+    "vitest": "~2.1.9",
+    "wrangler": "^3.111.0"
+  },
+  "dependencies": {
     "@workspace/shared-utils": "workspace:*",
     "@workspace/shared-types": "workspace:*"
   }

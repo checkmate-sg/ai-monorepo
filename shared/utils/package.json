@@ -1,0 +1,12 @@
+{
+  "name": "@workspace/shared-utils",
+  "version": "1.0.0",
+  "description": "Shared utilities for all services",
+  "main": "index.ts",
+  "types": "index.ts",
+  "private": true,
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

@@ -12,7 +12,8 @@
     "dev:urlscan-service": "turbo dev --filter=urlscan-service",
     "dev:screenshot-service": "turbo dev --filter=screenshot-service",
     "dev:agent-service": "turbo dev --filter=agent-service",
-    "dev:api-entrypoint": "turbo dev --filter=api-entrypoint"
+    "dev:api-entrypoint": "turbo dev --filter=api-entrypoint",
+    "dev:embedder-service": "turbo dev --filter=embedder-service"
   },
   "workspaces": [
     "workers/*",
@@ -26,5 +27,9 @@
     "@cloudflare/workers-types": "^4.20250224.0",
     "turbo": "^2.4.4",
     "typescript": "^5.8.2"
-  }
+  },
+  "dependencies": {
+    "pino": "^9.6.0"
+  },
+  "private": true
 }
