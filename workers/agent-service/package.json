@@ -12,5 +12,8 @@
     "@cloudflare/workers-types": "^4.20250224.0",
     "typescript": "^5.5.2",
     "wrangler": "^3.111.0"
+  },
+  "dependencies": {
+    "openai": "^4.86.1"
   }
 }

@@ -31,7 +31,10 @@ export interface ScreenshotRequest {
 }
 
 export interface ScreenshotResponse extends ServiceResponse {
-  url: string;
+  success: true;
+  result: {
+    url: string;
+  };
 }
 
 // Error response for screenshot service
@@ -51,6 +54,7 @@ export interface SearchRequest {
 }
 
 export interface SearchResponse extends ServiceResponse {
+  success: true;
   result: object;
 }
 
@@ -71,6 +75,7 @@ export interface URLScanRequest {
 }
 
 export interface URLScanResponse extends ServiceResponse {
+  success: true;
   result: object;
 }
 
@@ -107,12 +112,12 @@ interface ImageAgentRequest extends BaseAgentRequest {
 // Union type to enforce either text OR image+optional caption
 export type AgentRequest = TextAgentRequest | ImageAgentRequest;
 
-export interface AgentResponse {
+export interface AgentResponse extends ServiceResponse {
+  report: string;
   communityNote: CommunityNote;
   isControversial: boolean;
   isVideo: boolean;
   isAccessBlocked: boolean;
-  id?: string;
 }
 
 export interface CommunityNote {
@@ -122,13 +127,12 @@ export interface CommunityNote {
 }
 
 // Error response for agent
-export interface AgentErrorResponse {
+export interface AgentErrorResponse extends ServiceResponse {
   error: {
     message: string;
     code?: string;
     details?: unknown;
   };
-  id?: string;
 }
 
 // Union type for all possible agent responses

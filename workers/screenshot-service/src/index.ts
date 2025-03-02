@@ -72,7 +72,9 @@ export default class extends WorkerEntrypoint<Env> {
 
       return {
         success: true,
-        url: imageUrl,
+        result: {
+          url: imageUrl,
+        },
         id,
       };
     } catch (error) {
