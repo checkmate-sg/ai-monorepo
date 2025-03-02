@@ -25,7 +25,7 @@ on:
 jobs:
   # First job: Determine which workers need to be deployed
   scan-for-changes:
-    name: Scan for Worker Code Changes
+    name: Scan for worker code changes
     runs-on: ubuntu-latest
     outputs:
       worker-dirs: ${{ steps.changed-workers.outputs.worker-dirs }}  # Output the list of workers to deploy
@@ -76,7 +76,7 @@ jobs:
 
   # Second job: Deploy each worker that needs updating
   deploy:
-    name: Deploy Worker to ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
+    name: Deploy worker to ${{  github.ref_name == 'main' && 'production' || github.ref_name }} (${{ matrix.worker-dir }})
     needs: scan-for-changes  # Run after scan-for-changes job
     if: ${{ needs.scan-for-changes.outputs.worker-dirs != '[]' }}  # Only run if there are workers to deploy
     runs-on: ubuntu-latest
