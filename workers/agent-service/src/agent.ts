@@ -3,16 +3,22 @@ import { createLogger } from "@workspace/shared-utils";
 import { Logger } from "pino";
 import OpenAI from "openai";
 import { createClient } from "./client";
-import {
-  AgentRequest,
-  SearchResult,
-  ScreenshotResult,
-  URLScanResult,
-} from "@workspace/shared-types";
-import type { ReviewResult } from "./types";
-import type { ChatCompletionMessageToolCall } from "openai/resources";
-
+import { AgentRequest } from "@workspace/shared-types";
+import type {
+  ChatCompletion,
+  ChatCompletionMessageParam,
+  ChatCompletionMessageToolCall,
+  ChatCompletionTool,
+} from "openai/resources";
+import { createTools, ToolContext } from "./tools";
+import { Langfuse, TextPromptClient, observeOpenAI } from "langfuse";
 const logger = createLogger("agent");
+
+interface AgentOutputs {
+  report: string;
+  sources: string[];
+  is_controversial: boolean;
+}
 
 export class CheckerAgent extends DurableObject<Env> {
   private logger: Logger;
@@ -22,11 +28,18 @@ export class CheckerAgent extends DurableObject<Env> {
   private totalCost: number;
   private client?: OpenAI;
   private intent?: string;
+  private isAccessBlocked?: boolean;
+  private isVideo?: boolean;
   private imageUrl?: string;
   private caption?: string;
   private text?: string;
   private totalTime?: number;
   private type?: "text" | "image";
+  private langfuse: Langfuse;
+  private prompt: TextPromptClient;
+  private trace?: ReturnType<Langfuse["trace"]>;
+  private span?: ReturnType<Langfuse["span"]>;
+  private tools: ReturnType<typeof createTools>;
   /**
    * The constructor is invoked once upon creation of the Durable Object, i.e. the first call to
    * 	`DurableObjectStub::get` for a given identifier (no-op constructors can be omitted)
@@ -46,171 +59,59 @@ export class CheckerAgent extends DurableObject<Env> {
       logger.warn({ id: this.id }, "Agent created with random ID");
     }
     this.logger = logger.child({
-      id: ctx.id.name,
+      id: this.id,
     });
     this.logger.info("Agent created");
     this.totalCost = 0;
     this.totalTime = 0;
+    this.langfuse = new Langfuse({
+      publicKey: this.env.LANGFUSE_PUBLIC_KEY,
+      secretKey: this.env.LANGFUSE_SECRET_KEY,
+      baseUrl: this.env.LANGFUSE_HOST,
+    });
+    this.prompt = null as any; // Temporary initialization
+    const toolContext: ToolContext = {
+      logger: this.logger,
+      id: this.id,
+      env: this.env,
+      langfuse: this.langfuse,
+      span: this.span,
+      getSearchesRemaining: () => this.searchesRemaining,
+      getScreenshotsRemaining: () => this.screenshotsRemaining,
+      decrementSearches: () => {
+        this.searchesRemaining--;
+      },
+      decrementScreenshots: () => {
+        this.screenshotsRemaining--;
+      },
+      // Functions to get the current values
+      getImageUrl: () => this.imageUrl,
+      getCaption: () => this.caption,
+      getText: () => this.text,
+      getIntent: () => this.intent,
+      getType: () => this.type,
+    };
+
+    this.tools = createTools(toolContext);
+
+    // Call the async initialization method
+    this.initialize();
   }
 
-  private tools = {
-    search_google: {
-      definition: {
-        type: "function",
-        function: {
-          name: "search_google",
-          description:
-            "Searches Google for the given query and returns organic search results using serper.dev. Call this when you need to retrieve information from Google search results.",
-          parameters: {
-            type: "object", // Use lowercase "object" in JSON Schema
-            properties: {
-              q: {
-                type: "string", // Use lowercase "string" in JSON Schema
-                description: "The search query to use on Google.",
-              },
-            },
-            required: ["q"],
-            additionalProperties: false,
-          },
-          strict: true,
-        },
-      },
-      execute: async (params: { query: string }): Promise<SearchResult> => {
-        if (this.searchesRemaining <= 0) {
-          throw new Error("Search limit reached");
+  private async initialize() {
+    try {
+      this.prompt = await this.langfuse.getPrompt(
+        "agent_system_prompt",
+        undefined,
+        {
+          label: this.env.ENVIRONMENT,
+          type: "text",
         }
-
-        this.logger.info({ query: params.query }, "Executing search tool");
-        this.searchesRemaining--;
-
-        return await this.env.SEARCH_SERVICE.search({
-          q: params.query,
-          id: this.id,
-        });
-      },
-    },
-    get_website_screenshot: {
-      definition: {
-        type: "function",
-        function: {
-          name: "get_website_screenshot",
-          description:
-            "Takes a screenshot of the url provided. Call this when you need to look at the web page.",
-          parameters: {
-            type: "object", // Use lowercase "object" in JSON Schema
-            properties: {
-              url: {
-                type: "string", // Use lowercase "string" in JSON Schema
-                description: "The URL of the website to take a screenshot of.",
-              },
-            },
-            required: ["url"],
-            additionalProperties: false,
-          },
-          strict: true,
-        },
-      },
-      execute: async (params: { url: string }): Promise<ScreenshotResult> => {
-        if (this.screenshotsRemaining <= 0) {
-          throw new Error("Screenshot limit reached");
-        }
-
-        this.logger.info({ url: params.url }, "Executing screenshot tool");
-        this.screenshotsRemaining--;
-
-        return await this.env.SCREENSHOT_SERVICE.screenshot({
-          url: params.url,
-          id: this.id,
-        });
-      },
-    },
-    check_malicious_url: {
-      definition: {
-        type: "function",
-        function: {
-          name: "check_malicious_url",
-          description:
-            "Runs a check on the provided URL to determine if it is malicious. " +
-            "Returns either 'MALICIOUS', 'SUSPICIOUS' or 'BENIGN', as well as a maliciousness " +
-            "score from 0-1. Note, while a malicious rating should be trusted, a benign rating " +
-            "doesn't imply the absence of malicious behaviour, as there might be false negatives.",
-          parameters: {
-            type: "object", // Use lowercase "object" in JSON Schema
-            properties: {
-              url: {
-                type: "string", // Use lowercase "string" in JSON Schema
-                description:
-                  "The URL of the website to check whether it is malicious.",
-              },
-            },
-            required: ["url"],
-            additionalProperties: false,
-          },
-          strict: true,
-        },
-      },
-      execute: async (params: { url: string }): Promise<URLScanResult> => {
-        this.logger.info({ url: params.url }, "Executing urlscan tool");
-
-        return await this.env.URLSCAN_SERVICE.urlScan({
-          url: params.url,
-          id: this.id,
-        });
-      },
-    },
-    submit_report_for_review: {
-      definition: {
-        type: "function",
-        function: {
-          name: "submit_report_for_review",
-          description: "Submits a report, which concludes the task.",
-          parameters: {
-            type: "object", // Use lowercase "object" in JSON Schema
-            properties: {
-              report: {
-                type: "string", // Use lowercase "string" in JSON Schema
-                description:
-                  "The content of the report. This should enough context for readers to stay safe and informed. Try and be succinct.",
-              },
-              sources: {
-                type: "array",
-                items: {
-                  type: "string",
-                  description:
-                    "A link from which you sourced content for your report.",
-                },
-                description:
-                  "A list of links from which your report is based. Avoid including the original link sent in for checking as that is obvious.",
-              },
-              is_controversial: {
-                type: "boolean",
-                description:
-                  "True if the content contains political or religious viewpoints that are grounded in opinions rather than provable facts, and are likely to be divisive or polarizing.",
-              },
-            },
-            required: ["report", "sources", "is_controversial"],
-            additionalProperties: false,
-          },
-          strict: true,
-        },
-      },
-      execute: async (params: {
-        report: string;
-        sources: string[];
-        is_controversial: boolean;
-      }): Promise<ReviewResult> => {
-        this.logger.info(params, "Executing submit report tool");
-
-        return {
-          success: true,
-          result: {
-            feedback: params.report,
-            passedReview: params.is_controversial,
-          },
-        };
-      },
-    },
-  };
+      );
+    } catch (error) {
+      this.logger.error(error, "Failed to initialize prompt");
+    }
+  }
 
   private async callTool(toolCall: ChatCompletionMessageToolCall) {
     const toolName = toolCall.function.name as keyof typeof this.tools;
@@ -228,11 +129,13 @@ export class CheckerAgent extends DurableObject<Env> {
     try {
       if (!this.tools[toolName]) {
         this.logger.error(`Tool ${toolName} not found in available tools`);
-        return {
-          role: "tool",
-          tool_call_id: toolCall.id,
-          content: `Error: Tool ${toolName} not found in available tools`,
-        };
+        return [
+          {
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: `Error: Tool ${toolName} not found in available tools`,
+          },
+        ];
       }
 
       const response = await this.tools[toolName].execute(toolParams);
@@ -255,11 +158,13 @@ export class CheckerAgent extends DurableObject<Env> {
 
         if (!("url" in result)) {
           this.logger.warn({ url }, "Screenshot API failed");
-          return {
-            role: "tool",
-            tool_call_id: toolCall.id,
-            content: `Screenshot API failed for ${url}`,
-          };
+          return [
+            {
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: `Screenshot API failed for ${url}`,
+            },
+          ];
         }
 
         this.logger.info({ url }, "Screenshot successfully taken");
@@ -290,11 +195,22 @@ export class CheckerAgent extends DurableObject<Env> {
 
       // Handle other tools
 
-      return {
+      const returnObject = {
         role: "tool",
         tool_call_id: toolCall.id,
-        content: JSON.stringify(result),
+        content: typeof result === "string" ? result : JSON.stringify(result),
       };
+
+      if (toolName === "submit_report_for_review") {
+        return [
+          {
+            ...returnObject,
+            completed: true,
+            agentOutputs: toolParams,
+          },
+        ];
+      }
+      return [returnObject];
     } catch (error) {
       this.logger.error(
         {
@@ -304,22 +220,141 @@ export class CheckerAgent extends DurableObject<Env> {
         `Error calling tool ${toolName}`
       );
 
-      return {
-        role: "tool",
-        tool_call_id: toolCall.id,
-        content: `Function ${toolName} generated an error: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      };
+      return [
+        {
+          role: "tool",
+          tool_call_id: toolCall.id,
+          content: `Function ${toolName} generated an error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        },
+      ];
     }
   }
 
-  private async agentLoop() {}
+  private async agentLoop(startingContent: any[]) {
+    const logger = this.logger.child({
+      function: "agentLoop",
+    });
+    try {
+      if (!this.client) {
+        throw new Error("Client not initialized");
+      }
+      if (!this.trace) {
+        throw new Error("Trace not initialized");
+      }
+      const span = this.trace.span({
+        name: "agent-loop",
+      });
+      this.span = span;
+
+      // Rest of the agent loop implementation
+      const observedClient = observeOpenAI(this.client, {
+        clientInitParams: {
+          publicKey: this.env.LANGFUSE_PUBLIC_KEY,
+          secretKey: this.env.LANGFUSE_SECRET_KEY,
+          baseUrl: this.env.LANGFUSE_HOST,
+        },
+        langfusePrompt: this.prompt,
+        parent: span,
+      });
+
+      let systemPrompt = this.prompt.compile({
+        datetime: new Date().toISOString(),
+        remaining_searches: this.searchesRemaining.toString(),
+        remaining_screenshots: this.screenshotsRemaining.toString(),
+      });
+
+      // TODO: Implement the rest of the agent loop
+      const messages: ChatCompletionMessageParam[] = [
+        {
+          role: "system",
+          content: systemPrompt,
+        },
+        {
+          role: "user",
+          content: startingContent,
+        },
+      ];
+
+      let completed = false;
+      let completion: ChatCompletion;
+      let toolCalls: ChatCompletionMessageToolCall[];
+
+      while (!completed && messages.length < 50) {
+        systemPrompt = this.prompt.compile({
+          datetime: new Date().toISOString(),
+          remaining_searches: this.searchesRemaining.toString(),
+          remaining_screenshots: this.screenshotsRemaining.toString(),
+        });
+        messages[0].content = systemPrompt;
+        completion = await observedClient.chat.completions.create({
+          model: "gpt-4o",
+          messages: messages as any[],
+          temperature: 0.0,
+          seed: 11,
+          tools: this.toolDefinitions,
+          tool_choice: "required",
+        });
+        messages.push(completion.choices[0].message);
+        if (completion.choices[0].message.tool_calls) {
+          toolCalls = completion.choices[0].message.tool_calls;
+          const toolCallResults = await Promise.all(
+            toolCalls.map((toolCall) => this.callTool(toolCall))
+          );
+          // Sort and flatten the results before adding to messages
+          const sortedResults = this.sortToolCallResults(toolCallResults);
+          //check if should end
+          for (const result of sortedResults) {
+            if (result.completed) {
+              const agentOutputs: AgentOutputs = result.agentOutputs;
+              return {
+                ...agentOutputs,
+                success: true,
+              };
+            }
+          }
+          messages.push(...sortedResults);
+        } else {
+          messages.push({
+            role: "user",
+            content: "You should only be using the provided tools / functions",
+          });
+          logger.warn("No tool calls found in completion");
+        }
+      }
+
+      // Return a placeholder for now
+      return {
+        error: "Agent loop took too many messages",
+        success: false,
+      };
+    } catch (error) {
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "Error in agent loop"
+      );
+      return {
+        success: false,
+      };
+    }
+  }
 
   async check(
     request: AgentRequest,
     provider: "openai" | "vertex-ai" = "openai"
   ) {
+    const trace = this.langfuse.trace({
+      name: "agent-check",
+      input: request,
+      id: this.id,
+      metadata: {
+        provider,
+      },
+    });
+    this.trace = trace;
     this.client = await createClient(provider, this.env);
     if (request.text) {
       this.text = request.text;
@@ -331,12 +366,86 @@ export class CheckerAgent extends DurableObject<Env> {
       }
       this.type = "image";
     }
+    const preprocessedRequest = await this.tools.preprocess_inputs.execute(
+      request
+    );
 
+    if (!preprocessedRequest.success) {
+      return {
+        success: false,
+        error: preprocessedRequest.error,
+      };
+    }
+
+    this.intent = preprocessedRequest.result.intent;
+    this.isAccessBlocked = preprocessedRequest.result.is_access_blocked;
+    this.isVideo = preprocessedRequest.result.is_video;
+    const startingContent = preprocessedRequest.result.starting_content;
     // Run the agent loop and return results
-    return await this.agentLoop();
+    return await this.agentLoop(startingContent);
   }
 
   async sayHello(name: string): Promise<string> {
     return `Hello`;
+  }
+
+  async test_search_google() {
+    const result = await this.tools.search_google.execute({
+      q: "What is the capital of France?",
+    });
+    return result;
+  }
+
+  async test_preprocess_inputs() {
+    const result = await this.tools.preprocess_inputs.execute({
+      text: "Donald Trump is an idiot",
+    });
+    return result;
+  }
+
+  /**
+   * Gets the available tool definitions, removing search and screenshot tools
+   * when their respective counters reach zero
+   */
+  private get toolDefinitions(): ChatCompletionTool[] {
+    return Object.entries(this.tools)
+      .filter(([name, _]) => {
+        // Filter out preprocess_inputs tool
+        if (name === "preprocess_inputs") {
+          return false;
+        }
+
+        // Filter out search tool if no searches remaining
+        if (name === "search_google" && this.searchesRemaining <= 0) {
+          return false;
+        }
+
+        // Filter out screenshot tool if no screenshots remaining
+        if (
+          name === "get_website_screenshot" &&
+          this.screenshotsRemaining <= 0
+        ) {
+          return false;
+        }
+
+        return true;
+      })
+      .map(([_, tool]) => tool.definition);
+  }
+
+  /**
+   * Sorts and flattens tool call results to ensure all "tool" role messages
+   * appear before any "user" role messages
+   */
+  private sortToolCallResults(results: any[]): any[] {
+    // Flatten nested arrays
+    const flattened = results.flat();
+
+    // Separate tool and user messages
+    const toolMessages = flattened.filter((msg) => msg.role === "tool");
+    const userMessages = flattened.filter((msg) => msg.role === "user");
+
+    // Return with tool messages first, followed by user messages
+    return [...toolMessages, ...userMessages];
   }
 }

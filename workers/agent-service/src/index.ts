@@ -5,7 +5,7 @@ import {
   CommunityNote,
 } from "@workspace/shared-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
-import { CheckerAgent } from "./agent";
+export { CheckerAgent } from "./agent";
 /**
  * Welcome to Cloudflare Workers! This is your first Durable Objects application.
  *
@@ -36,7 +36,7 @@ export default class extends WorkerEntrypoint<Env> {
     // We will create a `DurableObjectId` using the pathname from the Worker request
     // This id refers to a unique instance of our 'MyDurableObject' class above
     let id: DurableObjectId = this.env.CHECKER_AGENT.idFromName(
-      new URL(request.url).pathname
+      crypto.randomUUID()
     );
 
     // This stub creates a communication channel with the Durable Object instance
@@ -45,9 +45,12 @@ export default class extends WorkerEntrypoint<Env> {
 
     // We call the `sayHello()` RPC method on the stub to invoke the method on the remote
     // Durable Object instance
-    let greeting = await stub.sayHello("world");
+    let result = await stub.check({
+      id: "123",
+      text: "Donald Trump is the president of the United States",
+    });
 
-    return new Response(greeting);
+    return new Response(JSON.stringify(result));
   }
 
   async check(request: AgentRequest): Promise<AgentResult> {

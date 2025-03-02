@@ -74,10 +74,8 @@ export const getGoogleAuthToken = async (
       body,
     });
     const responseData = (await response.json()) as { access_token: string };
-    console.log(responseData);
     return responseData.access_token;
   } catch (err) {
-    console.error(err);
     throw err;
   }
 };

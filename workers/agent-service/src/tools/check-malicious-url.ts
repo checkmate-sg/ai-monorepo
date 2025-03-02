@@ -1,5 +1,6 @@
 import { URLScanResult } from "@workspace/shared-types";
-import { Tool, ToolContext } from "./types";
+import { Tool } from "./types";
+import { withLangfuseSpan } from "./utils";
 
 export interface CheckMaliciousUrlParams {
   url: string;
@@ -33,15 +34,15 @@ export const checkMaliciousUrlTool: Tool<
       strict: true,
     },
   },
-  execute: async (
-    params: CheckMaliciousUrlParams,
-    context: ToolContext
-  ): Promise<URLScanResult> => {
-    context.logger.info({ url: params.url }, "Executing urlscan tool");
+  execute: withLangfuseSpan<CheckMaliciousUrlParams, URLScanResult>(
+    "check-malicious-url",
+    async (params, context, span) => {
+      context.logger.info({ url: params.url }, "Executing urlscan tool");
 
-    return await context.env.URLSCAN_SERVICE.urlScan({
-      url: params.url,
-      id: context.id,
-    });
-  },
+      return await context.env.URLSCAN_SERVICE.urlScan({
+        url: params.url,
+        id: context.id,
+      });
+    }
+  ),
 };

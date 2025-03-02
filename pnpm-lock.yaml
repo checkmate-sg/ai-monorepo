@@ -36,13 +36,22 @@ importers:
 
   workers/agent-service:
     dependencies:
+      langfuse:
+        specifier: ^3.35.3
+        version: 3.35.3
       openai:
         specifier: ^4.86.1
         version: 4.86.1(ws@8.18.0)(zod@3.24.2)
+      url-regex-safe:
+        specifier: ^4.0.0
+        version: 4.0.0
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^4.20250224.0
         version: 4.20250224.0
+      '@types/url-regex-safe':
+        specifier: ^1.0.2
+        version: 1.0.2
       typescript:
         specifier: ^5.5.2
         version: 5.8.2
@@ -772,6 +781,9 @@ packages:
   '@types/service-worker-mock@2.0.4':
     resolution: {integrity: sha512-MEBT2eiqYfhxjqYm/oAf2AvKLbPTPwJJAYrMdheKnGyz1yG9XBRfxCzi93h27qpSvI7jOYfXqFLVMLBXFDqo4A==}
 
+  '@types/url-regex-safe@1.0.2':
+    resolution: {integrity: sha512-Ro+qmzg7SomSd4uHMCPzv0JwXtAK0gMnB0CvnFErTGFFw+Lndzt1RZS/Yj2yzrdv4h5SZPohdGPA6q/F0TUacw==}
+
   '@types/yauzl@2.10.3':
     resolution: {integrity: sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q==}
 
@@ -1169,6 +1181,10 @@ packages:
     resolution: {integrity: sha512-zHtQzGojZXTwZTHQqra+ETKd4Sn3vgi7uBmlPoXVWZqYvuKmtI0l/VZTjqGmJY9x88GGOaZ9+G9ES8hC4T4X8g==}
     engines: {node: '>= 12'}
 
+  ip-regex@4.3.0:
+    resolution: {integrity: sha512-B9ZWJxHHOHUhUjCPrMpLD4xEq35bUTClHM1S6CBU5ixQnkZmwipwgc96vAd7AAGM9TGHvJR+Uss+/Ak6UphK+Q==}
+    engines: {node: '>=8'}
+
   is-arrayish@0.3.2:
     resolution: {integrity: sha512-eVRqCvVlZbuw3GrM63ovNSNAeA1K16kaR/LRY/92w0zxQ5/1YzwblUX652i4Xs9RwAGjW9d9y6X88t8OaAJfWQ==}
 
@@ -1182,6 +1198,14 @@ packages:
 
   jsbn@1.1.0:
     resolution: {integrity: sha512-4bYVV3aAMtDTTu4+xsDYa6sy9GyJ69/amsu9sYF2zqjiEoZA5xJi3BrfX3uY+/IekIu7MwdObdbDWpoZdBv3/A==}
+
+  langfuse-core@3.35.3:
+    resolution: {integrity: sha512-Nvq8Q1FpyA0/Dr7nV9cni0jQDDKDa2AQsiYfUrax0y6paDans5kDjaKi4kbtySreTV83i+VfJcAmRUsgthAH6g==}
+    engines: {node: '>=18'}
+
+  langfuse@3.35.3:
+    resolution: {integrity: sha512-/jCuraBLSdSymACohqN1OVBtsTpx0881/YLv6PxDJzGG2oGRvcYi9gDYFFWU0vLeW9z0RAxhyNw4+f4cS0BkpQ==}
+    engines: {node: '>=18'}
 
   loupe@3.1.3:
     resolution: {integrity: sha512-kkIp7XSkP78ZxJEsSxW3712C6teJVoeHHwgo9zJ380de7IYyJ2ISlxojcH2pC5OFLewESmnRi/+XCDIEEVyoug==}
@@ -1489,6 +1513,10 @@ packages:
     resolution: {integrity: sha512-n1cw8k1k0x4pgA2+9XrOkFydTerNcJ1zWCO5Nn9scWHTD+5tp8dghT2x1uduQePZTZgd3Tupf+x9BxJjeJi77Q==}
     engines: {node: '>=14.0.0'}
 
+  tlds@1.256.0:
+    resolution: {integrity: sha512-ZmyVB9DAw+FFTmLElGYJgdZFsKLYd/I59Bg9NHkCGPwAbVZNRilFWDMAdX8UG+bHuv7kfursd5XGqo/9wi26lA==}
+    hasBin: true
+
   tr46@0.0.3:
     resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
 
@@ -1549,6 +1577,15 @@ packages:
 
   unenv@2.0.0-rc.1:
     resolution: {integrity: sha512-PU5fb40H8X149s117aB4ytbORcCvlASdtF97tfls4BPIyj4PeVxvpSuy1jAptqYHqB0vb2w2sHvzM0XWcp2OKg==}
+
+  url-regex-safe@4.0.0:
+    resolution: {integrity: sha512-BrnFCWKNFrFnRzKD66NtJqQepfJrUHNPvPxE5y5NSAhXBb4OlobQjt7907Jm4ItPiXaeX+dDWMkcnOd4jR9N8A==}
+    engines: {node: '>= 14'}
+    peerDependencies:
+      re2: ^1.20.1
+    peerDependenciesMeta:
+      re2:
+        optional: true
 
   vite-node@2.1.9:
     resolution: {integrity: sha512-AM9aQ/IPrW/6ENLQg3AGY4K1N2TGZdR5e4gu/MmmR2xR3Ll1+dib+nook92g4TV3PXVyeyxdWwtaCAiUL0hMxA==}
@@ -2117,6 +2154,8 @@ snapshots:
 
   '@types/service-worker-mock@2.0.4': {}
 
+  '@types/url-regex-safe@1.0.2': {}
+
   '@types/yauzl@2.10.3':
     dependencies:
       '@types/node': 20.8.3
@@ -2543,6 +2582,8 @@ snapshots:
       jsbn: 1.1.0
       sprintf-js: 1.1.3
 
+  ip-regex@4.3.0: {}
+
   is-arrayish@0.3.2:
     optional: true
 
@@ -2553,6 +2594,14 @@ snapshots:
       argparse: 2.0.1
 
   jsbn@1.1.0: {}
+
+  langfuse-core@3.35.3:
+    dependencies:
+      mustache: 4.2.0
+
+  langfuse@3.35.3:
+    dependencies:
+      langfuse-core: 3.35.3
 
   loupe@3.1.3: {}
 
@@ -2924,6 +2973,8 @@ snapshots:
 
   tinyspy@3.0.2: {}
 
+  tlds@1.256.0: {}
+
   tr46@0.0.3: {}
 
   tslib@2.8.1: {}
@@ -2977,6 +3028,11 @@ snapshots:
       ohash: 1.1.4
       pathe: 1.1.2
       ufo: 1.5.4
+
+  url-regex-safe@4.0.0:
+    dependencies:
+      ip-regex: 4.3.0
+      tlds: 1.256.0
 
   vite-node@2.1.9(@types/node@20.8.3):
     dependencies:

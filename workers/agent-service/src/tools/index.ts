@@ -1,4 +1,5 @@
 import { searchGoogleTool, type SearchGoogleParams } from "./search-google";
+import { AgentRequest } from "@workspace/shared-types";
 import {
   websiteScreenshotTool,
   type ScreenshotParams,
@@ -12,7 +13,7 @@ import {
   type SubmitReportForReviewParams,
 } from "./submit-report-for-review";
 import { ToolContext } from "./types";
-
+import { preprocessInputsTool } from "./preprocess-inputs";
 export type { ToolContext } from "./types";
 
 export const createTools = (context: ToolContext) => {
@@ -36,6 +37,11 @@ export const createTools = (context: ToolContext) => {
       definition: submitReportForReviewTool.definition,
       execute: (params: SubmitReportForReviewParams) =>
         submitReportForReviewTool.execute(params, context),
+    },
+    preprocess_inputs: {
+      definition: preprocessInputsTool.definition,
+      execute: (params: AgentRequest) =>
+        preprocessInputsTool.execute(params, context),
     },
   };
 };

@@ -10,10 +10,13 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250224.0",
+    "@types/url-regex-safe": "^1.0.2",
     "typescript": "^5.5.2",
     "wrangler": "^3.111.0"
   },
   "dependencies": {
-    "openai": "^4.86.1"
+    "langfuse": "^3.35.3",
+    "openai": "^4.86.1",
+    "url-regex-safe": "^4.0.0"
   }
 }

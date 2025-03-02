@@ -1,5 +1,6 @@
 import { ScreenshotResult } from "@workspace/shared-types";
-import { Tool, ToolContext } from "./types";
+import { Tool } from "./types";
+import { withLangfuseSpan } from "./utils";
 
 export interface ScreenshotParams {
   url: string;
@@ -26,20 +27,20 @@ export const websiteScreenshotTool: Tool<ScreenshotParams, ScreenshotResult> = {
       strict: true,
     },
   },
-  execute: async (
-    params: ScreenshotParams,
-    context: ToolContext
-  ): Promise<ScreenshotResult> => {
-    if (context.screenshotsRemaining <= 0) {
-      throw new Error("Screenshot limit reached");
+  execute: withLangfuseSpan<ScreenshotParams, ScreenshotResult>(
+    "get-website-screenshot",
+    async (params, context, span) => {
+      if (context.getScreenshotsRemaining() <= 0) {
+        throw new Error("Screenshot limit reached");
+      }
+
+      context.logger.info({ url: params.url }, "Executing screenshot tool");
+      context.decrementScreenshots();
+
+      return await context.env.SCREENSHOT_SERVICE.screenshot({
+        url: params.url,
+        id: context.id,
+      });
     }
-
-    context.logger.info({ url: params.url }, "Executing screenshot tool");
-    context.decrementScreenshots();
-
-    return await context.env.SCREENSHOT_SERVICE.screenshot({
-      url: params.url,
-      id: context.id,
-    });
-  },
+  ),
 };

@@ -34,6 +34,7 @@ export interface ScreenshotResponse extends ServiceResponse {
   success: true;
   result: {
     url: string;
+    imageUrl: string;
   };
 }
 

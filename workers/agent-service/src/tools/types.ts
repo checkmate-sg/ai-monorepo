@@ -1,14 +1,22 @@
 import type { Logger } from "pino";
-import type { ReviewResult } from "../types";
-
+import type { Langfuse } from "langfuse";
 export interface ToolContext {
   logger: Logger;
   id: string;
   env: Env;
-  searchesRemaining: number;
-  screenshotsRemaining: number;
+  // For search-google and get-website-screenshot
+  getSearchesRemaining: () => number;
+  getScreenshotsRemaining: () => number;
   decrementSearches: () => void;
   decrementScreenshots: () => void;
+  // For submit-report-for-review
+  getImageUrl: () => string | undefined;
+  getCaption: () => string | undefined;
+  getText: () => string | undefined;
+  getIntent: () => string | undefined;
+  getType: () => "text" | "image" | undefined;
+  langfuse: Langfuse;
+  span?: ReturnType<Langfuse["span"]>;
 }
 
 export interface Tool<P, R> {
@@ -28,3 +36,33 @@ export interface Tool<P, R> {
   };
   execute: (params: P, context: ToolContext) => Promise<R>;
 }
+
+export interface ReviewResponse {
+  success: true;
+  result: {
+    feedback: string;
+    passedReview: boolean;
+  };
+}
+
+export interface ErrorResponse {
+  success: false;
+  error: {
+    message: string;
+  };
+}
+
+export type ReviewResult = ReviewResponse | ErrorResponse;
+
+export interface PreprocessResponse {
+  success: true;
+  result: {
+    reasoning: string;
+    is_access_blocked: boolean;
+    is_video: boolean;
+    intent: string;
+    starting_content: any[];
+  };
+}
+
+export type PreprocessResult = PreprocessResponse | ErrorResponse;

@@ -1,5 +1,6 @@
 import { SearchResult } from "@workspace/shared-types";
 import { Tool, ToolContext } from "./types";
+import { withLangfuseSpan } from "./utils";
 
 export interface SearchGoogleParams {
   q: string;
@@ -26,20 +27,26 @@ export const searchGoogleTool: Tool<SearchGoogleParams, SearchResult> = {
       strict: true,
     },
   },
-  execute: async (
-    params: SearchGoogleParams,
-    context: ToolContext
-  ): Promise<SearchResult> => {
-    if (context.searchesRemaining <= 0) {
-      throw new Error("Search limit reached");
+  execute: withLangfuseSpan(
+    "search-google",
+    async (
+      params: SearchGoogleParams,
+      context: ToolContext,
+      span
+    ): Promise<SearchResult> => {
+      if (context.getSearchesRemaining() <= 0) {
+        throw new Error("Search limit reached");
+      }
+
+      context.logger.info({ query: params.q }, "Executing search tool");
+      context.decrementSearches();
+
+      const result = await context.env.SEARCH_SERVICE.search({
+        q: params.q,
+        id: context.id,
+      });
+
+      return result;
     }
-
-    context.logger.info({ query: params.q }, "Executing search tool");
-    context.decrementSearches();
-
-    return await context.env.SEARCH_SERVICE.search({
-      q: params.q,
-      id: context.id,
-    });
-  },
+  ),
 };

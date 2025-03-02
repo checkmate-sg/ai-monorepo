@@ -17,7 +17,9 @@ export async function createClient(
   if (provider === "openai") {
     return createOpenAIClient(env);
   } else if (provider === "vertex-ai") {
-    return createVertexAIClient(env);
+    return await createVertexAIClient(env);
+  } else if (provider === "groq") {
+    return createGroqClient(env);
   } else {
     throw new Error(`Unsupported provider: ${provider}`);
   }
@@ -110,4 +112,36 @@ async function createVertexAIClient(env: any): Promise<OpenAI> {
     logger.error(`Failed to create Vertex AI client: ${error.message}`);
     throw new Error(`Failed to create Vertex AI client: ${error.message}`);
   }
+}
+
+/**
+ * Creates an OpenAI client configured for Groq
+ * @param env The environment variables from the context
+ * @returns Configured OpenAI client for Groq
+ */
+function createGroqClient(env: any): OpenAI {
+  // Validate required environment variables
+  if (!env.GROQ_API_KEY) {
+    throw new Error("GROQ_API_KEY is required for Groq client");
+  }
+
+  if (!env.PORTKEY_ENDPOINT) {
+    throw new Error("PORTKEY_ENDPOINT is required for Groq client");
+  }
+
+  if (!env.CF_ACCESS_CLIENT_ID || !env.CF_ACCESS_CLIENT_SECRET) {
+    throw new Error(
+      "CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET are required for Groq client"
+    );
+  }
+
+  return new OpenAI({
+    apiKey: env.GROQ_API_KEY,
+    baseURL: env.PORTKEY_ENDPOINT,
+    defaultHeaders: {
+      "x-portkey-provider": "groq",
+      "CF-Access-Client-Id": env.CF_ACCESS_CLIENT_ID,
+      "CF-Access-Client-Secret": env.CF_ACCESS_CLIENT_SECRET,
+    },
+  });
 }

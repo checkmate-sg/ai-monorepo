@@ -1,11 +1,43 @@
-import { Tool, ToolContext } from "./types";
-import type { ReviewResult } from "../types";
+import { Tool } from "./types";
+import type { ReviewResult } from "./types";
+import { createClient } from "../client";
+import { observeOpenAI } from "langfuse";
+import { withLangfuseSpan } from "./utils";
 
 export interface SubmitReportForReviewParams {
   report: string;
   sources: string[];
   is_controversial: boolean;
 }
+
+const configObject = {
+  model: "o3-mini",
+  reasoning_effort: "medium",
+  response_format: {
+    type: "json_schema" as const,
+    json_schema: {
+      name: "review_report",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          feedback: {
+            type: "string",
+            description:
+              "Your feedback on the report. Be concise and constructive.",
+          },
+          passedReview: {
+            type: "boolean",
+            description:
+              "A boolean indicating whether the item passed the review",
+          },
+        },
+        required: ["feedback", "passedReview"],
+        additionalProperties: false,
+      },
+    },
+  },
+};
 
 export const submitReportForReviewTool: Tool<
   SubmitReportForReviewParams,
@@ -46,18 +78,70 @@ export const submitReportForReviewTool: Tool<
       strict: true,
     },
   },
-  execute: async (
-    params: SubmitReportForReviewParams,
-    context: ToolContext
-  ): Promise<ReviewResult> => {
-    context.logger.info(params, "Executing submit report tool");
+  execute: withLangfuseSpan<SubmitReportForReviewParams, ReviewResult>(
+    "submit-report-for-review",
+    async (params, context, span) => {
+      const client = await createClient("openai", context.env);
 
-    return {
-      success: true,
-      result: {
-        feedback: params.report,
-        passedReview: params.is_controversial,
-      },
-    };
-  },
+      try {
+        const prompt = await context.langfuse.getPrompt(
+          "review_report",
+          undefined,
+          {
+            label: context.env.ENVIRONMENT,
+            type: "chat",
+          }
+        );
+
+        const observedClient = observeOpenAI(client, {
+          clientInitParams: {
+            publicKey: context.env.LANGFUSE_PUBLIC_KEY,
+            secretKey: context.env.LANGFUSE_SECRET_KEY,
+            baseUrl: context.env.LANGFUSE_HOST,
+          },
+          langfusePrompt: prompt,
+          parent: span, // Set this span as parent
+        });
+        context.logger.info(params, "Executing submit report tool");
+
+        // Format sources for the prompt
+        const formattedSources =
+          params.sources.length > 0
+            ? "- " + params.sources.join("\n- ")
+            : "<None>";
+
+        // Compile the prompt with the report and formatted sources
+        const config = prompt.config as typeof configObject;
+        const messages = prompt.compile({
+          intent: context.getIntent() || "<intent missing, proceed anyway>",
+          report: params.report,
+          formatted_sources: formattedSources,
+        });
+
+        // Make the API call to review the report
+        const response = await observedClient.chat.completions.create({
+          model: config.model || "o3-mini",
+          reasoning_effort: (config.reasoning_effort || "medium") as
+            | "low"
+            | "medium"
+            | "high",
+          messages: messages as any[],
+          response_format: config.response_format,
+        });
+
+        // Parse the result - handle null case
+        const content = response.choices[0].message.content || "{}";
+        const result = JSON.parse(content);
+
+        return {
+          success: true,
+          result: result,
+        };
+      } catch (error) {
+        // Log the error
+        context.logger.error(error, "Error in submit report tool");
+        throw error;
+      }
+    }
+  ),
 };
