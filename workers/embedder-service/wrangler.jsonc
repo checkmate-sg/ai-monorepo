@@ -26,9 +26,9 @@
    * Environment-specific configuration
    */
   "env": {
-    "develop": {
-      // "vars": { "ENVIRONMENT": "develop" ,
-      // "account_id": "<develop-account-id>",
+    "staging": {
+      // "vars": { "ENVIRONMENT": "staging" ,
+      // "account_id": "<staging-account-id>",
       "workers_dev" : false,
       "ai": {
         "binding": "AI"
