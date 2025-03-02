@@ -1,12 +1,15 @@
 name: Deploy CF Worker
 
+# Trigger the workflow on pushes to staging/main branches when worker code changes
+# or manually via workflow_dispatch with optional parameters
 on:
   push:
     branches:
       - staging
       - main
     paths:
-      - 'workers/**'
+      - 'workers/**'  # Only run when worker code changes
+      - 'shared/**'   # Or when shared code used by workers changes
   workflow_dispatch:
     inputs:
       force_deploy:
@@ -20,58 +23,76 @@ on:
         type: string
 
 jobs:
+  # First job: Determine which workers need to be deployed
   scan-for-changes:
     name: Scan for Worker Code Changes
     runs-on: ubuntu-latest
     outputs:
-      worker-dirs: ${{ steps.changed-workers.outputs.worker-dirs }}
+      worker-dirs: ${{ steps.changed-workers.outputs.worker-dirs }}  # Output the list of workers to deploy
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Full git history needed to detect changes
       
       - name: Determine changed workers
         id: changed-workers
         run: |
+          # Case 1: Manual trigger with force_deploy=true - deploy all workers
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
-            # If manually triggered with force_deploy, mark all workers as changed
             echo "Force deploying all workers"
             WORKER_DIRS='["agent-service", "api-entrypoint", "embedder-service", "screenshot-service", "search-service", "urlscan-service"]'
+          
+          # Case 2: Manual trigger with specific worker - deploy only that worker
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.specific_worker }}" ]]; then
-            # If manually triggered with a specific worker
             echo "Deploying specific worker: ${{ github.event.inputs.specific_worker }}"
             WORKER_DIRS="[\"${{ github.event.inputs.specific_worker }}\"]"
+          
+          # Case 3: Automatic detection based on git changes
           else
-            # Normal push event - detect changes
-            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep "^workers/" || true)
-            if [[ -z "$CHANGED_FILES" ]]; then
-              echo "No worker changes detected"
-              echo "worker-dirs=[]" >> $GITHUB_OUTPUT
-              exit 0
-            fi
+            # Get list of files changed in this push
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
             
-            # Extract all unique worker directory names
-            WORKER_DIRS=$(echo "$CHANGED_FILES" | grep -o "workers/[^/]*" | cut -d'/' -f2 | sort | uniq | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            # If shared code changed, deploy all workers since they might depend on it
+            if echo "$CHANGED_FILES" | grep -q "^shared/"; then
+              echo "Changes detected in shared directory, deploying all workers"
+              WORKER_DIRS='["agent-service", "api-entrypoint", "embedder-service", "screenshot-service", "search-service", "urlscan-service"]'
+            else
+              # Otherwise, only deploy workers with direct changes
+              WORKER_CHANGES=$(echo "$CHANGED_FILES" | grep "^workers/" || true)
+              if [[ -z "$WORKER_CHANGES" ]]; then
+                echo "No worker changes detected"
+                echo "worker-dirs=[]" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+              
+              # Extract unique worker directory names and format as JSON array
+              WORKER_DIRS=$(echo "$WORKER_CHANGES" | grep -o "workers/[^/]*" | cut -d'/' -f2 | sort | uniq | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            fi
           fi
           
+          # Set output variable and log results
           echo "worker-dirs=$WORKER_DIRS" >> $GITHUB_OUTPUT
           echo "Changed worker directories: $WORKER_DIRS"
 
+  # Second job: Deploy each worker that needs updating
   deploy:
     name: Deploy Worker to ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
-    needs: scan-for-changes
-    if: ${{ needs.scan-for-changes.outputs.worker-dirs != '[]' }}
+    needs: scan-for-changes  # Run after scan-for-changes job
+    if: ${{ needs.scan-for-changes.outputs.worker-dirs != '[]' }}  # Only run if there are workers to deploy
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    environment: ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
+    timeout-minutes: 60  # Set timeout to prevent hung deployments
+    environment: ${{  github.ref_name == 'main' && 'production' || github.ref_name }}  # Use 'production' for main branch, otherwise branch name
     strategy:
       matrix:
+        # Create a job for each worker service
         worker-dir: [agent-service, api-entrypoint, embedder-service, screenshot-service, search-service, urlscan-service]
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: pnpm/action-setup@v4.1.0
         with:
-          version: 10.5.2
+          version: 10.5.2  # Specify pnpm version for consistency
+      
+      # Check if this specific worker needs deployment
       - name: Check if worker has changes
         id: check-changes
         run: |
@@ -84,14 +105,15 @@ jobs:
             echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
       
+      # Deploy the worker using Cloudflare Wrangler
       - name: Deploy to Cloudflare Workers
-        if: steps.check-changes.outputs.has_changes == 'true'
+        if: steps.check-changes.outputs.has_changes == 'true'  # Only deploy if this worker has changes
         uses: cloudflare/wrangler-action@v3.14.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: './workers/${{ matrix.worker-dir }}' 
-          packageManager: pnpm
-          wranglerVersion: "3.111.0"
-          environment: ${{  github.ref_name == 'main' && 'production' || github.ref_name }} 
-          command: ${{ format('deploy --env {0}',  github.ref_name == 'main' && 'production' || github.ref_name) }} 
+          workingDirectory: './workers/${{ matrix.worker-dir }}'  # Navigate to worker directory
+          packageManager: pnpm  # Use pnpm for package management
+          wranglerVersion: "3.111.0"  # Specify wrangler version
+          environment: ${{  github.ref_name == 'main' && 'production' || github.ref_name }}  # Set environment based on branch
+          command: ${{ format('deploy --env {0}',  github.ref_name == 'main' && 'production' || github.ref_name) }}  # Deploy command with environment 
