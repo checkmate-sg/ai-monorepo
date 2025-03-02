@@ -20,7 +20,9 @@
   "dev": {
     "port": 8792
   },
-
+  "ai": {
+    "binding": "AI"
+  },
 
   /**
    * Environment-specific configuration

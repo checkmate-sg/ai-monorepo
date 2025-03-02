@@ -21,6 +21,7 @@
   "dev": {
     "port": 8787
   },
+  "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service"}],
 
   /**
    * Environment-specific configuration
