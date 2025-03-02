@@ -58,7 +58,7 @@ jobs:
           echo "Changed worker directories: $WORKER_DIRS"
 
   deploy:
-    name: Deploy worker
+    name: Deploy Worker to ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
     needs: scan-for-changes
     if: ${{ needs.scan-for-changes.outputs.worker-dirs != '[]' }}
     runs-on: ubuntu-latest
