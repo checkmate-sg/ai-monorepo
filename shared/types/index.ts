@@ -91,9 +91,12 @@ export interface URLScanErrorResponse {
   id?: string;
 }
 
+export type LLMProvider = "openai" | "vertex-ai" | "groq";
+
 // Base interface with common properties
 interface BaseAgentRequest {
   id?: string;
+  provider?: LLMProvider;
 }
 
 // Text-only request

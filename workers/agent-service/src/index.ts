@@ -35,24 +35,28 @@ export default class extends WorkerEntrypoint<Env> {
   async fetch(request: Request): Promise<Response> {
     // We will create a `DurableObjectId` using the pathname from the Worker request
     // This id refers to a unique instance of our 'MyDurableObject' class above
-    let id: DurableObjectId = this.env.CHECKER_AGENT.idFromName(
-      crypto.randomUUID()
-    );
+    if (this.env.ENVIRONMENT === "development") {
+      let id: DurableObjectId = this.env.CHECKER_AGENT.idFromName(
+        crypto.randomUUID()
+      );
 
-    // This stub creates a communication channel with the Durable Object instance
-    // The Durable Object constructor will be invoked upon the first call for a given id
-    let stub = this.env.CHECKER_AGENT.get(id);
+      // This stub creates a communication channel with the Durable Object instance
+      // The Durable Object constructor will be invoked upon the first call for a given id
+      let stub = this.env.CHECKER_AGENT.get(id);
 
-    // We call the `sayHello()` RPC method on the stub to invoke the method on the remote
-    // Durable Object instance
-    let result = await stub.check({
-      id: "123",
-      imageUrl:
-        "https://storage.googleapis.com/checkmate-screenshots-uat/edb4972344acf6e7da688425e4490ab9.png",
-      caption: "Is this true?",
-    });
+      // We call the `sayHello()` RPC method on the stub to invoke the method on the remote
+      // Durable Object instance
+      let result = await stub.check({
+        id: "123",
+        imageUrl:
+          "https://storage.googleapis.com/checkmate-screenshots-uat/edb4972344acf6e7da688425e4490ab9.png",
+        caption: "Is this true?",
+      });
 
-    return new Response(JSON.stringify(result));
+      return new Response(JSON.stringify(result));
+    } else {
+      return new Response("Hello from agent-service");
+    }
   }
 
   async check(request: AgentRequest): Promise<AgentResult> {
@@ -71,20 +75,22 @@ export default class extends WorkerEntrypoint<Env> {
       };
     }
     // Create a DurableObjectId from the string id
-    let objectId = this.env.CHECKER_AGENT.idFromName(id);
-    let stub = this.env.CHECKER_AGENT.get(objectId);
-    return {
-      report: "This is a test report",
-      success: true,
-      id: request.id,
-      communityNote: {
-        en: "This is a test community note",
-        cn: "这是测试社区注释",
-        links: ["https://example.com"],
-      },
-      isControversial: false,
-      isVideo: false,
-      isAccessBlocked: false,
-    };
+    try {
+      let objectId = this.env.CHECKER_AGENT.idFromName(id);
+      let stub = this.env.CHECKER_AGENT.get(objectId);
+      return stub.check(request);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Unknown error occurred in agent-service worker";
+      this.logger.error(this.logContext, errorMessage);
+      return {
+        success: false,
+        error: {
+          message: errorMessage,
+        },
+      };
+    }
   }
 }

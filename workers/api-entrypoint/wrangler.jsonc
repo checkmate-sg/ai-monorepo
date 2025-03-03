@@ -21,7 +21,10 @@
   "dev": {
     "port": 8787
   },
-  "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service"}],
+  "services": [
+    { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
+    { "binding": "AGENT_SERVICE", "service": "agent-service" }
+  ],
 
   /**
    * Environment-specific configuration
@@ -30,17 +33,24 @@
     "staging": {
       // "vars": { "ENVIRONMENT": "staging" ,
       // "account_id": "<staging-account-id>",
-      "workers_dev" : false,
-      "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service-staging"}]
+      "workers_dev": false,
+      "services": [
+        { "binding": "EMBEDDER_SERVICE", "service": "embedder-service-staging" }
+      ]
     },
     "production": {
       // "vars": { "ENVIRONMENT": "production" ,
       // "account_id": "<production-account-id>",
-      "workers_dev" : false,
-      "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service-production"}]
+      "workers_dev": false,
+      "services": [
+        {
+          "binding": "EMBEDDER_SERVICE",
+          "service": "embedder-service-production"
+        }
+      ]
     }
   }
-  
+
   /**
    * Smart Placement
    * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
@@ -74,5 +84,4 @@
    * Service Bindings (communicate between multiple Workers)
    * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
    */
-
 }

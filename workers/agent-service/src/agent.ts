@@ -7,6 +7,7 @@ import {
   AgentRequest,
   CommunityNote,
   AgentResponse,
+  AgentResult,
 } from "@workspace/shared-types";
 import type {
   ChatCompletion,
@@ -359,10 +360,8 @@ export class CheckerAgent extends DurableObject<Env> {
     }
   }
 
-  async check(
-    request: AgentRequest,
-    provider: "openai" | "vertex-ai" = "openai"
-  ) {
+  async check(request: AgentRequest): Promise<AgentResult> {
+    const provider = request.provider || "openai";
     const trace = this.langfuse.trace({
       name: "agent-check",
       input: request,
@@ -453,8 +452,8 @@ export class CheckerAgent extends DurableObject<Env> {
         error instanceof Error ? error.message : "Unknown error occurred";
       logger.error({ error, errorMessage }, "Error in agent check");
       const errorReturn = {
-        error: errorMessage,
-        success: false,
+        error: { message: errorMessage },
+        success: false as const,
       };
       trace.update({
         output: errorReturn,

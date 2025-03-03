@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { getGoogleAuthToken } from "@workspace/shared-utils";
 import { createLogger } from "@workspace/shared-utils";
+import { LLMProvider } from "@workspace/shared-types";
 
 const logger = createLogger("openaiClients");
 
@@ -11,7 +12,7 @@ const logger = createLogger("openaiClients");
  * @returns Configured OpenAI client
  */
 export async function createClient(
-  provider: "openai" | "vertex-ai",
+  provider: LLMProvider,
   env: any
 ): Promise<OpenAI> {
   if (provider === "openai") {
