@@ -31,22 +31,28 @@
    */
   "env": {
     "staging": {
-      // "vars": { "ENVIRONMENT": "staging" ,
-      // "account_id": "<staging-account-id>",
-      "workers_dev": false,
-      "services": [
-        { "binding": "EMBEDDER_SERVICE", "service": "embedder-service-staging" }
-      ]
-    },
-    "production": {
-      // "vars": { "ENVIRONMENT": "production" ,
-      // "account_id": "<production-account-id>",
+      "name": "api-entrypoint-staging",
+      "vars": {
+        "ENVIRONMENT": "staging"
+      },
       "workers_dev": false,
       "services": [
         {
           "binding": "EMBEDDER_SERVICE",
-          "service": "embedder-service-production"
-        }
+          "service": "embedder-service-staging"
+        },
+        { "binding": "AGENT_SERVICE", "service": "agent-service-staging" }
+      ]
+    },
+    "production": {
+      "name": "api-entrypoint",
+      "vars": {
+        "ENVIRONMENT": "production"
+      },
+      "workers_dev": false,
+      "services": [
+        { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
+        { "binding": "AGENT_SERVICE", "service": "agent-service" }
       ]
     }
   }

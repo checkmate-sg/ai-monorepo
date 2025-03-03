@@ -84,8 +84,11 @@
         },
         { "binding": "SEARCH_SERVICE", "service": "search-service" },
         { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" }
-      ]
+      ],
       // Add other production-specific configurations here
+      "vars": {
+        "ENVIRONMENT": "production"
+      }
     },
     "staging": {
       "name": "agent-service-staging",
@@ -99,8 +102,11 @@
           "service": "search-service-staging"
         },
         { "binding": "URLSCAN_SERVICE", "service": "urlscan-service-staging" }
-      ]
+      ],
       // Add other staging-specific configurations here
+      "vars": {
+        "ENVIRONMENT": "staging"
+      }
     }
   }
 }
