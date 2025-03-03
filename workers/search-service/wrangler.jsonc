@@ -16,6 +16,24 @@
    */
   "dev": {
     "port": 8790
+  },
+
+  /**
+   * Environment-specific configurations
+   */
+  "env": {
+    "staging": {
+      "name": "search-service-staging",
+      "vars": {
+        "ENVIRONMENT": "staging"
+      }
+    },
+    "production": {
+      "name": "search-service",
+      "vars": {
+        "ENVIRONMENT": "production"
+      }
+    }
   }
   /**
    * Smart Placement

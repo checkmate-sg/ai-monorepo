@@ -1,9 +1,15 @@
-import puppeteer from "@cloudflare/puppeteer";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import { createLogger } from "@workspace/shared-utils";
 import { ScreenshotRequest, ScreenshotResult } from "@workspace/shared-types";
+import { getGoogleIdToken } from "@workspace/shared-utils";
+
+interface ScreenshotAPIResponse {
+  success: boolean;
+  result: string;
+}
+
 export default class extends WorkerEntrypoint<Env> {
-  private logger = createLogger("screenshot-service");
+  private logger = createLogger("screenshot-backup-service");
   private logContext: Record<string, any> = {};
 
   async fetch(request: Request): Promise<Response> {
@@ -22,7 +28,6 @@ export default class extends WorkerEntrypoint<Env> {
     this.logger.info("Received screenshot request");
     this.logContext = { request };
     const { url, id } = request;
-
     if (!url) {
       this.logger.error(this.logContext, "Missing required 'url' field");
       return {
@@ -42,32 +47,35 @@ export default class extends WorkerEntrypoint<Env> {
       };
     }
 
-    let browser;
     try {
-      const urlHash = await hashUrl(url);
-      const imageUrl = `${this.env.DOMAIN}/${urlHash}`;
-      const r2Object = await this.env.SCREENSHOT_BUCKET.get(urlHash);
-
-      if (r2Object === null) {
-        browser = await puppeteer.launch(this.env.BROWSER);
-        const page = await browser.newPage();
-
-        // Set viewport size
-        await page.setViewport({ width: 1280, height: 800 });
-
-        await page.goto(url, { waitUntil: "networkidle0", timeout: 10000 });
-
-        const imageBuffer = (await page.screenshot({
-          type: "png",
-          fullPage: true,
-        })) as Buffer;
-
-        await this.env.SCREENSHOT_BUCKET.put(urlHash, imageBuffer, {
-          httpMetadata: {
-            contentType: "image/jpeg",
-            cacheControl: "public, max-age=86400",
+      const token = await getGoogleIdToken(
+        this.env.GOOGLE_CLIENT_ID,
+        this.env.GOOGLE_CLIENT_SECRET,
+        this.env.SCREENSHOT_API_ENDPOINT
+      );
+      const response = await fetch(
+        `${this.env.SCREENSHOT_API_ENDPOINT}/get-screenshot`,
+        {
+          method: "POST",
+          body: JSON.stringify({ url }),
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
-        });
+        }
+      );
+
+      const data = (await response.json()) as ScreenshotAPIResponse;
+
+      const imageUrl = data.result;
+
+      if (!imageUrl) {
+        this.logger.error(this.logContext, "No image URL returned");
+        return {
+          success: false,
+          error: { message: "No image URL returned" },
+          id,
+        };
       }
 
       return {
@@ -79,16 +87,15 @@ export default class extends WorkerEntrypoint<Env> {
         id,
       };
     } catch (error) {
-      this.logger.error(this.logContext, "Error taking screenshot", { error });
+      this.logger.error(
+        { ...this.logContext, error },
+        "Error taking screenshot"
+      );
       return {
         success: false,
         error: { message: "Error taking screenshot" },
         id,
       };
-    } finally {
-      if (browser) {
-        await browser.close();
-      }
     }
   }
 }
