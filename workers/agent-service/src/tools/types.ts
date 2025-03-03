@@ -16,7 +16,7 @@ export interface ToolContext {
   getIntent: () => string | undefined;
   getType: () => "text" | "image" | undefined;
   langfuse: Langfuse;
-  span?: ReturnType<Langfuse["span"]>;
+  getSpan: () => ReturnType<Langfuse["span"]> | undefined;
 }
 
 export interface Tool<P, R> {
@@ -51,6 +51,25 @@ export interface ErrorResponse {
     message: string;
   };
 }
+
+export interface TranslateTextResponse {
+  success: true;
+  result: {
+    language: string;
+    translatedText: string;
+  };
+}
+
+export interface SummariseReportResponse {
+  success: true;
+  result: {
+    summary: string;
+  };
+}
+
+export type SummariseReportResult = SummariseReportResponse | ErrorResponse;
+
+export type TranslateTextResult = TranslateTextResponse | ErrorResponse;
 
 export type ReviewResult = ReviewResponse | ErrorResponse;
 

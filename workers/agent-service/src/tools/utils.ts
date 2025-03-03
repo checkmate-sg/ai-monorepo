@@ -14,8 +14,9 @@ export function withLangfuseSpan<T, R>(
   return async (params: T, context: ToolContext): Promise<R> => {
     const langfuse = context.langfuse;
     let span: ReturnType<Langfuse["span"]>;
-    if (context.span) {
-      span = context.span.span({
+    const parentSpan = context.getSpan();
+    if (parentSpan) {
+      span = parentSpan.span({
         name: spanName,
         input: params,
       });

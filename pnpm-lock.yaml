@@ -39,6 +39,9 @@ importers:
       langfuse:
         specifier: ^3.35.3
         version: 3.35.3
+      normalize-url:
+        specifier: ^8.0.1
+        version: 8.0.1
       openai:
         specifier: ^4.86.1
         version: 4.86.1(ws@8.18.0)(zod@3.24.2)
@@ -98,6 +101,24 @@ importers:
       '@workspace/shared-utils':
         specifier: workspace:*
         version: link:../../shared/utils
+    devDependencies:
+      '@cloudflare/vitest-pool-workers':
+        specifier: ^0.6.4
+        version: 0.6.16(@cloudflare/workers-types@4.20250224.0)(@vitest/runner@2.1.9)(@vitest/snapshot@2.1.9)(vitest@2.1.9(@types/node@20.8.3))
+      '@cloudflare/workers-types':
+        specifier: ^4.20250224.0
+        version: 4.20250224.0
+      typescript:
+        specifier: ^5.5.2
+        version: 5.8.2
+      vitest:
+        specifier: ~2.1.9
+        version: 2.1.9(@types/node@20.8.3)
+      wrangler:
+        specifier: ^3.111.0
+        version: 3.111.0(@cloudflare/workers-types@4.20250224.0)
+
+  workers/screenshot-backup-service:
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: ^0.6.4
@@ -1287,6 +1308,10 @@ packages:
     peerDependenciesMeta:
       encoding:
         optional: true
+
+  normalize-url@8.0.1:
+    resolution: {integrity: sha512-IO9QvjUMWxPQQhs60oOu10CRkWCiZzSUkzbXGGV9pviYl1fXYcvkzQ5jV9z8Y6un8ARoVRl4EtC6v6jNqbaJ/w==}
+    engines: {node: '>=14.16'}
 
   ohash@1.1.4:
     resolution: {integrity: sha512-FlDryZAahJmEF3VR3w1KogSEdWX3WhA5GPakFx4J81kEAiHyLMpdLLElS8n8dfNadMgAne/MywcvmogzscVt4g==}
@@ -2685,6 +2710,8 @@ snapshots:
   node-fetch@2.7.0:
     dependencies:
       whatwg-url: 5.0.0
+
+  normalize-url@8.0.1: {}
 
   ohash@1.1.4: {}
 

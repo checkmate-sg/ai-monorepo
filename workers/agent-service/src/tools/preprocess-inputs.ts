@@ -1,9 +1,10 @@
 import { Tool, PreprocessResult } from "./types";
 import { createClient } from "../client";
-import { observeOpenAI, ChatPromptClient } from "langfuse";
+import { observeOpenAI } from "langfuse";
 import { withLangfuseSpan, getOpenAIContent } from "./utils";
-import { AgentRequest, ScreenshotResult } from "@workspace/shared-types";
+import { AgentRequest } from "@workspace/shared-types";
 import urlRegexSafe from "url-regex-safe";
+import normalizeUrl from "normalize-url";
 
 const configObject = {
   model: "gpt-4o",
@@ -87,7 +88,10 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
               text: `User sent in: ${params.text}`,
             },
           ];
-          urls = params.text.match(urlRegexSafe()) || [];
+          const extractedUrls = params.text.match(urlRegexSafe()) || [];
+          urls = extractedUrls.map((url) =>
+            normalizeUrl(url, { defaultProtocol: "https", stripWWW: false })
+          );
         } else if (params.imageUrl) {
           const captionSuffix = params.caption
             ? `this caption: ${params.caption}`
@@ -98,7 +102,7 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
               text: `User sent in the following image with ${captionSuffix}`,
             },
             {
-              type: "image",
+              type: "image_url",
               image_url: {
                 url: params.imageUrl,
               },
@@ -112,15 +116,38 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
 
         //get screenshot from URLs
         const screenshots = await Promise.all(
-          urls.map((url) =>
-            context.env.SCREENSHOT_SERVICE.screenshot({
-              url,
-              id: context.id,
-            }).then((result) => ({
-              ...result,
-              url,
-            }))
-          )
+          urls.map(async (url) => {
+            const screenshotSpan = span.span({
+              name: "screenshot",
+              input: { url },
+            });
+            try {
+              const result = await context.env.SCREENSHOT_SERVICE.screenshot({
+                url,
+                id: context.id,
+              });
+              screenshotSpan.end({
+                output: result,
+                metadata: { success: true },
+              });
+              return {
+                ...result,
+                url,
+              };
+            } catch (error) {
+              const returnError = {
+                success: false,
+                error: {
+                  message:
+                    error instanceof Error ? error.message : String(error),
+                },
+              };
+              screenshotSpan.end({
+                metadata: returnError,
+              });
+              return returnError;
+            }
+          })
         );
 
         //get openAI-formatted content for screenshots
@@ -177,10 +204,22 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
           success: true,
           result: { ...result, starting_content: userContent },
         };
-      } catch (error) {
-        // Log the error
-        context.logger.error(error, "Error in preprocess inputs tool");
-        throw error;
+      } catch (error: unknown) {
+        // Log the error with proper type handling
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
+
+        context.logger.error(
+          { error, errorMessage },
+          "Error in preprocess inputs tool"
+        );
+
+        return {
+          success: false,
+          error: {
+            message: errorMessage,
+          },
+        };
       }
     }
   ),

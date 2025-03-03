@@ -79,3 +79,55 @@ export const getGoogleAuthToken = async (
     throw err;
   }
 };
+
+// For Cloud Run, we need to create a self-signed JWT token directly
+export const getGoogleIdToken = async (
+  user: string,
+  key: string,
+  cloudRunUrl: string
+): Promise<string> => {
+  const jwtHeader = objectToBase64url({ alg: "RS256", typ: "JWT" });
+
+  try {
+    const assertionTime = Math.round(Date.now() / 1000);
+    const expiryTime = assertionTime + 3600;
+    // Set the audience to the Cloud Run service URL
+    const claimset = objectToBase64url({
+      iss: user,
+      sub: user,
+      aud: "https://oauth2.googleapis.com/token",
+      exp: expiryTime,
+      iat: assertionTime,
+      target_audience: cloudRunUrl,
+    });
+
+    const jwtUnsigned = `${jwtHeader}.${claimset}`;
+    const signature = await sign(jwtUnsigned, key);
+    const signedJwt = `${jwtUnsigned}.${signature}`;
+
+    const body = `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${signedJwt}`;
+
+    const response = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body,
+    });
+
+    const responseData = (await response.json()) as any;
+    // The key we need is "id_token" instead of "access_token"
+    if (!responseData.id_token) {
+      throw new Error(
+        `Failed to obtain ID token: ${JSON.stringify(responseData)}`
+      );
+    }
+
+    return responseData.id_token;
+  } catch (err) {
+    if (err instanceof Error) {
+      throw new Error(`Error generating access token: ${err.message}`);
+    }
+    throw new Error(`Error generating access token: ${err}`);
+  }
+};

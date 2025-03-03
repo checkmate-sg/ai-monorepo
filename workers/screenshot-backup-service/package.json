@@ -1,23 +1,19 @@
 {
-  "name": "agent-service",
+  "name": "screenshot-backup-service",
   "version": "0.0.0",
   "private": true,
   "scripts": {
     "deploy": "wrangler deploy",
-    "dev": "wrangler dev  --inspector-port 9230",
+    "dev": "wrangler dev  --inspector-port 9234",
     "start": "wrangler dev",
+    "test": "vitest",
     "cf-typegen": "wrangler types"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.6.4",
     "@cloudflare/workers-types": "^4.20250224.0",
-    "@types/url-regex-safe": "^1.0.2",
     "typescript": "^5.5.2",
+    "vitest": "~2.1.9",
     "wrangler": "^3.111.0"
-  },
-  "dependencies": {
-    "langfuse": "^3.35.3",
-    "normalize-url": "^8.0.1",
-    "openai": "^4.86.1",
-    "url-regex-safe": "^4.0.0"
   }
 }

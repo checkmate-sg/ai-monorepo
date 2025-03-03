@@ -3,7 +3,11 @@ import { createLogger } from "@workspace/shared-utils";
 import { Logger } from "pino";
 import OpenAI from "openai";
 import { createClient } from "./client";
-import { AgentRequest } from "@workspace/shared-types";
+import {
+  AgentRequest,
+  CommunityNote,
+  AgentResponse,
+} from "@workspace/shared-types";
 import type {
   ChatCompletion,
   ChatCompletionMessageParam,
@@ -40,6 +44,7 @@ export class CheckerAgent extends DurableObject<Env> {
   private trace?: ReturnType<Langfuse["trace"]>;
   private span?: ReturnType<Langfuse["span"]>;
   private tools: ReturnType<typeof createTools>;
+  private state: DurableObjectState;
   /**
    * The constructor is invoked once upon creation of the Durable Object, i.e. the first call to
    * 	`DurableObjectStub::get` for a given identifier (no-op constructors can be omitted)
@@ -50,6 +55,7 @@ export class CheckerAgent extends DurableObject<Env> {
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
+    this.state = ctx;
     this.searchesRemaining = 5;
     this.screenshotsRemaining = 5;
     if (ctx.id.name) {
@@ -75,7 +81,7 @@ export class CheckerAgent extends DurableObject<Env> {
       id: this.id,
       env: this.env,
       langfuse: this.langfuse,
-      span: this.span,
+      getSpan: () => this.span,
       getSearchesRemaining: () => this.searchesRemaining,
       getScreenshotsRemaining: () => this.screenshotsRemaining,
       decrementSearches: () => {
@@ -156,7 +162,7 @@ export class CheckerAgent extends DurableObject<Env> {
       if (toolName === "get_website_screenshot") {
         const url = toolParams.url || "unknown URL";
 
-        if (!("url" in result)) {
+        if (!("imageUrl" in result)) {
           this.logger.warn({ url }, "Screenshot API failed");
           return [
             {
@@ -185,7 +191,7 @@ export class CheckerAgent extends DurableObject<Env> {
               {
                 type: "image_url",
                 image_url: {
-                  url: result.url,
+                  url: result.imageUrl,
                 },
               },
             ],
@@ -236,6 +242,7 @@ export class CheckerAgent extends DurableObject<Env> {
     const logger = this.logger.child({
       function: "agentLoop",
     });
+    let span: ReturnType<Langfuse["span"]> | undefined;
     try {
       if (!this.client) {
         throw new Error("Client not initialized");
@@ -243,7 +250,7 @@ export class CheckerAgent extends DurableObject<Env> {
       if (!this.trace) {
         throw new Error("Trace not initialized");
       }
-      const span = this.trace.span({
+      span = this.trace.span({
         name: "agent-loop",
       });
       this.span = span;
@@ -308,10 +315,17 @@ export class CheckerAgent extends DurableObject<Env> {
           for (const result of sortedResults) {
             if (result.completed) {
               const agentOutputs: AgentOutputs = result.agentOutputs;
-              return {
+              const returnObject = {
                 ...agentOutputs,
-                success: true,
+                success: true as const,
               };
+              span.end({
+                output: returnObject,
+                metadata: {
+                  success: true,
+                },
+              });
+              return returnObject;
             }
           }
           messages.push(...sortedResults);
@@ -323,22 +337,25 @@ export class CheckerAgent extends DurableObject<Env> {
           logger.warn("No tool calls found in completion");
         }
       }
-
-      // Return a placeholder for now
+      throw new Error("Agent loop took too many messages");
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      logger.error({ error, errorMessage }, "Error in agent loop");
+      if (span) {
+        span.end({
+          output: {
+            error: { message: errorMessage },
+            success: false,
+          },
+        });
+      }
       return {
-        error: "Agent loop took too many messages",
+        error: { message: errorMessage },
         success: false,
       };
-    } catch (error) {
-      logger.error(
-        {
-          error: error instanceof Error ? error.message : String(error),
-        },
-        "Error in agent loop"
-      );
-      return {
-        success: false,
-      };
+    } finally {
+      this.span = undefined;
     }
   }
 
@@ -355,34 +372,103 @@ export class CheckerAgent extends DurableObject<Env> {
       },
     });
     this.trace = trace;
-    this.client = await createClient(provider, this.env);
-    if (request.text) {
-      this.text = request.text;
-      this.type = "text";
-    } else if (request.imageUrl) {
-      this.imageUrl = request.imageUrl;
-      if (request.caption) {
-        this.caption = request.caption;
+    try {
+      this.client = await createClient(provider, this.env);
+      if (request.text) {
+        this.text = request.text;
+        this.type = "text";
+      } else if (request.imageUrl) {
+        this.imageUrl = request.imageUrl;
+        if (request.caption) {
+          this.caption = request.caption;
+        }
+        this.type = "image";
       }
-      this.type = "image";
-    }
-    const preprocessedRequest = await this.tools.preprocess_inputs.execute(
-      request
-    );
+      const preprocessingResult = await this.tools.preprocess_inputs.execute(
+        request
+      );
 
-    if (!preprocessedRequest.success) {
-      return {
-        success: false,
-        error: preprocessedRequest.error,
+      if (!preprocessingResult.success) {
+        throw new Error(
+          `Preprocessing failed: ${preprocessingResult.error.message}`
+        );
+      }
+
+      this.intent = preprocessingResult.result.intent;
+      this.isAccessBlocked = preprocessingResult.result.is_access_blocked;
+      this.isVideo = preprocessingResult.result.is_video;
+      const startingContent = preprocessingResult.result.starting_content;
+      // Run the agent loop and return results
+      const agentLoopResult = await this.agentLoop(startingContent);
+      if (!agentLoopResult.success || "error" in agentLoopResult) {
+        throw new Error(`Agent loop failed: ${agentLoopResult.error.message}`);
+      }
+      const report = agentLoopResult.report;
+      const sources = agentLoopResult.sources;
+      const isControversial = agentLoopResult.is_controversial;
+      const summariseResult = await this.tools.summarise_report.execute({
+        report,
+      });
+      if (!summariseResult.success) {
+        throw new Error(
+          `Summarise report failed: ${summariseResult.error.message}`
+        );
+      }
+      const summary = summariseResult.result.summary;
+
+      const translateResult = await this.tools.translate_text.execute({
+        text: summary,
+        language: "cn",
+      });
+      if (!translateResult.success) {
+        throw new Error(
+          `Translate text failed: ${translateResult.error.message}`
+        );
+      }
+
+      const translatedSummary = translateResult.result.translatedText;
+
+      const communityNote: CommunityNote = {
+        en: translatedSummary,
+        cn: summary,
+        links: sources,
       };
-    }
 
-    this.intent = preprocessedRequest.result.intent;
-    this.isAccessBlocked = preprocessedRequest.result.is_access_blocked;
-    this.isVideo = preprocessedRequest.result.is_video;
-    const startingContent = preprocessedRequest.result.starting_content;
-    // Run the agent loop and return results
-    return await this.agentLoop(startingContent);
+      const agentResponse: AgentResponse = {
+        success: true,
+        report,
+        communityNote,
+        isControversial,
+        isVideo: this.isVideo,
+        isAccessBlocked: this.isAccessBlocked,
+      };
+
+      trace.update({
+        output: agentResponse,
+        tags: [this.env.ENVIRONMENT, "agent-generation", "cloudflare-workers"],
+      });
+      return agentResponse;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      logger.error({ error, errorMessage }, "Error in agent check");
+      const errorReturn = {
+        error: errorMessage,
+        success: false,
+      };
+      trace.update({
+        output: errorReturn,
+        tags: [
+          this.env.ENVIRONMENT,
+          "agent-generation",
+          "cloudflare-workers",
+          "error",
+        ],
+      });
+      return errorReturn;
+    } finally {
+      this.state.waitUntil(this.langfuse.flushAsync());
+    }
   }
 
   async sayHello(name: string): Promise<string> {

@@ -36,11 +36,18 @@ export const websiteScreenshotTool: Tool<ScreenshotParams, ScreenshotResult> = {
 
       context.logger.info({ url: params.url }, "Executing screenshot tool");
       context.decrementScreenshots();
-
-      return await context.env.SCREENSHOT_SERVICE.screenshot({
-        url: params.url,
-        id: context.id,
-      });
+      try {
+        return await context.env.SCREENSHOT_SERVICE.screenshot({
+          url: params.url,
+          id: context.id,
+        });
+      } catch (error) {
+        context.logger.error(
+          { url: params.url, error },
+          "Error executing screenshot tool"
+        );
+        throw error;
+      }
     }
   ),
 };

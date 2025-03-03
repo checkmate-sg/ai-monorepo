@@ -47,7 +47,9 @@ export default class extends WorkerEntrypoint<Env> {
     // Durable Object instance
     let result = await stub.check({
       id: "123",
-      text: "Donald Trump is the president of the United States",
+      imageUrl:
+        "https://storage.googleapis.com/checkmate-screenshots-uat/edb4972344acf6e7da688425e4490ab9.png",
+      caption: "Is this true?",
     });
 
     return new Response(JSON.stringify(result));

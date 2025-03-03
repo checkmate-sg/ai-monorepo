@@ -12,6 +12,11 @@ import {
   submitReportForReviewTool,
   type SubmitReportForReviewParams,
 } from "./submit-report-for-review";
+import {
+  summariseReportTool,
+  type SummariseReportParams,
+} from "./summarise-report";
+import { translateTextTool, type TranslateTextParams } from "./translation";
 import { ToolContext } from "./types";
 import { preprocessInputsTool } from "./preprocess-inputs";
 export type { ToolContext } from "./types";
@@ -42,6 +47,16 @@ export const createTools = (context: ToolContext) => {
       definition: preprocessInputsTool.definition,
       execute: (params: AgentRequest) =>
         preprocessInputsTool.execute(params, context),
+    },
+    summarise_report: {
+      definition: summariseReportTool.definition,
+      execute: (params: SummariseReportParams) =>
+        summariseReportTool.execute(params, context),
+    },
+    translate_text: {
+      definition: translateTextTool.definition,
+      execute: (params: TranslateTextParams) =>
+        translateTextTool.execute(params, context),
     },
   };
 };
