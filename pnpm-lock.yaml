@@ -22,6 +22,16 @@ importers:
         specifier: ^5.8.2
         version: 5.8.2
 
+  shared/llmClient:
+    dependencies:
+      openai:
+        specifier: ^4.86.1
+        version: 4.86.1(ws@8.18.0)(zod@3.24.2)
+    devDependencies:
+      typescript:
+        specifier: ^5.0.0
+        version: 5.8.2
+
   shared/types:
     devDependencies:
       typescript:
@@ -42,9 +52,6 @@ importers:
       normalize-url:
         specifier: ^8.0.1
         version: 8.0.1
-      openai:
-        specifier: ^4.86.1
-        version: 4.86.1(ws@8.18.0)(zod@3.24.2)
       url-regex-safe:
         specifier: ^4.0.0
         version: 4.0.0
@@ -55,6 +62,9 @@ importers:
       '@types/url-regex-safe':
         specifier: ^1.0.2
         version: 1.0.2
+      openai:
+        specifier: ^4.86.1
+        version: 4.86.1(ws@8.18.0)(zod@3.24.2)
       typescript:
         specifier: ^5.5.2
         version: 5.8.2
@@ -83,24 +93,11 @@ importers:
       '@types/service-worker-mock':
         specifier: ^2.0.1
         version: 2.0.4
-      '@workspace/shared-types':
-        specifier: workspace:*
-        version: link:../../shared/types
-      '@workspace/shared-utils':
-        specifier: workspace:*
-        version: link:../../shared/utils
       wrangler:
         specifier: ^3.111.0
         version: 3.111.0(@cloudflare/workers-types@4.20250224.0)
 
   workers/embedder-service:
-    dependencies:
-      '@workspace/shared-types':
-        specifier: workspace:*
-        version: link:../../shared/types
-      '@workspace/shared-utils':
-        specifier: workspace:*
-        version: link:../../shared/utils
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: ^0.6.4

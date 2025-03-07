@@ -67,9 +67,18 @@ export interface SummariseReportResponse {
   };
 }
 
+export interface ExtractImageUrlsResponse {
+  success: true;
+  result: {
+    imageUrls: string[];
+  };
+}
+
 export type SummariseReportResult = SummariseReportResponse | ErrorResponse;
 
 export type TranslateTextResult = TranslateTextResponse | ErrorResponse;
+
+export type ExtractImageUrlsResult = ExtractImageUrlsResponse | ErrorResponse;
 
 export type ReviewResult = ReviewResponse | ErrorResponse;
 

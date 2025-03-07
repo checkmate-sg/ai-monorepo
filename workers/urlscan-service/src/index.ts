@@ -146,10 +146,6 @@ export default class extends WorkerEntrypoint<Env> {
 
         const evaluationResult = (await evaluationResponse.json()) as any;
 
-        console.log(
-          `Evaluation result: ${JSON.stringify(evaluationResult, null, 2)}`
-        );
-
         if (
           evaluationResult &&
           evaluationResult.overall_result &&

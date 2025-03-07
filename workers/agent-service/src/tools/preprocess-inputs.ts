@@ -1,10 +1,11 @@
 import { Tool, PreprocessResult } from "./types";
-import { createClient } from "../client";
+import { createClient } from "@workspace/shared-llm-client";
 import { observeOpenAI } from "langfuse";
 import { withLangfuseSpan, getOpenAIContent } from "./utils";
 import { AgentRequest } from "@workspace/shared-types";
 import urlRegexSafe from "url-regex-safe";
 import normalizeUrl from "normalize-url";
+import { extractImageUrlsTool } from "./extract-image-urls";
 
 const configObject = {
   model: "gpt-4o",
@@ -96,6 +97,24 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
           const captionSuffix = params.caption
             ? `this caption: ${params.caption}`
             : "no caption";
+          const extractionResults = await extractImageUrlsTool.execute(
+            {
+              url: params.imageUrl,
+            },
+            context
+          );
+          if (extractionResults.success) {
+            const extractedUrls = extractionResults.result.imageUrls;
+            urls = extractedUrls.map((url) =>
+              normalizeUrl(url, { defaultProtocol: "https", stripWWW: false })
+            );
+          } else {
+            context.logger.error(
+              { error: extractionResults.error },
+              "Error in extractImageUrlsTool"
+            );
+            urls = [];
+          }
           userContent = [
             {
               type: "text",
@@ -108,7 +127,6 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
               },
             },
           ];
-          urls = [];
           //TODO LATER: get URLs from image
         } else {
           throw new Error("No text or image_url provided");

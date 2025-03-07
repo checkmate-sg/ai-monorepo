@@ -1,8 +1,8 @@
 import { DurableObject } from "cloudflare:workers";
 import { createLogger } from "@workspace/shared-utils";
 import { Logger } from "pino";
-import OpenAI from "openai";
-import { createClient } from "./client";
+import type OpenAI from "openai";
+import { createClient } from "@workspace/shared-llm-client";
 import {
   AgentRequest,
   CommunityNote,
@@ -495,8 +495,13 @@ export class CheckerAgent extends DurableObject<Env> {
   private get toolDefinitions(): ChatCompletionTool[] {
     return Object.entries(this.tools)
       .filter(([name, _]) => {
-        // Filter out preprocess_inputs tool
-        if (name === "preprocess_inputs") {
+        // Filter out all the unused tools
+        if (
+          name === "preprocess_inputs" ||
+          name === "extract_image_urls" ||
+          name === "summarise_report" ||
+          name === "translate_text"
+        ) {
           return false;
         }
 

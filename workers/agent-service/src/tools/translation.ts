@@ -1,5 +1,5 @@
 import { Tool } from "./types";
-import { createClient } from "../client";
+import { createClient } from "@workspace/shared-llm-client";
 import { observeOpenAI } from "langfuse";
 import { withLangfuseSpan } from "./utils";
 import { TranslateTextResult } from "./types";

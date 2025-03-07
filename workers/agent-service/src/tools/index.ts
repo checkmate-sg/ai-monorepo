@@ -16,6 +16,10 @@ import {
   summariseReportTool,
   type SummariseReportParams,
 } from "./summarise-report";
+import {
+  extractImageUrlsTool,
+  type ExtractImageUrlsParams,
+} from "./extract-image-urls";
 import { translateTextTool, type TranslateTextParams } from "./translation";
 import { ToolContext } from "./types";
 import { preprocessInputsTool } from "./preprocess-inputs";
@@ -57,6 +61,11 @@ export const createTools = (context: ToolContext) => {
       definition: translateTextTool.definition,
       execute: (params: TranslateTextParams) =>
         translateTextTool.execute(params, context),
+    },
+    extract_image_urls: {
+      definition: extractImageUrlsTool.definition,
+      execute: (params: ExtractImageUrlsParams) =>
+        extractImageUrlsTool.execute(params, context),
     },
   };
 };
