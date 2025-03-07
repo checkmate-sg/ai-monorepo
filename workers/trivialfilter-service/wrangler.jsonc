@@ -4,68 +4,37 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "api-entrypoint",
+  "name": "trivialfilter-service",
   "main": "src/index.ts",
   "compatibility_date": "2025-02-24",
-  "keep_vars": false,
-  "preview_urls": false,
-  "minify": true,
   "observability": {
     "enabled": true
   },
-
   /**
    * Dev configuration
    * Configuration for local development environment
    */
   "dev": {
-    "port": 8787
+    "port": 8793
   },
-  "services": [
-    { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
-    { "binding": "AGENT_SERVICE", "service": "agent-service" },
-    { "binding": "TRIVIAL_FILTER_SERVICE", "service": "trivialfilter-service" }
-  ],
 
   /**
-   * Environment-specific configuration
+   * Environment-specific configurations
    */
   "env": {
     "staging": {
-      "name": "api-entrypoint-staging",
+      "name": "trivialfilter-service-staging",
       "vars": {
         "ENVIRONMENT": "staging"
-      },
-      "workers_dev": false,
-      "services": [
-        {
-          "binding": "EMBEDDER_SERVICE",
-          "service": "embedder-service-staging"
-        },
-        { "binding": "AGENT_SERVICE", "service": "agent-service-staging" },
-        {
-          "binding": "TRIVIAL_FILTER_SERVICE",
-          "service": "trivialfilter-service-staging"
-        }
-      ]
+      }
     },
     "production": {
-      "name": "api-entrypoint",
+      "name": "trivialfilter-service",
       "vars": {
         "ENVIRONMENT": "production"
-      },
-      "workers_dev": false,
-      "services": [
-        { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
-        { "binding": "AGENT_SERVICE", "service": "agent-service" },
-        {
-          "binding": "TRIVIAL_FILTER_SERVICE",
-          "service": "trivialfilter-service"
-        }
-      ]
+      }
     }
   }
-
   /**
    * Smart Placement
    * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
@@ -99,4 +68,5 @@
    * Service Bindings (communicate between multiple Workers)
    * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
    */
+  // "services": [{ "binding": "MY_SERVICE", "service": "my-service" }]
 }

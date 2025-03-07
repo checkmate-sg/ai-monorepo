@@ -172,6 +172,28 @@ importers:
         specifier: ^3.111.0
         version: 3.111.0(@cloudflare/workers-types@4.20250224.0)
 
+  workers/trivialcheck-service:
+    dependencies:
+      langfuse:
+        specifier: ^3.35.3
+        version: 3.35.3
+    devDependencies:
+      '@cloudflare/vitest-pool-workers':
+        specifier: ^0.6.4
+        version: 0.6.16(@cloudflare/workers-types@4.20250224.0)(@vitest/runner@2.1.9)(@vitest/snapshot@2.1.9)(vitest@2.1.9(@types/node@20.8.3))
+      '@cloudflare/workers-types':
+        specifier: ^4.20250224.0
+        version: 4.20250224.0
+      typescript:
+        specifier: ^5.5.2
+        version: 5.8.2
+      vitest:
+        specifier: ~2.1.9
+        version: 2.1.9(@types/node@20.8.3)
+      wrangler:
+        specifier: ^3.111.0
+        version: 3.111.0(@cloudflare/workers-types@4.20250224.0)
+
   workers/urlscan-service:
     devDependencies:
       '@cloudflare/vitest-pool-workers':

@@ -3,26 +3,37 @@ export interface ServiceResponse {
   id?: string;
   success: boolean;
 }
-export interface EmbedRequest {
-  text: string;
-  id?: string;
-  model?: keyof AiModels;
-}
 
-export interface EmbedResponse extends ServiceResponse {
-  embedding: number[];
-  model: keyof AiModels;
-}
-
-// Error response for embedding service
-export interface EmbedErrorResponse {
+// Common error response type for all services
+export interface ErrorResponse extends ServiceResponse {
   success: false;
   error: {
     message: string;
     code?: string;
     details?: unknown;
   };
+}
+
+export interface EmbedRequest {
+  text: string;
   id?: string;
+  model?: keyof AiModels;
+}
+
+export interface TrivialFilterRequest {
+  text: string;
+  id?: string;
+}
+
+export interface TrivialFilterResponse extends ServiceResponse {
+  result: {
+    needsChecking: boolean;
+  };
+}
+
+export interface EmbedResponse extends ServiceResponse {
+  embedding: number[];
+  model: keyof AiModels;
 }
 
 export interface ScreenshotRequest {
@@ -38,17 +49,6 @@ export interface ScreenshotResponse extends ServiceResponse {
   };
 }
 
-// Error response for screenshot service
-export interface ScreenshotErrorResponse {
-  success: false;
-  error: {
-    message: string;
-    code?: string;
-    details?: unknown;
-  };
-  id?: string;
-}
-
 export interface SearchRequest {
   q: string;
   id?: string;
@@ -59,17 +59,6 @@ export interface SearchResponse extends ServiceResponse {
   result: object;
 }
 
-// Error response for search service
-export interface SearchErrorResponse {
-  success: false;
-  error: {
-    message: string;
-    code?: string;
-    details?: unknown;
-  };
-  id?: string;
-}
-
 export interface URLScanRequest {
   url: string;
   id?: string;
@@ -78,17 +67,6 @@ export interface URLScanRequest {
 export interface URLScanResponse extends ServiceResponse {
   success: true;
   result: object;
-}
-
-// Error response for URL scan service
-export interface URLScanErrorResponse {
-  success: false;
-  error: {
-    message: string;
-    code?: string;
-    details?: unknown;
-  };
-  id?: string;
 }
 
 export type LLMProvider = "openai" | "vertex-ai" | "groq";
@@ -130,20 +108,12 @@ export interface CommunityNote {
   links: string[];
 }
 
-// Error response for agent
-export interface AgentErrorResponse extends ServiceResponse {
-  error: {
-    message: string;
-    code?: string;
-    details?: unknown;
-  };
-}
-
 // Union type for all possible agent responses
-export type AgentResult = AgentResponse | AgentErrorResponse;
+export type AgentResult = AgentResponse | ErrorResponse;
 
 // Union types for service results to include error responses
-export type EmbedResult = EmbedResponse | EmbedErrorResponse;
-export type ScreenshotResult = ScreenshotResponse | ScreenshotErrorResponse;
-export type SearchResult = SearchResponse | SearchErrorResponse;
-export type URLScanResult = URLScanResponse | URLScanErrorResponse;
+export type EmbedResult = EmbedResponse | ErrorResponse;
+export type ScreenshotResult = ScreenshotResponse | ErrorResponse;
+export type SearchResult = SearchResponse | ErrorResponse;
+export type URLScanResult = URLScanResponse | ErrorResponse;
+export type TrivialFilterResult = TrivialFilterResponse | ErrorResponse;

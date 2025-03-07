@@ -3,4 +3,5 @@
 interface Env {
   EMBEDDER_SERVICE: Fetcher;
   AGENT_SERVICE: Fetcher;
+  TRIVIAL_FILTER_SERVICE: Fetcher;
 }
