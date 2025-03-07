@@ -87,6 +87,9 @@ This will start all workers concurrently based on the pipeline configuration in 
 - screenshot-service: http://127.0.0.1:8789
 - search-service: http://127.0.0.1:8790
 - urlscan-service: http://127.0.0.1:8791
+- screenshot-backup-service: http://127.0.0.1:8792
+- embedder-service: http://127.0.0.1:8793
+- trivialfilter-service: http://127.0.0.1:8794
 
 # Cloudflare Workers Deployment via GitHub Actions
 
