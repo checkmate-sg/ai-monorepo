@@ -12,10 +12,19 @@ graph TD
     API --> Embedder[embedder-service]
     API --> TrivialFilter[trivialfilter-service]
 
-    Agent --> Search [search-service]
-    Agent --> Screenshot [screenshot-backup-service]
-    Agent --> URLScan [urlscan-service]
+    Agent --> Search[search-service]
+    Agent --> Screenshot[screenshot-backup-service]
+    Agent --> URLScan[urlscan-service]
 
+    subgraph "Service Bindings"
+        API
+        Agent
+        Embedder
+        TrivialFilter
+        Search
+        Screenshot
+        URLScan
+    end
 ```
 
 The diagram above illustrates how our Cloudflare Workers connect to each other through service bindings:
