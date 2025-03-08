@@ -17,7 +17,7 @@
    * Configuration for local development environment
    */
   "dev": {
-    "port": 8792
+    "port": 8793
   },
   /**
    * Smart Placement

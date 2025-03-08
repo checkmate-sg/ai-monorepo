@@ -4,4 +4,9 @@ interface Env {
   EMBEDDER_SERVICE: Fetcher;
   AGENT_SERVICE: Fetcher;
   TRIVIAL_FILTER_SERVICE: Fetcher;
+  CONSUMER: DurableObjectNamespace<
+    import("./src/durable-objects/consumer").Consumer
+  >;
+  CONSUMER_KV: KVNamespace;
+  // Service bindings with custom methods
 }

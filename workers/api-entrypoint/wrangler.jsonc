@@ -26,7 +26,26 @@
     { "binding": "AGENT_SERVICE", "service": "agent-service" },
     { "binding": "TRIVIAL_FILTER_SERVICE", "service": "trivialfilter-service" }
   ],
-
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "Consumer",
+        "name": "CONSUMER"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["Consumer"]
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "CONSUMER_KV",
+      "id": "e2dbb75018e848c5bae5c95afa70f602"
+    }
+  ],
   /**
    * Environment-specific configuration
    */
@@ -37,6 +56,12 @@
         "ENVIRONMENT": "staging"
       },
       "workers_dev": false,
+      "kv_namespaces": [
+        {
+          "binding": "CONSUMER_KV",
+          "id": "841e72e0de3349bd99f4279bd04784d3"
+        }
+      ],
       "services": [
         {
           "binding": "EMBEDDER_SERVICE",
@@ -55,6 +80,12 @@
         "ENVIRONMENT": "production"
       },
       "workers_dev": false,
+      "kv_namespaces": [
+        {
+          "binding": "CONSUMER_KV",
+          "id": "e2dbb75018e848c5bae5c95afa70f602"
+        }
+      ],
       "services": [
         { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
         { "binding": "AGENT_SERVICE", "service": "agent-service" },

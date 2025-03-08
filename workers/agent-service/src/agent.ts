@@ -435,11 +435,13 @@ export class CheckerAgent extends DurableObject<Env> {
 
       const agentResponse: AgentResponse = {
         success: true,
-        report,
-        communityNote,
-        isControversial,
-        isVideo: this.isVideo,
-        isAccessBlocked: this.isAccessBlocked,
+        result: {
+          report,
+          communityNote,
+          isControversial,
+          isVideo: this.isVideo,
+          isAccessBlocked: this.isAccessBlocked,
+        },
       };
 
       trace.update({

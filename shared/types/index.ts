@@ -95,11 +95,14 @@ interface ImageAgentRequest extends BaseAgentRequest {
 export type AgentRequest = TextAgentRequest | ImageAgentRequest;
 
 export interface AgentResponse extends ServiceResponse {
-  report: string;
-  communityNote: CommunityNote;
-  isControversial: boolean;
-  isVideo: boolean;
-  isAccessBlocked: boolean;
+  success: true;
+  result: {
+    report: string;
+    communityNote: CommunityNote;
+    isControversial: boolean;
+    isVideo: boolean;
+    isAccessBlocked: boolean;
+  };
 }
 
 export interface CommunityNote {

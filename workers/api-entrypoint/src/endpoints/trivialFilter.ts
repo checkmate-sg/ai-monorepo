@@ -2,10 +2,7 @@ import { Bool, OpenAPIRoute, Str } from "chanfana";
 import { z } from "zod";
 import { Context } from "hono";
 import { createLogger } from "@workspace/shared-utils";
-import {
-  TrivialFilterRequest,
-  TrivialFilterResult,
-} from "@workspace/shared-types";
+import { TrivialFilterRequest } from "@workspace/shared-types";
 
 const logger = createLogger("trivialFilter");
 
@@ -81,7 +78,15 @@ export class TrivialFilter extends OpenAPIRoute {
 
       c.header("x-request-id", requestId);
       logger.info(result, "Trivial filter completed, returning results");
-      return c.json(result);
+      if (result.success) {
+        return c.json(result);
+      } else {
+        logger.error(
+          { error: result.error, requestId },
+          "Trivial filter failed"
+        );
+        throw new Error("An error occurred while running the trivial filter");
+      }
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error
@@ -97,13 +102,16 @@ export class TrivialFilter extends OpenAPIRoute {
       // Return the request ID in the response headers even for errors
       c.header("x-request-id", requestId);
 
-      return c.json({
-        success: false,
-        error: {
-          message: "Internal server error",
-          requestId, // Optionally include the request ID in the error response
+      return c.json(
+        {
+          success: false,
+          error: {
+            message: "Internal server error",
+            requestId, // Optionally include the request ID in the error response
+          },
         },
-      });
+        500
+      );
     }
   }
 }

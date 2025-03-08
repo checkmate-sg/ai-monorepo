@@ -9,7 +9,7 @@
   "compatibility_date": "2025-02-24",
   "migrations": [
     {
-      "new_classes": ["MyDurableObject"],
+      "new_classes": ["CheckerAgent"],
       "tag": "v1"
     }
   ],

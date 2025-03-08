@@ -15,7 +15,7 @@
    * Configuration for local development environment
    */
   "dev": {
-    "port": 8793
+    "port": 8794
   },
 
   /**
