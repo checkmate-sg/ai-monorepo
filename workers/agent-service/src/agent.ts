@@ -362,6 +362,7 @@ export class CheckerAgent extends DurableObject<Env> {
 
   async check(request: AgentRequest): Promise<AgentResult> {
     const provider = request.provider || "openai";
+    const consumerName = request.consumerName || "unknown consumer";
     const trace = this.langfuse.trace({
       name: "agent-check",
       input: request,
@@ -446,7 +447,12 @@ export class CheckerAgent extends DurableObject<Env> {
 
       trace.update({
         output: agentResponse,
-        tags: [this.env.ENVIRONMENT, "agent-generation", "cloudflare-workers"],
+        tags: [
+          this.env.ENVIRONMENT,
+          "agent-generation",
+          "cloudflare-workers",
+          consumerName,
+        ],
       });
       return agentResponse;
     } catch (error: unknown) {
@@ -464,6 +470,7 @@ export class CheckerAgent extends DurableObject<Env> {
           "agent-generation",
           "cloudflare-workers",
           "error",
+          consumerName,
         ],
       });
       return errorReturn;

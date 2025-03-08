@@ -5,10 +5,10 @@ const logger = createLogger("Consumer Auth Middleware");
 
 export async function consumerAuth(c: Context<{ Bindings: Env }>, next: Next) {
   try {
-    if (c.env.ENVIRONMENT === "development") {
-      await next();
-      return;
-    }
+    // if (c.env.ENVIRONMENT === "development") {
+    //   await next();
+    //   return;
+    // }
     // Get the API key from the X-API-Key header (case-insensitive)
     // Try the standard format first, then fallback to checking headers case-insensitively
     let apiKey = c.req.header("X-API-Key");
@@ -63,6 +63,14 @@ export async function consumerAuth(c: Context<{ Bindings: Env }>, next: Next) {
           },
         }
       );
+    }
+
+    const name = await stub.getName();
+    logger.info(`Consumer ${name} accessed ${apiName}`);
+
+    // Add consumer name to request headers
+    if (name) {
+      c.set("consumerName", name);
     }
 
     // Continue to the next middleware or route handler

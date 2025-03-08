@@ -75,6 +75,7 @@ export type LLMProvider = "openai" | "vertex-ai" | "groq";
 interface BaseAgentRequest {
   id?: string;
   provider?: LLMProvider;
+  consumerName?: string;
 }
 
 // Text-only request

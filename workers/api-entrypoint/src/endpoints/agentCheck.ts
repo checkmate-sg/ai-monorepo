@@ -95,6 +95,11 @@ export async function handleAgentRequest(
   if (provider) {
     agentRequest.provider = provider;
   }
+  // check if headers contains X-Consumer-Name
+  const consumerName = c.get("consumerName");
+  if (consumerName) {
+    agentRequest.consumerName = consumerName;
+  }
 
   try {
     // Add request ID to logger context

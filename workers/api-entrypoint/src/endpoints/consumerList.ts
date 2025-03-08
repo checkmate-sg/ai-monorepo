@@ -42,8 +42,6 @@ export class ConsumerList extends OpenAPIRoute {
       // Get all consumers from the registry
       const consumers = await c.env.CONSUMER_KV.list({ prefix: "consumer:" });
 
-      console.log(consumers);
-
       // Create an array to store consumer details
       const consumerDetails = [];
 
@@ -51,7 +49,6 @@ export class ConsumerList extends OpenAPIRoute {
       for (const key of consumers.keys) {
         const consumerName = key.name.replace("consumer:", "");
         const apiKey = await c.env.CONSUMER_KV.get(key.name);
-        console.log(apiKey);
 
         if (apiKey) {
           // Get the Durable Object stub
