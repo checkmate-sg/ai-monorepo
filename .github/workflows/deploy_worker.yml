@@ -136,5 +136,4 @@ jobs:
           wranglerVersion: "3.111.0" # Specify wrangler version
           environment: ${{  github.ref_name == 'main' && 'production' || github.ref_name }} # Set environment based on branch
           command: ${{ format('deploy --env {0}',  github.ref_name == 'main' && 'production' || github.ref_name) }} # Deploy command with environment
-          # Use the secret name determined in the previous step
-          secrets:${{ steps.set-secret-name.outputs.secret-name }}
+          secrets: ${{ steps.set-secret-name.outputs.secret-name }}
