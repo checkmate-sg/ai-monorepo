@@ -133,7 +133,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: "./workers/${{ matrix.worker-dir }}" # Navigate to worker directory
           packageManager: pnpm # Use pnpm for package management
-          wranglerVersion: "3.111.0" # Specify wrangler version
+          wranglerVersion: "3.114.0" # Specify wrangler version
           environment: ${{  github.ref_name == 'main' && 'production' || github.ref_name }} # Set environment based on branch
           command: ${{ format('deploy --env {0}',  github.ref_name == 'main' && 'production' || github.ref_name) }} # Deploy command with environment
           secrets: ${{ steps.set-secret-name.outputs.secret-name }}
