@@ -52,6 +52,14 @@
   "env": {
     "staging": {
       "name": "api-entrypoint-staging",
+      "durable_objects": {
+        "bindings": [
+          {
+            "class_name": "Consumer",
+            "name": "CONSUMER"
+          }
+        ]
+      },
       "vars": {
         "ENVIRONMENT": "staging"
       },
@@ -76,6 +84,14 @@
     },
     "production": {
       "name": "api-entrypoint",
+      "durable_objects": {
+        "bindings": [
+          {
+            "class_name": "Consumer",
+            "name": "CONSUMER"
+          }
+        ]
+      },
       "vars": {
         "ENVIRONMENT": "production"
       },

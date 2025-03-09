@@ -77,6 +77,14 @@
   "env": {
     "production": {
       "name": "agent-service",
+      "durable_objects": {
+        "bindings": [
+          {
+            "class_name": "CheckerAgent",
+            "name": "CHECKER_AGENT"
+          }
+        ]
+      },
       "services": [
         {
           "binding": "SCREENSHOT_SERVICE",
@@ -92,6 +100,14 @@
     },
     "staging": {
       "name": "agent-service-staging",
+      "durable_objects": {
+        "bindings": [
+          {
+            "class_name": "CheckerAgent",
+            "name": "CHECKER_AGENT"
+          }
+        ]
+      },
       "services": [
         {
           "binding": "SCREENSHOT_SERVICE",
