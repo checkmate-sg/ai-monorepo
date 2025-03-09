@@ -108,6 +108,18 @@ jobs:
             echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
 
+      # Determine the correct secret name for this worker
+      - name: Set secret name
+        id: set-secret-name
+        if: steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          # Convert worker-dir to secret name format (replace hyphens with underscores and uppercase)
+          WORKER_NAME="${{ matrix.worker-dir }}"
+          SECRET_NAME="${WORKER_NAME//-/_}"
+          SECRET_NAME="${SECRET_NAME^^}_SECRETS"
+          echo "secret-name=$SECRET_NAME" >> $GITHUB_OUTPUT
+          echo "Using secret: $SECRET_NAME for worker: $WORKER_NAME"
+
       # Deploy the worker using Cloudflare Wrangler with service-specific secrets
       - name: Deploy to Cloudflare Workers
         if: steps.check-changes.outputs.has_changes == 'true' # Only deploy if this worker has changes
@@ -120,5 +132,5 @@ jobs:
           wranglerVersion: "3.111.0" # Specify wrangler version
           environment: ${{  github.ref_name == 'main' && 'production' || github.ref_name }} # Set environment based on branch
           command: ${{ format('deploy --env {0}',  github.ref_name == 'main' && 'production' || github.ref_name) }} # Deploy command with environment
-          # Use a JSON string containing all secrets for this specific service
-          secrets: ${{ secrets[format('{0}_SECRETS', matrix.worker-dir | replace('-', '_') | upper)] }}
+          # Use the secret name determined in the previous step
+          secrets: ${{ secrets[steps.set-secret-name.outputs.secret-name] }}
