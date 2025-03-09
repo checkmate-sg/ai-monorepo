@@ -127,7 +127,7 @@ jobs:
         env:
           # Include the service-specific secrets as environment variables
           # This will make them available to the worker during deployment
-          WORKER_SECRETS: ${{ secrets[steps.set-secret-name.outputs.secret-name] }}
+          ${{ steps.set-secret-name.outputs.secret-name }}: ${{ secrets[steps.set-secret-name.outputs.secret-name] }}
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -137,4 +137,4 @@ jobs:
           environment: ${{  github.ref_name == 'main' && 'production' || github.ref_name }} # Set environment based on branch
           command: ${{ format('deploy --env {0}',  github.ref_name == 'main' && 'production' || github.ref_name) }} # Deploy command with environment
           # Use the secret name determined in the previous step
-          secrets: ${{ secrets[steps.set-secret-name.outputs.secret-name] }}
+          secrets:${{ steps.set-secret-name.outputs.secret-name }}
