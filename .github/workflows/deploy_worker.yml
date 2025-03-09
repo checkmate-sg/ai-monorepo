@@ -22,9 +22,6 @@ on:
         required: false
         type: string
 
-# Define all worker directories in one place for easier maintenance
-env:
-  ALL_WORKER_DIRS: '["agent-service", "api-entrypoint", "embedder-service", "screenshot-service", "search-service", "urlscan-service", "screenshot-backup-service", "trivialfilter-service"]'
 jobs:
   # First job: Determine which workers need to be deployed
   scan-for-changes:
@@ -40,10 +37,13 @@ jobs:
       - name: Determine changed workers
         id: changed-workers
         run: |
+          # Define all worker directories
+          ALL_WORKER_DIRS='["agent-service", "api-entrypoint", "embedder-service", "screenshot-service", "search-service", "urlscan-service", "screenshot-backup-service", "trivialfilter-service"]'
+          
           # Case 1: Manual trigger with force_deploy=true - deploy all workers
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
             echo "Force deploying all workers"
-            WORKER_DIRS='${{ env.ALL_WORKER_DIRS }}'
+            WORKER_DIRS="$ALL_WORKER_DIRS"
 
           # Case 2: Manual trigger with specific worker - deploy only that worker
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.specific_worker }}" ]]; then
@@ -58,7 +58,7 @@ jobs:
             # If shared code changed, deploy all workers since they might depend on it
             if echo "$CHANGED_FILES" | grep -q "^shared/"; then
               echo "Changes detected in shared directory, deploying all workers"
-              WORKER_DIRS='${{ env.ALL_WORKER_DIRS }}'
+              WORKER_DIRS="$ALL_WORKER_DIRS"
             else
               # Otherwise, only deploy workers with direct changes
               WORKER_CHANGES=$(echo "$CHANGED_FILES" | grep "^workers/" || true)
@@ -87,8 +87,8 @@ jobs:
     environment: ${{  github.ref_name == 'main' && 'production' || github.ref_name }} # Use 'production' for main branch, otherwise branch name
     strategy:
       matrix:
-        # Create a job for each worker service using the consolidated list
-        worker-dir: ${{ fromJson(env.ALL_WORKER_DIRS) }}
+        # Create a job for each worker service
+        worker-dir: ["agent-service", "api-entrypoint", "embedder-service", "screenshot-service", "search-service", "urlscan-service", "screenshot-backup-service", "trivialfilter-service"]
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: pnpm/action-setup@v4.1.0
