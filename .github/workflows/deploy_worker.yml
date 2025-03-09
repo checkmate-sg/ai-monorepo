@@ -124,6 +124,10 @@ jobs:
       - name: Deploy to Cloudflare Workers
         if: steps.check-changes.outputs.has_changes == 'true' # Only deploy if this worker has changes
         uses: cloudflare/wrangler-action@v3.14.0
+        env:
+          # Include the service-specific secrets as environment variables
+          # This will make them available to the worker during deployment
+          WORKER_SECRETS: ${{ secrets[steps.set-secret-name.outputs.secret-name] }}
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
