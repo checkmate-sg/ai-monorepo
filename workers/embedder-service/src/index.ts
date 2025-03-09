@@ -1,6 +1,6 @@
 import { WorkerEntrypoint } from "cloudflare:workers";
 import { createLogger } from "@workspace/shared-utils";
-import { EmbedRequest, EmbedResponse } from "@workspace/shared-types";
+import { EmbedRequest, EmbedResult } from "@workspace/shared-types";
 /**
  * Embedder Service Worker
  *
@@ -8,9 +8,7 @@ import { EmbedRequest, EmbedResponse } from "@workspace/shared-types";
  * via HTTP requests or service bindings from other workers.
  */
 
-export default class extends WorkerEntrypoint<{
-  AI: Ai; // AI binding
-}> {
+export default class extends WorkerEntrypoint<Env> {
   private logger = createLogger("embedder-service");
   private logContext: Record<string, any> = {};
 
@@ -20,32 +18,45 @@ export default class extends WorkerEntrypoint<{
     return new Response("Hello from embedder service");
   }
 
-  async embed(request: EmbedRequest): Promise<EmbedResponse> {
+  async embed(request: EmbedRequest): Promise<EmbedResult> {
     if (request.id !== undefined) {
       this.logContext["x-request-id"] = request.id;
     }
 
-    this.logger.info(
-      this.logContext,
-      `Generating embedding for text of length ${request.text.length}`
-    );
+    try {
+      this.logger.info(
+        this.logContext,
+        `Generating embedding for text of length ${request.text.length}`
+      );
 
-    if (!request.text) {
-      this.logContext,
-        this.logger.error(this.logContext, "Missing required 'text' field");
-      throw new Error("Missing required 'text' field");
+      if (!request.text) {
+        this.logContext,
+          this.logger.error(this.logContext, "Missing required 'text' field");
+        throw new Error("Missing required 'text' field");
+      }
+
+      const model = request.model || "@cf/baai/bge-small-en-v1.5";
+      this.logger.debug(this.logContext, `Using model: ${model}`);
+
+      const embedding = await this.generateEmbedding(request.text, model);
+
+      return {
+        embedding,
+        model,
+        id: request.id,
+        success: true,
+      };
+    } catch (error) {
+      this.logger.error(this.logContext, `Error embedding text: ${error}`);
+      return {
+        error: {
+          message: "Failed to embed text",
+          details: error,
+        },
+        id: request.id,
+        success: false,
+      };
     }
-
-    const model = request.model || "@cf/baai/bge-small-en-v1.5";
-    this.logger.debug(this.logContext, `Using model: ${model}`);
-
-    const embedding = await this.generateEmbedding(request.text, model);
-
-    return {
-      embedding,
-      model,
-      id: request.id,
-    };
   }
 
   private async generateEmbedding(

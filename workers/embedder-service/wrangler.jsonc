@@ -29,17 +29,21 @@
    */
   "env": {
     "staging": {
-      // "vars": { "ENVIRONMENT": "staging" ,
-      // "account_id": "<staging-account-id>",
-      "workers_dev" : false,
+      "name": "embedder-service-staging",
+      "vars": {
+        "ENVIRONMENT": "staging"
+      },
+      "workers_dev": false,
       "ai": {
         "binding": "AI"
       }
     },
     "production": {
-      // "vars": { "ENVIRONMENT": "production" ,
-      // "account_id": "<production-account-id>",
-      "workers_dev" : false,
+      "name": "embedder-service",
+      "vars": {
+        "ENVIRONMENT": "production"
+      },
+      "workers_dev": false,
       "ai": {
         "binding": "AI"
       }

@@ -10,3 +10,10 @@ export const Task = z.object({
 });
 
 export const Embedding = z.array(z.number());
+
+// Extend Hono's ContextVariableMap to include our custom variables
+declare module "hono" {
+  interface ContextVariableMap {
+    consumerName: string;
+  }
+}
