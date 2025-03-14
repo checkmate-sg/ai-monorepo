@@ -172,7 +172,7 @@ importers:
         specifier: ^3.111.0
         version: 3.111.0(@cloudflare/workers-types@4.20250224.0)
 
-  workers/trivialcheck-service:
+  workers/trivialfilter-service:
     dependencies:
       langfuse:
         specifier: ^3.35.3
