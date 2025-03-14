@@ -1,0 +1,70 @@
+name: Common Workflow Configuration
+
+# This file contains shared configuration used by service-specific workflows
+# It's not meant to be run directly
+
+on:
+  workflow_call:
+    inputs:
+      worker_dir:
+        required: true
+        type: string
+        description: "The worker directory to deploy"
+      environment:
+        required: true
+        type: string
+        description: "The environment to deploy to (staging or production)"
+      secret_names:
+        required: false
+        type: string
+        description: "JSON array of secret names to pass to the worker"
+        default: "[]"
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.worker_dir }} to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: pnpm/action-setup@v4.1.0
+        with:
+          version: 10.5.2
+
+      # Process the list of secret names
+      - name: Process secret names
+        id: process-secrets
+        run: |
+          # Parse the JSON array of secret names
+          SECRET_NAMES='${{ inputs.secret_names }}'
+          
+          # Create a comma-separated list for the wrangler secrets parameter
+          SECRETS_LIST=$(echo $SECRET_NAMES | jq -r 'join(",")')
+          echo "secrets-list=$SECRETS_LIST" >> $GITHUB_OUTPUT
+          
+          # Create environment variables for each secret
+          for SECRET_NAME in $(echo $SECRET_NAMES | jq -r '.[]'); do
+            echo "Setting up secret: $SECRET_NAME"
+            # This will be used in the env section of the next step
+            echo "$SECRET_NAME=\${{ secrets.$SECRET_NAME }}" >> $GITHUB_ENV
+          done
+
+      # Deploy the worker using Cloudflare Wrangler with service-specific secrets
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3.14.0
+        # The environment variables are set dynamically in the previous step
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: "./workers/${{ inputs.worker_dir }}"
+          packageManager: pnpm
+          wranglerVersion: "3.114.0"
+          environment: ${{ inputs.environment }}
+          command: ${{ format('deploy --env {0}', inputs.environment) }}
+          secrets: ${{ steps.process-secrets.outputs.secrets-list }}
