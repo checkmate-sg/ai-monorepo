@@ -162,12 +162,11 @@ jobs:
 
             # Dynamically fetch secret value using an environment variable
             SECRET_VALUE="${!SECRET_KEY}"  
-            if [[ -n "$SECRET_VALUE" ]]; then
-              echo "Setting secret: $SECRET_NAME"
-              echo "Setting secret: $SECRET_VALUE"
-              echo "$SECRET_NAME=$SECRET_VALUE" >> secrets.env
-              cat secrets.env
-            else
-              echo "Warning: Secret $SECRET_NAME is not set in GitHub secrets"
+
+            echo "Setting secret: $SECRET_NAME"
+            echo "Setting secret: $SECRET_VALUE"
+            echo "$SECRET_NAME=$SECRET_VALUE" >> secrets.env
+            cat secrets.env
+          
             fi
           done
