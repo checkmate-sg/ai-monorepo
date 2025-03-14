@@ -141,7 +141,7 @@ jobs:
           if [[ "${{ matrix.worker-dir }}" == "agent-service" ]]; then
             SECRET_NAMES=$(echo "${{ env.agent_service_secret_names }}" | tr ',' '\n')
           elif [[ "${{ matrix.worker-dir }}" == "api-entrypoint" ]]; then
-            SECRET_NAMES=$(echo ${{ env.api_entrypoint_secret_names }} | jq -r '.[]')
+            SECRET_NAMES=$(echo "${{ env.api_entrypoint_secret_names }}" | tr ',' '\n')
           elif [[ "${{ matrix.worker-dir }}" == "embedder-service" ]]; then
             SECRET_NAMES=$(echo ${{ env.embedder_service_secret_names }} | jq -r '.[]')
           elif [[ "${{ matrix.worker-dir }}" == "screenshot-service" ]]; then
