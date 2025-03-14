@@ -157,13 +157,10 @@ jobs:
           # Loop through each secret and set it
           for SECRET_NAME in $SECRET_NAMES; do
             # # Use indirect reference to get the actual secret value
-            # SECRET_VAR="secrets.$SECRET_NAME"
-            # SECRET_VALUE="${{ secrets[format('{0}', SECRET_NAME)] }}"
-            
+
             if [[ -n "$SECRET_VALUE" ]]; then
               echo "Setting secret: $SECRET_NAME"
-              # Add your secret setting command here, for example:
-              # npx wrangler secret put $SECRET_NAME --env $ENV_NAME <<< "$SECRET_VALUE"
+           
             else
               echo "Warning: Secret $SECRET_NAME is not set in GitHub secrets"
             fi
