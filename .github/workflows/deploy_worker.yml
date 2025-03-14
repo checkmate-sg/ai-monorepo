@@ -1,0 +1,174 @@
+name: Deploy CF Worker
+
+# Trigger the workflow on pushes to staging/main branches when worker code changes
+# or manually via workflow_dispatch with optional parameters
+on:
+  push:
+    branches:
+      - staging
+      - main
+    paths:
+      - "workers/**" # Only run when worker code changes
+      - "shared/**" # Or when shared code used by workers changes
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: "Force deploy all workers"
+        required: false
+        default: "false"
+        type: boolean
+      specific_worker:
+        description: "Deploy a specific worker (leave empty for automatic detection)"
+        required: false
+        type: string
+
+ agent_service_secret_names = ["1","2","3"]
+ api_entrypoint_secret_names = ["4","5","6"]
+ embedder_service_secret_names = ["7","8","9"]
+ screenshot_service_secret_names = ["10","11","12"]
+ search_service_secret_names = ["13","14","15"]
+ urlscan_service_secret_names = ["16","17","18"]
+ screenshot_backup_service_secret_names = ["19","20","21"]
+ trivialfilter_service_secret_names = ["22","23","24"]
+
+jobs:
+  # First job: Determine which workers need to be deployed
+  scan-for-changes:
+    name: Scan for worker code changes
+    runs-on: ubuntu-latest
+    outputs:
+      worker-dirs: ${{ steps.changed-workers.outputs.worker-dirs }} # Output the list of workers to deploy
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full git history needed to detect changes
+
+      - name: Determine changed workers
+        id: changed-workers
+        run: |
+          # Define all worker directories
+          ALL_WORKER_DIRS='["agent-service", "api-entrypoint", "embedder-service", "screenshot-service", "search-service", "urlscan-service", "screenshot-backup-service", "trivialfilter-service"]'
+          
+          # Case 1: Manual trigger with force_deploy=true - deploy all workers
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
+            echo "Force deploying all workers"
+            WORKER_DIRS="$ALL_WORKER_DIRS"
+
+          # Case 2: Manual trigger with specific worker - deploy only that worker
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.specific_worker }}" ]]; then
+            echo "Deploying specific worker: ${{ github.event.inputs.specific_worker }}"
+            WORKER_DIRS="[\"${{ github.event.inputs.specific_worker }}\"]"
+
+          # Case 3: Automatic detection based on git changes
+          else
+            # Get list of files changed in this push
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+            
+            # If shared code changed, deploy all workers since they might depend on it
+            if echo "$CHANGED_FILES" | grep -q "^shared/"; then
+              echo "Changes detected in shared directory, deploying all workers"
+              WORKER_DIRS="$ALL_WORKER_DIRS"
+            else
+              # Otherwise, only deploy workers with direct changes
+              WORKER_CHANGES=$(echo "$CHANGED_FILES" | grep "^workers/" || true)
+              if [[ -z "$WORKER_CHANGES" ]]; then
+                echo "No worker changes detected"
+                echo "worker-dirs=[]" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+              
+              # Extract unique worker directory names and format as JSON array
+              WORKER_DIRS=$(echo "$WORKER_CHANGES" | grep -o "workers/[^/]*" | cut -d'/' -f2 | sort | uniq | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            fi
+          fi
+
+          # Set output variable and log results
+          echo "worker-dirs=$WORKER_DIRS" >> $GITHUB_OUTPUT
+          echo "Changed worker directories: $WORKER_DIRS"
+
+  # Second job: Deploy each worker that needs updating
+  deploy:
+    name: Deploy worker to ${{  github.ref_name == 'main' && 'production' || github.ref_name }} (${{ matrix.worker-dir }})
+    needs: scan-for-changes # Run after scan-for-changes job
+    if: ${{ needs.scan-for-changes.outputs.worker-dirs != '[]' }} # Only run if there are workers to deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 60 # Set timeout to prevent hung deployments
+    environment: ${{  github.ref_name == 'main' && 'production' || github.ref_name }} # Use 'production' for main branch, otherwise branch name
+    strategy:
+      matrix:
+        # Create a job for each worker service
+        worker-dir: ["agent-service", "api-entrypoint", "embedder-service", "screenshot-service", "search-service", "urlscan-service", "screenshot-backup-service", "trivialfilter-service"]
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: pnpm/action-setup@v4.1.0
+        with:
+          version: 10.5.2 # Specify pnpm version for consistency
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+
+      # Check if this specific worker needs deployment
+      - name: Check if worker has changes
+        id: check-changes
+        run: |
+          CHANGED_WORKERS='${{ needs.scan-for-changes.outputs.worker-dirs }}'
+          if echo $CHANGED_WORKERS | jq -e 'contains(["${{ matrix.worker-dir }}"])' > /dev/null; then
+            echo "Worker ${{ matrix.worker-dir }} has changes, will deploy"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "Worker ${{ matrix.worker-dir }} has no changes, skipping deployment"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      # Install dependencies
+      - name: Install dependencies
+        if: steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          cd ./workers/${{ matrix.worker-dir }}
+          pnpm install
+
+      # Deploy using Wrangler CLI
+      - name: Deploy with Wrangler CLI
+        if: steps.check-changes.outputs.has_changes == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cd ./workers/${{ matrix.worker-dir }}
+          ENV_NAME="${{ github.ref_name == 'main' && 'production' || github.ref_name }}"
+          
+          # Deploy the worker
+          npx wrangler deploy --env $ENV_NAME
+          
+          # Set secrets based on worker type
+          if [[ "${{ matrix.worker-dir }}" == "agent-service" ]]; then
+            SECRET_NAMES=(${agent_service_secret_names[@]})
+          elif [[ "${{ matrix.worker-dir }}" == "api-entrypoint" ]]; then
+            SECRET_NAMES=(${api_entrypoint_secret_names[@]})
+          elif [[ "${{ matrix.worker-dir }}" == "embedder-service" ]]; then
+            SECRET_NAMES=(${embedder_service_secret_names[@]})
+          elif [[ "${{ matrix.worker-dir }}" == "screenshot-service" ]]; then
+            SECRET_NAMES=(${screenshot_service_secret_names[@]})
+          elif [[ "${{ matrix.worker-dir }}" == "search-service" ]]; then
+            SECRET_NAMES=(${search_service_secret_names[@]})
+          elif [[ "${{ matrix.worker-dir }}" == "urlscan-service" ]]; then
+            SECRET_NAMES=(${urlscan_service_secret_names[@]})
+          elif [[ "${{ matrix.worker-dir }}" == "screenshot-backup-service" ]]; then
+            SECRET_NAMES=(${screenshot_backup_service_secret_names[@]})
+          elif [[ "${{ matrix.worker-dir }}" == "trivialfilter-service" ]]; then
+            SECRET_NAMES=(${trivialfilter_service_secret_names[@]})
+          fi
+          
+          # Loop through each secret and set it
+          for SECRET_NAME in "${SECRET_NAMES[@]}"; do
+            SECRET_VALUE="${{ secrets[SECRET_NAME] }}"
+            if [[ -n "$SECRET_VALUE" ]]; then
+              echo "Setting secret: $SECRET_NAME"
+              echo "$SECRET_VALUE" | npx wrangler secret put "$SECRET_NAME" --env $ENV_NAME
+            else
+              echo "Warning: Secret $SECRET_NAME is not set in GitHub secrets"
+            fi
+          done
