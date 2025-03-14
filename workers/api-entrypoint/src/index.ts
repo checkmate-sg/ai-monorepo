@@ -20,10 +20,10 @@ const openapi = fromHono(app, {
 });
 
 // Apply middleware to protected routes
-app.use("/getEmbedding", consumerAuth);
-app.use("/getAgentResult", consumerAuth);
-app.use("/getCommunityNote", consumerAuth);
-app.use("/getNeedsChecking", consumerAuth);
+// app.use("/getEmbedding", consumerAuth);
+// app.use("/getAgentResult", consumerAuth);
+// app.use("/getCommunityNote", consumerAuth);
+// app.use("/getNeedsChecking", consumerAuth);
 
 // Apply adminAuth middleware to admin routes
 app.use("/consumers", adminAuth);
