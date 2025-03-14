@@ -105,11 +105,7 @@ jobs:
         with:
           version: 10.5.2 # Specify pnpm version for consistency
       
-      # - name: Setup Node.js
-      #   uses: actions/setup-node@v4
-      #   with:
-      #     node-version: '18'
-      #     cache: 'pnpm'
+
 
       # Check if this specific worker needs deployment
       - name: Check if worker has changes
@@ -124,12 +120,7 @@ jobs:
             echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
 
-      # Install dependencies
-      - name: Install dependencies
-        if: steps.check-changes.outputs.has_changes == 'true'
-        run: |
-          cd ./workers/${{ matrix.worker-dir }}
-          pnpm install
+
 
       # Deploy using Wrangler CLI
       - name: Deploy with Wrangler CLI
