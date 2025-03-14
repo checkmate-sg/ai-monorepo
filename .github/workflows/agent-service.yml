@@ -5,9 +5,9 @@ on:
     branches:
       - staging
       - main
-    paths:
-      - "workers/agent-service/**"
-      - "shared/**"
+    # paths:
+    #   - "workers/agent-service/**"
+    #   - "shared/**"
   workflow_dispatch:
     inputs:
       force_deploy:
