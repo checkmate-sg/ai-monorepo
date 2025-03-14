@@ -134,7 +134,8 @@ jobs:
           ENV_NAME="${{ github.ref_name == 'main' && 'production' || github.ref_name }}"
           
           # Deploy the worker
-          # npx wrangler deploy --env $ENV_NAME
+          pnpm install
+          npx wrangler deploy --env $ENV_NAME
           
           # # Set secrets based on worker type
           if [[ "${{ matrix.worker-dir }}" == "agent-service" ]]; then
