@@ -161,7 +161,7 @@ jobs:
             
             if [[ -n "$SECRET_NAME" ]]; then
               echo "Setting secret: $SECRET_NAME"
-              SECRET_VALUE="${{ secrets[SECRET_KEY] }}"
+              SECRET_VALUE="${{ secrets[SECRET_NAME] }}"
               # SECRET_VALUE=${{ secrets[format('{0}_A', SECRET_NAME)] }}
               echo "Setting SECRET_VALUE: $SECRET_VALUE"
             else
