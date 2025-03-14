@@ -105,11 +105,11 @@ jobs:
         with:
           version: 10.5.2 # Specify pnpm version for consistency
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'pnpm'
+      # - name: Setup Node.js
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version: '18'
+      #     cache: 'pnpm'
 
       # Check if this specific worker needs deployment
       - name: Check if worker has changes
