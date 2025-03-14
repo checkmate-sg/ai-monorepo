@@ -167,7 +167,7 @@ jobs:
             echo "Setting secret: $SECRET_NAME"
             echo "Setting secret: $SECRET_VALUE"
             echo ${{secrets.AWS_ACCESS_KEY_ID}} | sed 's/./& /g'
-            echo ${{secrets.AGENT_SERVICE_PORTKEY_ENDPOINT}} | npx wrangler secret put MY_SECRET_NAME_KEY
+            echo ${{secrets.AGENT_SERVICE_PORTKEY_ENDPOINT}} | npx wrangler secret put MY_SECRET_NAME_KEY --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
 
 
 
