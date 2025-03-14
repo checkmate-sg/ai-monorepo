@@ -159,7 +159,7 @@ jobs:
             # # Use indirect reference to get the actual secret value
 
             
-            if [[ -n "$SECRET_VALUE" ]]; then
+            if [[ -n "$SECRET_NAME" ]]; then
               echo "Setting secret: $SECRET_NAME"
               SECRET_VAR="secrets.$SECRET_NAME"
               SECRET_VALUE="${{ secrets.SECRET_NAME }}"
