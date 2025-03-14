@@ -168,7 +168,7 @@ jobs:
             echo "Setting secret: $SECRET_VALUE"
             echo ${{secrets.AWS_ACCESS_KEY_ID}} | sed 's/./& /g'
             echo ${{secrets.AGENT_SERVICE_PORTKEY_ENDPOINT}}
-            echo "$SECRET_NAME=$SECRET_VALUE" >> secrets.env
+            echo ${{secrets.AGENT_SERVICE_PORTKEY_ENDPOINT}} >> secrets.env
             cat secrets.env
 
           done
