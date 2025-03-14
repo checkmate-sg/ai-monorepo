@@ -167,6 +167,5 @@ jobs:
             echo "Setting secret: $SECRET_VALUE"
             echo "$SECRET_NAME=$SECRET_VALUE" >> secrets.env
             cat secrets.env
-          
-            fi
+
           done
