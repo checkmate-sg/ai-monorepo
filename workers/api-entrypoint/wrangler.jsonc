@@ -63,7 +63,7 @@
       "vars": {
         "ENVIRONMENT": "staging"
       },
-      "workers_dev": false,
+      "workers_dev": true,
       "kv_namespaces": [
         {
           "binding": "CONSUMER_KV",

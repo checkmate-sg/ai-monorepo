@@ -24,7 +24,7 @@ on:
 
 env:
   agent_service_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
-  api_entrypoint_secret_names: "['4','5','6']"
+  api_entrypoint_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
   embedder_service_secret_names: "['7','8','9']"
   screenshot_service_secret_names: "['10','11','12']"
   search_service_secret_names: "['13','14','15']"
@@ -167,8 +167,8 @@ jobs:
 
             echo "Setting secret: $SECRET_NAME"
             echo "Setting secret: $SECRET_VALUE"
-            echo ${{secrets.AWS_ACCESS_KEY_ID}} | sed 's/./& /g'
-            echo ${{secrets.AGENT_SERVICE_PORTKEY_ENDPOINT}} | npx wrangler secret put MY_SECRET_NAME_KEY --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
+
+            echo SECRET_VALUE | npx wrangler secret put MY_SECRET_NAME_KEY --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
 
 
 
