@@ -158,12 +158,15 @@ jobs:
           for SECRET_NAME in $SECRET_NAMES; do
             # # Use indirect reference to get the actual secret value
 
-            
-            if [[ -n "$SECRET_NAME" ]]; then
+            SECRET_KEY="${SECRET_NAME}"  # Secret key name
+
+            # Dynamically fetch secret value using an environment variable
+            SECRET_VALUE="${!SECRET_KEY}"  
+            if [[ -n "$SECRET_VALUE" ]]; then
               echo "Setting secret: $SECRET_NAME"
-              SECRET_VALUE="${{ secrets[$SECRET_NAME] }}"
-              # SECRET_VALUE=${{ secrets[format('{0}_A', SECRET_NAME)] }}
-              echo "Setting SECRET_VALUE: $SECRET_VALUE"
+              echo "Setting secret: $SECRET_VALUE"
+              echo "$SECRET_NAME=$SECRET_VALUE" >> secrets.env
+              cat secrets.env
             else
               echo "Warning: Secret $SECRET_NAME is not set in GitHub secrets"
             fi
