@@ -162,7 +162,8 @@ jobs:
             if [[ -n "$SECRET_VALUE" ]]; then
               echo "Setting secret: $SECRET_NAME"
               SECRET_VAR="secrets.$SECRET_NAME"
-              SECRET_VALUE="${{ secrets[format('{0}', SECRET_NAME)] }}"
+              SECRET_VALUE="${{ secrets.SECRET_NAME }}"
+              echo "Setting SECRET_VALUE: $SECRET_VALUE"
             else
               echo "Warning: Secret $SECRET_NAME is not set in GitHub secrets"
             fi
