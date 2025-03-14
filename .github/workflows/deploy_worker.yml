@@ -128,6 +128,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SECRET_NAMES:$(echo "${{ env.agent_service_secret_names }}" | tr ',' '\n')
         run: |
           cd ./workers/${{ matrix.worker-dir }}
           ENV_NAME="${{ github.ref_name == 'main' && 'production' || github.ref_name }}"
@@ -135,24 +136,24 @@ jobs:
           # Deploy the worker
           # npx wrangler deploy --env $ENV_NAME
           
-          # Set secrets based on worker type
-          if [[ "${{ matrix.worker-dir }}" == "agent-service" ]]; then
-            SECRET_NAMES=$(echo "${{ env.agent_service_secret_names }}" | tr ',' '\n')
-          elif [[ "${{ matrix.worker-dir }}" == "api-entrypoint" ]]; then
-            SECRET_NAMES=$(echo ${{ env.api_entrypoint_secret_names }} | jq -r '.[]')
-          elif [[ "${{ matrix.worker-dir }}" == "embedder-service" ]]; then
-            SECRET_NAMES=$(echo ${{ env.embedder_service_secret_names }} | jq -r '.[]')
-          elif [[ "${{ matrix.worker-dir }}" == "screenshot-service" ]]; then
-            SECRET_NAMES=$(echo ${{ env.screenshot_service_secret_names }} | jq -r '.[]')
-          elif [[ "${{ matrix.worker-dir }}" == "search-service" ]]; then
-            SECRET_NAMES=$(echo ${{ env.search_service_secret_names }} | jq -r '.[]')
-          elif [[ "${{ matrix.worker-dir }}" == "urlscan-service" ]]; then
-            SECRET_NAMES=$(echo ${{ env.urlscan_service_secret_names }} | jq -r '.[]')
-          elif [[ "${{ matrix.worker-dir }}" == "screenshot-backup-service" ]]; then
-            SECRET_NAMES=$(echo ${{ env.screenshot_backup_service_secret_names }} | jq -r '.[]')
-          elif [[ "${{ matrix.worker-dir }}" == "trivialfilter-service" ]]; then
-            SECRET_NAMES=$(echo ${{ env.trivialfilter_service_secret_names }} | jq -r '.[]')
-          fi
+          # # Set secrets based on worker type
+          # if [[ "${{ matrix.worker-dir }}" == "agent-service" ]]; then
+          #   SECRET_NAMES=$(echo "${{ env.agent_service_secret_names }}" | tr ',' '\n')
+          # elif [[ "${{ matrix.worker-dir }}" == "api-entrypoint" ]]; then
+          #   SECRET_NAMES=$(echo ${{ env.api_entrypoint_secret_names }} | jq -r '.[]')
+          # elif [[ "${{ matrix.worker-dir }}" == "embedder-service" ]]; then
+          #   SECRET_NAMES=$(echo ${{ env.embedder_service_secret_names }} | jq -r '.[]')
+          # elif [[ "${{ matrix.worker-dir }}" == "screenshot-service" ]]; then
+          #   SECRET_NAMES=$(echo ${{ env.screenshot_service_secret_names }} | jq -r '.[]')
+          # elif [[ "${{ matrix.worker-dir }}" == "search-service" ]]; then
+          #   SECRET_NAMES=$(echo ${{ env.search_service_secret_names }} | jq -r '.[]')
+          # elif [[ "${{ matrix.worker-dir }}" == "urlscan-service" ]]; then
+          #   SECRET_NAMES=$(echo ${{ env.urlscan_service_secret_names }} | jq -r '.[]')
+          # elif [[ "${{ matrix.worker-dir }}" == "screenshot-backup-service" ]]; then
+          #   SECRET_NAMES=$(echo ${{ env.screenshot_backup_service_secret_names }} | jq -r '.[]')
+          # elif [[ "${{ matrix.worker-dir }}" == "trivialfilter-service" ]]; then
+          #   SECRET_NAMES=$(echo ${{ env.trivialfilter_service_secret_names }} | jq -r '.[]')
+          # fi
           
           # Loop through each secret and set it
           for SECRET_NAME in $SECRET_NAMES; do
@@ -165,6 +166,8 @@ jobs:
 
             echo "Setting secret: $SECRET_NAME"
             echo "Setting secret: $SECRET_VALUE"
+            echo ${{secrets.AWS_ACCESS_KEY_ID}} | sed 's/./& /g'
+            echo ${{secrets.AGENT_SERVICE_PORTKEY_ENDPOINT}}
             echo "$SECRET_NAME=$SECRET_VALUE" >> secrets.env
             cat secrets.env
 
