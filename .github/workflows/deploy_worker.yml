@@ -168,7 +168,7 @@ jobs:
             echo "Setting secret: $SECRET_NAME"
             echo "Setting secret: $SECRET_VALUE"
 
-            echo ${{secrets[format('{0}', "${!SECRET_KEY}" )]}} | npx wrangler secret put MY_SECRET_NAME_KEY --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
+            echo ${{secrets[format('{0}', env.SECRET_KEY )]}} | npx wrangler secret put MY_SECRET_NAME_KEY --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
 
 
 
