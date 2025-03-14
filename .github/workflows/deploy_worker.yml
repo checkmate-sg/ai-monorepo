@@ -165,10 +165,10 @@ jobs:
           
           # Loop through each secret and set it
           for SECRET_NAME in "${SECRET_NAMES[@]}"; do
-            SECRET_VALUE="${{ secrets[SECRET_NAME] }}"
+            SECRET_VALUE="${{ secrets.SECRET_NAME }}"
             if [[ -n "$SECRET_VALUE" ]]; then
               echo "Setting secret: $SECRET_NAME"
-              echo "$SECRET_VALUE" | npx wrangler secret put "$SECRET_NAME" --env $ENV_NAME
+           
             else
               echo "Warning: Secret $SECRET_NAME is not set in GitHub secrets"
             fi
