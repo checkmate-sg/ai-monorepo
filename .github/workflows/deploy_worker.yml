@@ -163,11 +163,7 @@ jobs:
           # Loop through each secret and set it
           for NAME in $SECRET_NAMES; do
             # # Use indirect reference to get the actual secret value
-            
-            SECRET_VALUE=$(eval echo "\$SECRET_NAME_$NAME")
-            echo ${{env.SECRET_VALUE}} hello
-            VAR_NAME="SECRET_NAME_$NAME"
-            echo "VAR_NAME=$VAR_NAME" >> $GITHUB_ENV
+
             echo setting $VAR_NAME
             echo setting "${!VAR_NAME}"
             echo $AGENT_SERVICE_VERTEX_REGION
