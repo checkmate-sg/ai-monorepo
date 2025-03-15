@@ -128,6 +128,7 @@ jobs:
             echo "Processing secret: $SECRET_NAME"
             echo "SECRET_NAME_$SECRET_NAME=$SECRET_NAME" >> $GITHUB_ENV
           done
+          echo ${{env.SECRETS_CONTEXT}}
 
 
       # Deploy using Wrangler CLI
@@ -175,7 +176,7 @@ jobs:
             echo "VAR_NAME=$VAR_NAME" >> $GITHUB_ENV
             echo setting $VAR_NAME
             echo setting "${!VAR_NAME}"
-            echo ${{secrets[format('{0}',$VAR_NAME)]}}| npx wrangler secret put $NAME --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
+            echo ${{secrets[format('{0}',env.VAR_NAME)]}}| npx wrangler secret put $NAME --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
 
 
 
