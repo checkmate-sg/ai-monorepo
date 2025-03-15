@@ -141,7 +141,13 @@ jobs:
           elif [[ "${{ matrix.worker-dir }}" == "trivialfilter-service" ]]; then
             SECRET_NAMES=$(echo ${{ env.trivialfilter_service_secret_names }} | jq -r '.[]')
           fi
-          echo "SECRET_NAME=${{ env.agent_service_secret_names}}" >> $GITHUB_ENV
+          while IFS= read -r SECRET_NAME; do
+            if [[ -n "$SECRET_NAME" ]]; then
+              echo "Appending secret name: $SECRET_NAME to GITHUB_ENV"
+              echo "SECRET_NAMES+=$SECRET_NAME," >> $GITHUB_ENV
+            fi
+          done <<< "$SECRET_NAMES"
+          # echo "SECRET_NAME=${{ env.agent_service_secret_names}}" >> $GITHUB_ENV
 
 
 
