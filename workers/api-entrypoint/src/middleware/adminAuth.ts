@@ -5,6 +5,7 @@ const logger = createLogger("Admin Auth Middleware");
 
 export async function adminAuth(c: Context<{ Bindings: Env }>, next: Next) {
   try {
+    console.log(Object.keys(c.req.header()));
     if (c.env.ENVIRONMENT === "development") {
       await next();
       return;
