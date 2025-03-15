@@ -165,7 +165,6 @@ jobs:
             # # Use indirect reference to get the actual secret value
 
             echo setting $VAR_NAME
-            echo setting "${!VAR_NAME}"
             echo $AGENT_SERVICE_VERTEX_REGION
             echo "$NAME" 
             echo $NAME
