@@ -122,7 +122,7 @@ jobs:
 
       - name: Set FOO
         run: |
-          echo "FOO=${{ github.event.inputs.foo }}" >> $GITHUB_ENV
+
           # # Set secrets based on worker type
           if [[ "${{ matrix.worker-dir }}" == "agent-service" ]]; then
             SECRET_NAMES=$(echo "${{ env.agent_service_secret_names }}" | tr ',' '\n')
@@ -141,6 +141,7 @@ jobs:
           elif [[ "${{ matrix.worker-dir }}" == "trivialfilter-service" ]]; then
             SECRET_NAMES=$(echo ${{ env.trivialfilter_service_secret_names }} | jq -r '.[]')
           fi
+          echo "SECRET_NAME=${{ env.agent_service_secret_names}}" >> $GITHUB_ENV
 
 
 
