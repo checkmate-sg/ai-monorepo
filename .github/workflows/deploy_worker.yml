@@ -20,6 +20,8 @@ on:
         description: Deploy a specific worker (leave empty for automatic detection)
         required: false
         type: string
+
+# Set all the neccessary secrets in Github
 env:
   AGENT_SERVICE_SECRET_NAMES: ENVIRONMENT,PORTKEY_ENDPOINT,OPENAI_API_KEY,GROQ_API_KEY,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET, VERTEX_PROJECT_ID,CF_ACCESS_CLIENT_ID,CF_ACCESS_CLIENT_SECRET,LANGFUSE_SECRET_KEY,LANGFUSE_PUBLIC_KEY,LANGFUSE_HOST
   API_ENTRYPOINT_SECRET_NAMES: ENVIRONMENT
