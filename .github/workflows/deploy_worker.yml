@@ -25,12 +25,12 @@ on:
 env:
   agent_service_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
   api_entrypoint_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
-  embedder_service_secret_names: "['7','8','9']"
-  screenshot_service_secret_names: "['10','11','12']"
-  search_service_secret_names: "['13','14','15']"
-  urlscan_service_secret_names: "['16','17','18']"
-  screenshot_backup_service_secret_names: "['19','20','21']"
-  trivialfilter_service_secret_names: "['22','23','24']"
+  embedder_service_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
+  screenshot_service_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
+  search_service_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
+  urlscan_service_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
+  screenshot_backup_service_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
+  trivialfilter_service_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
 
 jobs:
   # First job: Determine which workers need to be deployed
@@ -128,7 +128,7 @@ jobs:
             echo "Processing secret: $SECRET_NAME"
             echo "SECRET_NAME_$SECRET_NAME=$SECRET_NAME" >> $GITHUB_ENV
           done
-          echo ${{env.SECRETS_CONTEXT}}
+          echo $GITHUB_ENV
 
 
       # Deploy using Wrangler CLI
