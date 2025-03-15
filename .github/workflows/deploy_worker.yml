@@ -173,38 +173,30 @@ jobs:
           # Loop through each secret and set it
           for NAME in $(echo "$SECRET_NAMES" | tr ',' '\n' | tr -d ' '); do
             if [ -n "$NAME" ]; then
+              # Get the value of the secret
+              VALUE=$(eval echo \$$NAME)
+              
+              # Skip if the secret has no value
+              if [ -z "$VALUE" ]; then
+                echo "Warning: Secret $NAME has no value"
+                continue
+              fi
+              
+              # Determine if this is a prefixed secret that needs to be stripped
               WORKER_DIR="${{ matrix.worker-dir }}"
               WORKER_DIR=${WORKER_DIR//-/_}  # Replace hyphens with underscores
-              SERVICE_PREFIX=$(echo "${WORKER_DIR}" | sed 's/-service$//')
-              # Check if the secret name has the service prefix
-              echo "Looking for SERVICE_PREFIX: $SERVICE_PREFIX"
-
-              # Convert both NAME and SERVICE_PREFIX to lowercase for comparison
-              if [[ "${NAME,,}" == "${SERVICE_PREFIX,,}_"* ]]; then
+              SERVICE_PREFIX=$(echo "${WORKER_DIR}" | sed 's/_service$//')
+              SERVICE_PREFIX_UPPER=$(echo "${SERVICE_PREFIX}" | tr '[:lower:]' '[:upper:]')
+              
+              if [[ "$NAME" == "${SERVICE_PREFIX_UPPER}_"* ]]; then
                 # Extract the actual secret name without the prefix
-             
-                ACTUAL_NAME=${NAME#"${SERVICE_PREFIX^^}_"}
-
-                VALUE=$(eval echo \$$NAME)
-                echo "Secret name has service prefix, actual name: $ACTUAL_NAME"
-                if [ -n "$VALUE" ]; then
-                  echo "Setting secret: $ACTUAL_NAME (from $NAME)"
-                  echo "$VALUE" | npx wrangler secret put "$ACTUAL_NAME" --env $ENV_NAME
-                else
-                  echo "Warning: Secret $NAME has no value"
-                fi
+                ACTUAL_NAME=${NAME#"${SERVICE_PREFIX_UPPER}_"}
+                echo "Setting secret: $ACTUAL_NAME (from $NAME)"
+                echo "$VALUE" | npx wrangler secret put "$ACTUAL_NAME" --env $ENV_NAME
               else
-                # Handle regular secret case (no prefix)
-                echo "Secret name has no service prefix, actual name: $NAME"
-                VALUE=$(eval echo \$$NAME)
-                if [ -n "$VALUE" ]; then
-                  echo "Setting secret: $NAME"
-                  echo "$VALUE" | npx wrangler secret put "$NAME" --env $ENV_NAME
-                else
-                  echo "Warning: Secret $NAME has no value"
-                fi
+                # Regular secret (no prefix to strip)
+                echo "Setting secret: $NAME"
+                echo "$VALUE" | npx wrangler secret put "$NAME" --env $ENV_NAME
               fi
-
-
             fi
           done
