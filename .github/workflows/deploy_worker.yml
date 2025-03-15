@@ -126,7 +126,7 @@ jobs:
         run: |
           echo "$SECRETS_CONTEXT" | jq -r 'keys[]' | while read -r SECRET_NAME; do
             echo "Processing secret: $SECRET_NAME"
-            echo "SECRET_NAME_$SECRET_NAME=$SECRET_NAME" >> $GITHUB_ENV
+            echo "SECRET_NAME_$SECRET_NAME=1324" >> $GITHUB_ENV
           done
           echo $GITHUB_ENV
 
