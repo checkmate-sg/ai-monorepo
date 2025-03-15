@@ -126,6 +126,8 @@ jobs:
             echo "Worker ${{ matrix.worker-dir }} has no changes, skipping deployment"
             echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
+
+
       - name: Deploy with Wrangler CLI
         if: "steps.check-changes.outputs.has_changes == 'true'"
         env:
@@ -171,7 +173,9 @@ jobs:
           # Loop through each secret and set it
           for NAME in $(echo "$SECRET_NAMES" | tr ',' '\n' | tr -d ' '); do
             if [ -n "$NAME" ]; then
-              SERVICE_PREFIX=$(echo "${{ matrix.worker-dir }}" | sed 's/-service$//')
+              WORKER_DIR="${{ matrix.worker-dir }}"
+              WORKER_DIR=${WORKER_DIR//-/_}  # Replace hyphens with underscores
+              SERVICE_PREFIX=$(echo "${WORKER_DIR}" | sed 's/-service$//')
               # Check if the secret name has the service prefix
               if [[ "$NAME" == "${SERVICE_PREFIX}_"* ]]; then
                 # Extract the actual secret name without the prefix
