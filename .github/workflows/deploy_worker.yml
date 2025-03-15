@@ -170,7 +170,7 @@ jobs:
             echo "VAR_NAME=$VAR_NAME" >> $GITHUB_ENV
             echo setting $VAR_NAME
             echo setting "${!VAR_NAME}"
-
+            echo $AGENT_SERVICE_VERTEX_REGION
             echo "$NAME" | npx wrangler secret put MY_SECRET_NAME_KEY --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
 
 
