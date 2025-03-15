@@ -104,6 +104,8 @@ Cloudflare API token can be created using the `Edit Worker` template.
 
 Refer to deploy_worker.yml to set all other worker-specific secrets in GitHub.
 
+Deploy independent workers first, followed by workers that depend on other workers, as service binding requires the dependent worker to exist beforehand.
+
 ## Automated Deployment
 
 Triggered on PRs to `staging` or `main`:
