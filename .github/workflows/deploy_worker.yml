@@ -172,6 +172,8 @@ jobs:
             SECRET_VALUE=$(eval echo "\$SECRET_NAME_$NAME")
             echo ${{env.SECRET_VALUE}} hello
             VAR_NAME="SECRET_NAME_$NAME"
+            echo setting $VAR_NAME
+            echo setting "${!VAR_NAME}"
             echo "${!VAR_NAME}" | npx wrangler secret put $NAME --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
 
 
