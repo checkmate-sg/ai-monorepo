@@ -63,16 +63,10 @@
    */
   "env": {
     "staging": {
-      "name": "screenshot-backup-service-staging",
-      "vars": {
-        "ENVIRONMENT": "staging"
-      }
+      "name": "screenshot-backup-service-staging"
     },
     "production": {
-      "name": "screenshot-backup-service",
-      "vars": {
-        "ENVIRONMENT": "production"
-      }
+      "name": "screenshot-backup-service"
     }
   }
 }

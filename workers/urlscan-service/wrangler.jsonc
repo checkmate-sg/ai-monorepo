@@ -23,16 +23,10 @@
    */
   "env": {
     "staging": {
-      "name": "urlscan-service-staging",
-      "vars": {
-        "ENVIRONMENT": "staging"
-      }
+      "name": "urlscan-service-staging"
     },
     "production": {
-      "name": "urlscan-service",
-      "vars": {
-        "ENVIRONMENT": "production"
-      }
+      "name": "urlscan-service"
     }
   }
   /**

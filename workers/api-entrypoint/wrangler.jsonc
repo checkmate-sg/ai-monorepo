@@ -52,10 +52,15 @@
   "env": {
     "staging": {
       "name": "api-entrypoint-staging",
-      "vars": {
-        "ENVIRONMENT": "staging"
+      "durable_objects": {
+        "bindings": [
+          {
+            "class_name": "Consumer",
+            "name": "CONSUMER"
+          }
+        ]
       },
-      "workers_dev": false,
+      "workers_dev": true,
       "kv_namespaces": [
         {
           "binding": "CONSUMER_KV",
@@ -76,8 +81,13 @@
     },
     "production": {
       "name": "api-entrypoint",
-      "vars": {
-        "ENVIRONMENT": "production"
+      "durable_objects": {
+        "bindings": [
+          {
+            "class_name": "Consumer",
+            "name": "CONSUMER"
+          }
+        ]
       },
       "workers_dev": false,
       "kv_namespaces": [
