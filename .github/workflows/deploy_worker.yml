@@ -101,6 +101,9 @@ jobs:
         worker-dir: ["agent-service", "api-entrypoint", "embedder-service", "screenshot-service", "search-service", "urlscan-service", "screenshot-backup-service", "trivialfilter-service"]
     steps:
       - uses: actions/checkout@v4.2.2
+      - uses: oNaiPs/secrets-to-env-action@v1
+        with:
+          secrets: ${{ toJSON(secrets) }}
       - uses: pnpm/action-setup@v4.1.0
         with:
           version: 10.5.2 # Specify pnpm version for consistency
@@ -120,15 +123,6 @@ jobs:
             echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Extract and Process Secrets
-        env:
-          SECRETS_CONTEXT: ${{ toJson(secrets) }}
-        run: |
-          echo "$SECRETS_CONTEXT" | jq -r 'keys[]' | while read -r SECRET_NAME; do
-            echo "Processing secret: $SECRET_NAME"
-            echo "SECRET_NAME_$SECRET_NAME=1324" >> $GITHUB_ENV
-          done
-          echo $GITHUB_ENV
 
 
       # Deploy using Wrangler CLI
@@ -177,7 +171,7 @@ jobs:
             echo setting $VAR_NAME
             echo setting "${!VAR_NAME}"
 
-            echo ${{$SECRET_NAME_$NAME}} | npx wrangler secret put MY_SECRET_NAME_KEY --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
+            echo "$NAME" | npx wrangler secret put MY_SECRET_NAME_KEY --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
 
 
 
