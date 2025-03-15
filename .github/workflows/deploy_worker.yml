@@ -163,12 +163,14 @@ jobs:
             SECRET_KEY="${SECRET_NAME}"  # Secret key name
 
             # Dynamically fetch secret value using an environment variable
-            SECRET_VALUE="${!SECRET_KEY}"  
+            SECRET_VALUE="${{ secrets[SECRET_NAME] }}"
 
             echo "Setting secret: $SECRET_NAME"
             echo "Setting secret: $SECRET_VALUE"
+            echo "$SECRET_NAME=$SECRET_VALUE" >> $GITHUB_ENV
 
-            echo ${{secrets[format('{0}', ${!SECRET_NAME} )]}} | npx wrangler secret put MY_SECRET_NAME_KEY --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
+            echo $GITHUB_ENV
+            echo ${{secrets[format('{0}', $SECRET_NAME )]}} | npx wrangler secret put $SECRET_NAME --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
 
 
 
