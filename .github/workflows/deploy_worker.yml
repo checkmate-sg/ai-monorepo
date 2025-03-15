@@ -179,10 +179,12 @@ jobs:
               # Check if the secret name has the service prefix
               echo "Looking for SERVICE_PREFIX: $SERVICE_PREFIX"
 
-              if [[ "$NAME" == "${SERVICE_PREFIX^^}_"* ]]; then
+              # Convert both NAME and SERVICE_PREFIX to lowercase for comparison
+              if [[ "${NAME,,}" == "${SERVICE_PREFIX,,}_"* ]]; then
                 # Extract the actual secret name without the prefix
              
-                ACTUAL_NAME=${NAME#"${SERVICE_PREFIX}_"}
+                ACTUAL_NAME=${NAME#"${SERVICE_PREFIX^^}_"}
+
                 VALUE=$(eval echo \$$NAME)
                 echo "Secret name has service prefix, actual name: $ACTUAL_NAME"
                 if [ -n "$VALUE" ]; then
