@@ -23,16 +23,10 @@
    */
   "env": {
     "staging": {
-      "name": "search-service-staging",
-      "vars": {
-        "ENVIRONMENT": "staging"
-      }
+      "name": "search-service-staging"
     },
     "production": {
-      "name": "search-service",
-      "vars": {
-        "ENVIRONMENT": "production"
-      }
+      "name": "search-service"
     }
   }
   /**

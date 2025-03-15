@@ -60,10 +60,7 @@
           }
         ]
       },
-      "vars": {
-        "ENVIRONMENT": "staging"
-      },
-      "workers_dev": false,
+      "workers_dev": true,
       "kv_namespaces": [
         {
           "binding": "CONSUMER_KV",
@@ -91,9 +88,6 @@
             "name": "CONSUMER"
           }
         ]
-      },
-      "vars": {
-        "ENVIRONMENT": "production"
       },
       "workers_dev": false,
       "kv_namespaces": [
