@@ -173,7 +173,7 @@ jobs:
             echo ${{env.SECRET_VALUE}} hello
             # echo ${secrets[format('{0}', env.SECRET_NAME_$NAME}} | npx wrangler secret put $NAME --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
             # ${{env.SECRET_NAME_$NAME}} | npx wrangler secret put $NAME --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
-            echo ${{env.SECRET_NAME_$NAME}} | npx wrangler secret put $NAME --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
+            echo $SECRET_NAME_$NAME | npx wrangler secret put $NAME --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
 
 
 
