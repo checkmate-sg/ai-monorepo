@@ -11,6 +11,8 @@
     "dev:search-service": "turbo dev --filter=search-service",
     "dev:urlscan-service": "turbo dev --filter=urlscan-service",
     "dev:screenshot-service": "turbo dev --filter=screenshot-service",
+    "dev:screenshot-backup-service": "turbo dev --filter=screenshot-backup-service",
+    "dev:trivialfilter-service": "turbo dev --filter=trivialfilter-service",
     "dev:agent-service": "turbo dev --filter=agent-service",
     "dev:api-entrypoint": "turbo dev --filter=api-entrypoint",
     "dev:embedder-service": "turbo dev --filter=embedder-service"

@@ -21,26 +21,104 @@
   "dev": {
     "port": 8787
   },
-  "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service"}],
-
+  "services": [
+    { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
+    { "binding": "AGENT_SERVICE", "service": "agent-service" },
+    { "binding": "TRIVIAL_FILTER_SERVICE", "service": "trivialfilter-service" }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "Consumer",
+        "name": "CONSUMER"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["Consumer"]
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "CONSUMER_KV",
+      "id": "e2dbb75018e848c5bae5c95afa70f602"
+    }
+  ],
   /**
    * Environment-specific configuration
    */
   "env": {
     "staging": {
-      // "vars": { "ENVIRONMENT": "staging" ,
-      // "account_id": "<staging-account-id>",
-      "workers_dev" : false,
-      "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service-staging"}]
+      "name": "api-entrypoint-staging",
+      "durable_objects": {
+        "bindings": [
+          {
+            "class_name": "Consumer",
+            "name": "CONSUMER"
+          }
+        ]
+      },
+      "workers_dev": true,
+      "routes": [
+        {
+          "pattern": "api.backend.staging.checkmate.sg",
+          "custom_domain": true
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "CONSUMER_KV",
+          "id": "841e72e0de3349bd99f4279bd04784d3"
+        }
+      ],
+      "services": [
+        {
+          "binding": "EMBEDDER_SERVICE",
+          "service": "embedder-service-staging"
+        },
+        { "binding": "AGENT_SERVICE", "service": "agent-service-staging" },
+        {
+          "binding": "TRIVIAL_FILTER_SERVICE",
+          "service": "trivialfilter-service-staging"
+        }
+      ]
     },
     "production": {
-      // "vars": { "ENVIRONMENT": "production" ,
-      // "account_id": "<production-account-id>",
-      "workers_dev" : false,
-      "services": [{ "binding": "EMBEDDER_SERVICE", "service": "embedder-service-production"}]
+      "name": "api-entrypoint",
+      "durable_objects": {
+        "bindings": [
+          {
+            "class_name": "Consumer",
+            "name": "CONSUMER"
+          }
+        ]
+      },
+      "workers_dev": false,
+      "routes": [
+        {
+          "pattern": "api.backend.checkmate.sg",
+          "custom_domain": true
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "CONSUMER_KV",
+          "id": "e2dbb75018e848c5bae5c95afa70f602"
+        }
+      ],
+      "services": [
+        { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
+        { "binding": "AGENT_SERVICE", "service": "agent-service" },
+        {
+          "binding": "TRIVIAL_FILTER_SERVICE",
+          "service": "trivialfilter-service"
+        }
+      ]
     }
   }
-  
+
   /**
    * Smart Placement
    * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
@@ -74,5 +152,4 @@
    * Service Bindings (communicate between multiple Workers)
    * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
    */
-
 }
