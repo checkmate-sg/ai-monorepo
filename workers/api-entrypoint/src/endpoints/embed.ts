@@ -54,7 +54,7 @@ export class Embed extends OpenAPIRoute {
   async handle(c: Context) {
     // Get validated data
     const data = await this.getValidatedData<typeof this.schema>();
-    logger.info(c.env.MY_SECRET_NAME_KEY);
+    logger.info(c.env.ENVIRONMENT);
 
     // Retrieve the validated text
     const { text } = data.body;

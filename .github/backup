@@ -22,21 +22,15 @@ on:
         required: false
         type: string
 
-
 env:
-  AGENT_SERVICE_SECRET_NAMES: >-
-    ENVIRONMENT,PORTKEY_ENDPOINT,OPENAI_API_KEY,GROQ_API_KEY,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,
-    VERTEX_PROJECT_ID,CF_ACCESS_CLIENT_ID,CF_ACCESS_CLIENT_SECRET,LANGFUSE_SECRET_KEY,LANGFUSE_PUBLIC_KEY,LANGFUSE_HOST
-  API_ENTRYPOINT_SECRET_NAMES: "ENVIRONMENT"
-  EMBEDDER_SERVICE_SECRET_NAMES: "ENVIRONMENT"
-  SCREENSHOT_SERVICE_SECRET_NAMES: "DOMAIN"
-  SEARCH_SERVICE_SECRET_NAMES: "SERPER_API_KEY"
-  URLSCAN_SERVICE_SECRET_NAMES: "URLSCAN_HOSTNAME,URLSCAN_APIKEY"
-  SCREENSHOT_BACKUP_SERVICE_SECRET_NAMES: >-
-    GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,SCREENSHOT_API_ENDPOINT,ENVIRONMENT
-  TRIVIALFILTER_SERVICE_SECRET_NAMES: >-
-    PORTKEY_ENDPOINT,OPENAI_API_KEY,GROQ_API_KEY,CF_ACCESS_CLIENT_ID,CF_ACCESS_CLIENT_SECRET,
-    LANGFUSE_SECRET_KEY,LANGFUSE_PUBLIC_KEY,LANGFUSE_HOST,ENVIRONMENT
+  agent_service_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
+  api_entrypoint_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
+  embedder_service_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
+  screenshot_service_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
+  search_service_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
+  urlscan_service_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
+  screenshot_backup_service_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
+  trivialfilter_service_secret_names: "AGENT_SERVICE_PORTKEY_ENDPOINT,AGENT_SERVICE_VERTEX_REGION"
 
 jobs:
   # First job: Determine which workers need to be deployed
@@ -147,21 +141,21 @@ jobs:
           npx wrangler deploy --env $ENV_NAME
 
           if [[ "${{ matrix.worker-dir }}" == "agent-service" ]]; then
-            SECRET_NAMES=$(echo "${{ env.AGENT_SERVICE_SECRET_NAMES }}" | tr ',' '\n')
+            SECRET_NAMES=$(echo "${{ env.agent_service_secret_names }}" | tr ',' '\n')
           elif [[ "${{ matrix.worker-dir }}" == "api-entrypoint" ]]; then
-            SECRET_NAMES=$(echo "${{ env.API_ENTRYPOINT_SECRET_NAMES }}" | tr ',' '\n')
+            SECRET_NAMES=$(echo "${{ env.api_entrypoint_secret_names }}" | tr ',' '\n')
           elif [[ "${{ matrix.worker-dir }}" == "embedder-service" ]]; then
-            SECRET_NAMES=$(echo "${{ env.EMBEDDER_SERVICE_SECRET_NAMES }}" | tr ',' '\n')
+            SECRET_NAMES=$(echo "${{ env.embedder_service_secret_names }}" | tr ',' '\n')
           elif [[ "${{ matrix.worker-dir }}" == "screenshot-service" ]]; then
-            SECRET_NAMES=$(echo "${{ env.SCREENSHOT_SERVICE_SECRET_NAMES }}" | tr ',' '\n')
+            SECRET_NAMES=$(echo "${{ env.screenshot_service_secret_names }}" | tr ',' '\n')
           elif [[ "${{ matrix.worker-dir }}" == "search-service" ]]; then
-            SECRET_NAMES=$(echo "${{ env.SEARCH_SERVICE_SECRET_NAMES }}" | tr ',' '\n')
+            SECRET_NAMES=$(echo "${{ env.search_service_secret_names }}" | tr ',' '\n')
           elif [[ "${{ matrix.worker-dir }}" == "urlscan-service" ]]; then
-            SECRET_NAMES=$(echo "${{ env.URLSCAN_SERVICE_SECRET_NAMES }}" | tr ',' '\n')
+            SECRET_NAMES=$(echo "${{ env.urlscan_service_secret_names }}" | tr ',' '\n')
           elif [[ "${{ matrix.worker-dir }}" == "screenshot-backup-service" ]]; then
-            SECRET_NAMES=$(echo "${{ env.SCREENSHOT_BACKUP_SERVICE_SECRET_NAMES }}" | tr ',' '\n')
+            SECRET_NAMES=$(echo "${{ env.screenshot_backup_service_secret_names }}" | tr ',' '\n')
           elif [[ "${{ matrix.worker-dir }}" == "trivialfilter-service" ]]; then
-            SECRET_NAMES=$(echo "${{ env.TRIVIALFILTER_SERVICE_SECRET_NAMES }}" | tr ',' '\n')
+            SECRET_NAMES=$(echo "${{ env.trivialfilter_service_secret_names }}" | tr ',' '\n')
           fi
           
         
