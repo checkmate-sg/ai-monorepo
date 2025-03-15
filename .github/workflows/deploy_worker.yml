@@ -176,7 +176,9 @@ jobs:
             echo "VAR_NAME=$VAR_NAME" >> $GITHUB_ENV
             echo setting $VAR_NAME
             echo setting "${!VAR_NAME}"
-            echo ${{secrets[format('{0}',env.VAR_NAME)]}}| npx wrangler secret put $NAME --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
+
+            echo ${{secrets[format('{0}',env.VAR_NAME)]}}| npx wrangler secret put $MY_SECRET_NAME_KEY --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
+
 
 
 
