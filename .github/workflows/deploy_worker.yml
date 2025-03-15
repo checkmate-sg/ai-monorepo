@@ -175,8 +175,10 @@ jobs:
               # Check if the secret name has the service prefix
               if [[ "$NAME" == "${SERVICE_PREFIX}_"* ]]; then
                 # Extract the actual secret name without the prefix
+             
                 ACTUAL_NAME=${NAME#"${SERVICE_PREFIX}_"}
                 VALUE=$(eval echo \$$NAME)
+                echo "Secret name has service prefix, actual name: $ACTUAL_NAME"
                 if [ -n "$VALUE" ]; then
                   echo "Setting secret: $ACTUAL_NAME (from $NAME)"
                   echo "$VALUE" | npx wrangler secret put "$ACTUAL_NAME" --env $ENV_NAME
