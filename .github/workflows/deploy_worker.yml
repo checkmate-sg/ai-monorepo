@@ -175,7 +175,7 @@ jobs:
           echo "$SECRET_NAME=$SECRET_VALUE" >> $GITHUB_ENV
 
           echo $GITHUB_ENV
-          echo ${{secrets[format('{0}', $SECRET_NAME )]}} | npx wrangler secret put $SECRET_NAME --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
+          echo ${{secrets[format('{0}', env.SECRET_NAME )]}} | npx wrangler secret put $SECRET_NAME --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
 
 
 
