@@ -61,6 +61,12 @@
         ]
       },
       "workers_dev": true,
+      "routes": [
+        {
+          "pattern": "api.backend.staging.checkmate.sg",
+          "custom_domain": true
+        }
+      ],
       "kv_namespaces": [
         {
           "binding": "CONSUMER_KV",
@@ -90,6 +96,12 @@
         ]
       },
       "workers_dev": false,
+      "routes": [
+        {
+          "pattern": "api.backend.checkmate.sg",
+          "custom_domain": true
+        }
+      ],
       "kv_namespaces": [
         {
           "binding": "CONSUMER_KV",
