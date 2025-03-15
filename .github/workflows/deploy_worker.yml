@@ -177,6 +177,7 @@ jobs:
               WORKER_DIR=${WORKER_DIR//-/_}  # Replace hyphens with underscores
               SERVICE_PREFIX=$(echo "${WORKER_DIR}" | sed 's/-service$//')
               # Check if the secret name has the service prefix
+              echo "Looking for SERVICE_PREFIX: $SERVICE_PREFIX"
               if [[ "$NAME" == "${SERVICE_PREFIX}_"* ]]; then
                 # Extract the actual secret name without the prefix
              
