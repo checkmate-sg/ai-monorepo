@@ -23,14 +23,14 @@ on:
 
 # Set all the neccessary secrets in Github
 env:
-  AGENT_SERVICE_SECRET_NAMES: ENVIRONMENT,PORTKEY_ENDPOINT,OPENAI_API_KEY,GROQ_API_KEY,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET, VERTEX_PROJECT_ID,CF_ACCESS_CLIENT_ID,CF_ACCESS_CLIENT_SECRET,LANGFUSE_SECRET_KEY,LANGFUSE_PUBLIC_KEY,LANGFUSE_HOST
-  API_ENTRYPOINT_SECRET_NAMES: ENVIRONMENT
-  EMBEDDER_SERVICE_SECRET_NAMES: ENVIRONMENT
-  SCREENSHOT_SERVICE_SECRET_NAMES: DOMAIN
-  SEARCH_SERVICE_SECRET_NAMES: SERPER_API_KEY
-  URLSCAN_SERVICE_SECRET_NAMES: URLSCAN_HOSTNAME,URLSCAN_APIKEY
-  SCREENSHOT_BACKUP_SERVICE_SECRET_NAMES: GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,SCREENSHOT_API_ENDPOINT,ENVIRONMENT
-  TRIVIALFILTER_SERVICE_SECRET_NAMES: PORTKEY_ENDPOINT,OPENAI_API_KEY,GROQ_API_KEY,CF_ACCESS_CLIENT_ID,CF_ACCESS_CLIENT_SECRET, LANGFUSE_SECRET_KEY,LANGFUSE_PUBLIC_KEY,LANGFUSE_HOST,ENVIRONMENT
+  AGENT_SECRET_NAMES: AGENT_CF_ACCESS_CLIENT_ID,AGENT_CF_ACCESS_CLIENT_SECRET,ENVIRONMENT,PORTKEY_ENDPOINT,OPENAI_API_KEY,GROQ_API_KEY,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET, VERTEX_PROJECT_ID,CF_ACCESS_CLIENT_ID,CF_ACCESS_CLIENT_SECRET,LANGFUSE_SECRET_KEY,LANGFUSE_PUBLIC_KEY,LANGFUSE_HOST
+  API_ENTRYPOINT_SECRET_NAMES: API_ENTRYPOINT_CF_ACCESS_CLIENT_ID,ENVIRONMENT
+  EMBEDDER_SECRET_NAMES: ENVIRONMENT
+  SCREENSHOT_SECRET_NAMES: SCREENSHOT_API_DOMAIN
+  SEARCH_SECRET_NAMES: SERPER_API_KEY
+  URLSCAN_SECRET_NAMES: URLSCAN_HOSTNAME,URLSCAN_APIKEY
+  SCREENSHOT_BACKUP_SECRET_NAMES: SCREENSHOT_BACKUP_GOOGLE_CLIENT_ID,SCREENSHOT_BACKUP_GOOGLE_CLIENT_SECRET,SCREENSHOT_API_ENDPOINT,ENVIRONMENT
+  TRIVIALFILTER_SECRET_NAMES: TRIVIALFILTER_CF_ACCESS_CLIENT_ID,TRIVIALFILTER_CF_ACCESS_CLIENT_SECRET,PORTKEY_ENDPOINT,OPENAI_API_KEY,GROQ_API_KEY, LANGFUSE_SECRET_KEY,LANGFUSE_PUBLIC_KEY,LANGFUSE_HOST,ENVIRONMENT
 
 jobs:
   # First job: Determine which workers need to be deployed
@@ -143,40 +143,55 @@ jobs:
           SECRET_NAMES=""
           case "${{ matrix.worker-dir }}" in
             agent-service)
-              SECRET_NAMES="${{ env.AGENT_SERVICE_SECRET_NAMES }}"
+              SECRET_NAMES="${{ env.AGENT_SECRET_NAMES }}"
               ;;
             api-entrypoint)
               SECRET_NAMES="${{ env.API_ENTRYPOINT_SECRET_NAMES }}"
               ;;
             embedder-service)
-              SECRET_NAMES="${{ env.EMBEDDER_SERVICE_SECRET_NAMES }}"
+              SECRET_NAMES="${{ env.EMBEDDER_SECRET_NAMES }}"
               ;;
             screenshot-service)
-              SECRET_NAMES="${{ env.SCREENSHOT_SERVICE_SECRET_NAMES }}"
+              SECRET_NAMES="${{ env.SCREENSHOT_SECRET_NAMES }}"
               ;;
             search-service)
-              SECRET_NAMES="${{ env.SEARCH_SERVICE_SECRET_NAMES }}"
+              SECRET_NAMES="${{ env.SEARCH_SECRET_NAMES }}"
               ;;
             urlscan-service)
-              SECRET_NAMES="${{ env.URLSCAN_SERVICE_SECRET_NAMES }}"
+              SECRET_NAMES="${{ env.URLSCAN_SECRET_NAMES }}"
               ;;
             screenshot-backup-service)
-              SECRET_NAMES="${{ env.SCREENSHOT_BACKUP_SERVICE_SECRET_NAMES }}"
+              SECRET_NAMES="${{ env.SCREENSHOT_BACKUP_SECRET_NAMES }}"
               ;;
             trivialfilter-service)
-              SECRET_NAMES="${{ env.TRIVIALFILTER_SERVICE_SECRET_NAMES }}"
+              SECRET_NAMES="${{ env.TRIVIALFILTER_SECRET_NAMES }}"
               ;;
           esac
 
           # Loop through each secret and set it
           for NAME in $(echo "$SECRET_NAMES" | tr ',' '\n' | tr -d ' '); do
             if [ -n "$NAME" ]; then
-              VALUE=$(eval echo \$$NAME)
-              if [ -n "$VALUE" ]; then
-                echo "Setting secret: $NAME"
-                echo "$VALUE" | npx wrangler secret put "$NAME" --env $ENV_NAME
+              SERVICE_PREFIX=$(echo "${{ matrix.worker-dir }}" | sed 's/-service$//')
+              # Check if the secret name has the service prefix
+              if [[ "$NAME" == "${SERVICE_PREFIX}_"* ]]; then
+                # Extract the actual secret name without the prefix
+                ACTUAL_NAME=${NAME#"${SERVICE_PREFIX}_"}
+                VALUE=$(eval echo \$$NAME)
+                if [ -n "$VALUE" ]; then
+                  echo "Setting secret: $ACTUAL_NAME (from $NAME)"
+                  echo "$VALUE" | npx wrangler secret put "$ACTUAL_NAME" --env $ENV_NAME
+                else
+                  echo "Warning: Secret $NAME has no value"
+                fi
               else
-                echo "Warning: Secret $NAME has no value"
+                # Handle regular secret case (no prefix)
+                VALUE=$(eval echo \$$NAME)
+                if [ -n "$VALUE" ]; then
+                  echo "Setting secret: $NAME"
+                  echo "$VALUE" | npx wrangler secret put "$NAME" --env $ENV_NAME
+                else
+                  echo "Warning: Secret $NAME has no value"
+                fi
               fi
             fi
           done
