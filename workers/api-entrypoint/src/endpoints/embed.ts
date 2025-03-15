@@ -55,6 +55,7 @@ export class Embed extends OpenAPIRoute {
     // Get validated data
     const data = await this.getValidatedData<typeof this.schema>();
     logger.info(c.env.CF_ACCESS_CLIENT_ID, "CF_ACCESS_CLIENT_ID")
+    logger.info(c.env.ENVIRONMENT, "ENVIRONMENT")
     // Retrieve the validated text
     const { text } = data.body;
 
