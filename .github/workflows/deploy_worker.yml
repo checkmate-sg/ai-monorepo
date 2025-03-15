@@ -168,7 +168,7 @@ jobs:
           # Loop through each secret and set it
           for NAME in $SECRET_NAMES; do
             # # Use indirect reference to get the actual secret value
-            echo ${env.SECRET_NAME_$NAME} hello
+            echo ${{env.SECRET_NAME_$NAME}} hello
             echo ${secrets[format('{0}', env.SECRET_NAME_$NAME )]}} | npx wrangler secret put $NAME --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
 
 
