@@ -166,19 +166,10 @@ jobs:
         
           
           # Loop through each secret and set it
-          for SECRET_NAME in $SECRET_NAMES; do
+          for NAME in $SECRET_NAMES; do
             # # Use indirect reference to get the actual secret value
 
-            SECRET_KEY="${SECRET_NAME}"  # Secret key name
-
-            # Dynamically fetch secret value using an environment variable
-            SECRET_VALUE="${{ secrets[env.SECRET_NAME] }}"
-
-            echo "Setting secret: $SECRET_NAME"
-
-
-            echo $GITHUB_ENV
-            echo ${{secrets[format('{0}', env.SECRET_NAME )]}} | npx wrangler secret put $SECRET_NAME --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
+            echo ${secrets[format('{0}', env.SECRET_NAME )]}} | npx wrangler secret put $NAME --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
 
 
 
