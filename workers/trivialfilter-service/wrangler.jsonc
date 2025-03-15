@@ -23,16 +23,10 @@
    */
   "env": {
     "staging": {
-      "name": "trivialfilter-service-staging",
-      "vars": {
-        "ENVIRONMENT": "staging"
-      }
+      "name": "trivialfilter-service-staging"
     },
     "production": {
-      "name": "trivialfilter-service",
-      "vars": {
-        "ENVIRONMENT": "production"
-      }
+      "name": "trivialfilter-service"
     }
   }
   /**

@@ -30,9 +30,6 @@
   "env": {
     "staging": {
       "name": "embedder-service-staging",
-      "vars": {
-        "ENVIRONMENT": "staging"
-      },
       "workers_dev": false,
       "ai": {
         "binding": "AI"
@@ -40,9 +37,6 @@
     },
     "production": {
       "name": "embedder-service",
-      "vars": {
-        "ENVIRONMENT": "production"
-      },
       "workers_dev": false,
       "ai": {
         "binding": "AI"
