@@ -137,7 +137,6 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
         run: |
           cd ./workers/${{ matrix.worker-dir }}
           ENV_NAME="${{ github.ref_name == 'main' && 'production' || github.ref_name }}"
@@ -146,29 +145,44 @@ jobs:
           pnpm install
           npx wrangler deploy --env $ENV_NAME
 
-          if [[ "${{ matrix.worker-dir }}" == "agent-service" ]]; then
-            SECRET_NAMES=$(echo "${{ env.AGENT_SERVICE_SECRET_NAMES }}" | tr ',' '\n')
-          elif [[ "${{ matrix.worker-dir }}" == "api-entrypoint" ]]; then
-            SECRET_NAMES=$(echo "${{ env.API_ENTRYPOINT_SECRET_NAMES }}" | tr ',' '\n')
-          elif [[ "${{ matrix.worker-dir }}" == "embedder-service" ]]; then
-            SECRET_NAMES=$(echo "${{ env.EMBEDDER_SERVICE_SECRET_NAMES }}" | tr ',' '\n')
-          elif [[ "${{ matrix.worker-dir }}" == "screenshot-service" ]]; then
-            SECRET_NAMES=$(echo "${{ env.SCREENSHOT_SERVICE_SECRET_NAMES }}" | tr ',' '\n')
-          elif [[ "${{ matrix.worker-dir }}" == "search-service" ]]; then
-            SECRET_NAMES=$(echo "${{ env.SEARCH_SERVICE_SECRET_NAMES }}" | tr ',' '\n')
-          elif [[ "${{ matrix.worker-dir }}" == "urlscan-service" ]]; then
-            SECRET_NAMES=$(echo "${{ env.URLSCAN_SERVICE_SECRET_NAMES }}" | tr ',' '\n')
-          elif [[ "${{ matrix.worker-dir }}" == "screenshot-backup-service" ]]; then
-            SECRET_NAMES=$(echo "${{ env.SCREENSHOT_BACKUP_SERVICE_SECRET_NAMES }}" | tr ',' '\n')
-          elif [[ "${{ matrix.worker-dir }}" == "trivialfilter-service" ]]; then
-            SECRET_NAMES=$(echo "${{ env.TRIVIALFILTER_SERVICE_SECRET_NAMES }}" | tr ',' '\n')
-          fi
-          
-        
+          # Get the appropriate secret names for this worker
+          SECRET_NAMES=""
+          case "${{ matrix.worker-dir }}" in
+            agent-service)
+              SECRET_NAMES="${{ env.AGENT_SERVICE_SECRET_NAMES }}"
+              ;;
+            api-entrypoint)
+              SECRET_NAMES="${{ env.API_ENTRYPOINT_SECRET_NAMES }}"
+              ;;
+            embedder-service)
+              SECRET_NAMES="${{ env.EMBEDDER_SERVICE_SECRET_NAMES }}"
+              ;;
+            screenshot-service)
+              SECRET_NAMES="${{ env.SCREENSHOT_SERVICE_SECRET_NAMES }}"
+              ;;
+            search-service)
+              SECRET_NAMES="${{ env.SEARCH_SERVICE_SECRET_NAMES }}"
+              ;;
+            urlscan-service)
+              SECRET_NAMES="${{ env.URLSCAN_SERVICE_SECRET_NAMES }}"
+              ;;
+            screenshot-backup-service)
+              SECRET_NAMES="${{ env.SCREENSHOT_BACKUP_SERVICE_SECRET_NAMES }}"
+              ;;
+            trivialfilter-service)
+              SECRET_NAMES="${{ env.TRIVIALFILTER_SERVICE_SECRET_NAMES }}"
+              ;;
+          esac
           
           # Loop through each secret and set it
-          for NAME in $SECRET_NAMES; do
-
-            eval echo \$$NAME | npx wrangler secret put MY_SECRET_NAME_KEY --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
-
+          for NAME in $(echo "$SECRET_NAMES" | tr ',' '\n' | tr -d ' '); do
+            if [ -n "$NAME" ]; then
+              VALUE=$(eval echo \$$NAME)
+              if [ -n "$VALUE" ]; then
+                echo "Setting secret: $NAME"
+                echo "$VALUE" | npx wrangler secret put "$NAME" --env $ENV_NAME
+              else
+                echo "Warning: Secret $NAME has no value"
+              fi
+            fi
           done
