@@ -5,19 +5,19 @@ const logger = createLogger("Admin Auth Middleware");
 
 export async function adminAuth(c: Context<{ Bindings: Env }>, next: Next) {
   try {
-    console.log(Object.keys(c.req.header()));
     if (c.env.ENVIRONMENT === "development") {
       await next();
       return;
     }
     // Get the Cloudflare Access service token headers
-    const clientId = c.req.header("CF-Access-Client-Id");
-    const clientSecret = c.req.header("CF-Access-Client-Secret");
+    const JWT = c.req.header("Cf-Access-Jwt-Assertion");
 
-    if (!clientId || !clientSecret) {
-      logger.warn("Missing Cloudflare Access service token headers");
+    if (!JWT) {
+      logger.warn("Missing Cloudflare Access JWT assertion header");
       return c.json(
-        { error: "Unauthorized: Missing Cloudflare Access service token" },
+        {
+          error: "Unauthorized: Missing Cloudflare Access JWT assertion header",
+        },
         { status: 401 }
       );
     }
@@ -28,7 +28,7 @@ export async function adminAuth(c: Context<{ Bindings: Env }>, next: Next) {
     // For now, we're just checking for the presence of the headers
     // as Cloudflare Access handles the authentication before the request reaches the worker
 
-    logger.info(`Admin access by service client: ${clientId}`);
+    logger.info(`Admin access by service client`);
 
     // Continue to the next middleware or route handler
     await next();
