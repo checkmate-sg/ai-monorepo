@@ -165,10 +165,10 @@ jobs:
             # # Use indirect reference to get the actual secret value
 
             echo setting $VAR_NAME
-            echo $AGENT_SERVICE_VERTEX_REGION
+            echo $AGENT_SERVICE_PORTKEY_ENDPOINT
             echo "$NAME" 
-            echo $(echo $NAME)
-            echo "$NAME" | npx wrangler secret put MY_SECRET_NAME_KEY --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
+            echo $(eval echo \$$NAME)
+            eval echo \$$NAME | npx wrangler secret put MY_SECRET_NAME_KEY --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
 
 
 
