@@ -178,6 +178,7 @@ jobs:
               SERVICE_PREFIX=$(echo "${WORKER_DIR}" | sed 's/-service$//')
               # Check if the secret name has the service prefix
               echo "Looking for SERVICE_PREFIX: $SERVICE_PREFIX"
+              shopt -s nocaseglob  # Enable case-insensitive matching
               if [[ "$NAME" == "${SERVICE_PREFIX}_"* ]]; then
                 # Extract the actual secret name without the prefix
              
@@ -201,5 +202,7 @@ jobs:
                   echo "Warning: Secret $NAME has no value"
                 fi
               fi
+              shopt -u nocaseglob  # Disable case-insensitive matching
+
             fi
           done
