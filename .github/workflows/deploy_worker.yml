@@ -191,6 +191,7 @@ jobs:
                 fi
               else
                 # Handle regular secret case (no prefix)
+                echo "Secret name has no service prefix, actual name: $NAME"
                 VALUE=$(eval echo \$$NAME)
                 if [ -n "$VALUE" ]; then
                   echo "Setting secret: $NAME"
