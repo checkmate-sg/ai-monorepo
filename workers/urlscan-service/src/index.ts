@@ -35,13 +35,13 @@ export default class extends WorkerEntrypoint<Env> {
     try {
       // call urlscan api
       this.logger.info(this.logContext, "Calling url scanning api");
-      const url = `${this.env.URLSCAN_HOSTNAME}/evaluate`;
+      const url = `${this.env.HOSTNAME}/evaluate`;
       const payload = {
         url: request.url,
         source: "checkmate",
       };
       const headers = {
-        "x-api-key": this.env.URLSCAN_APIKEY,
+        "x-api-key": this.env.APIKEY,
         "Content-Type": "application/json",
         accept: "application/json",
         "User-Agent": "CheckMate",
@@ -126,7 +126,7 @@ export default class extends WorkerEntrypoint<Env> {
         );
 
         const evaluationResponse = await fetch(
-          `${this.env.URLSCAN_HOSTNAME}/url/${requestId}/evaluation`,
+          `${this.env.HOSTNAME}/url/${requestId}/evaluation`,
           { headers }
         );
 
