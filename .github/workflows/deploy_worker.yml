@@ -126,7 +126,7 @@ jobs:
         run: |
           echo "$SECRETS_CONTEXT" | jq -r 'keys[]' | while read -r SECRET_NAME; do
             echo "Processing secret: $SECRET_NAME"
-            echo "$SECRET_NAME=$SECRET_NAME" >> $GITHUB_ENV
+            echo "SECRET_NAME_$SECRET_NAME=$SECRET_NAME" >> $GITHUB_ENV
           done
 
 
@@ -169,7 +169,7 @@ jobs:
           for NAME in $SECRET_NAMES; do
             # # Use indirect reference to get the actual secret value
 
-            echo ${secrets[format('{0}', env.SECRET_NAME )]}} | npx wrangler secret put $NAME --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
+            echo ${secrets[format('{0}', env.SECRET_NAME_$NAME )]}} | npx wrangler secret put $NAME --env ${{  github.ref_name == 'main' && 'production' || github.ref_name }}
 
 
 
