@@ -62,6 +62,17 @@ export default class extends WorkerEntrypoint<Env> {
         },
       });
 
+      if (!response.ok) {
+        this.logger.error(
+          { ...this.logContext, response },
+          "Screenshot API returned non-OK status"
+        );
+        return {
+          success: false,
+          error: { message: "Screenshot API returned non-OK status" },
+          id,
+        };
+      }
       const data = (await response.json()) as ScreenshotAPIResponse;
 
       const imageUrl = data.result;
