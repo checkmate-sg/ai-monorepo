@@ -73,6 +73,8 @@ export default class extends WorkerEntrypoint<Env> {
           id,
         };
       }
+      console.log("response", response);
+      console.log(await response.json());
       const data = (await response.json()) as ScreenshotAPIResponse;
 
       const imageUrl = data.result;
