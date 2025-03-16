@@ -174,6 +174,8 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
         //extend userContent with screenshotContent
         userContent = [...userContent, ...screenshotContent];
 
+        console.log("environment", context.env.ENVIRONMENT);
+
         const preprocessPrompt = await context.langfuse.getPrompt(
           "preprocess_inputs",
           undefined,
