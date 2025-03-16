@@ -19,7 +19,9 @@ const str2ab = (str: string) => {
 };
 
 const sign = async (content: string, signingKey: string) => {
+  console.log("signingKey", signingKey);
   const buf = str2ab(content);
+  console.log("buf", buf);
   const plainKey = signingKey
     .replace("-----BEGIN PRIVATE KEY-----", "")
     .replace("-----END PRIVATE KEY-----", "")
