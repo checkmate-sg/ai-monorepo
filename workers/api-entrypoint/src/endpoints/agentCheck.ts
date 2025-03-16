@@ -113,7 +113,15 @@ export async function handleAgentRequest(
 
     if (agentResult.success) {
       childLogger.info(agentResult, "Agent check completed, returning results");
-      return c.json(agentResult);
+      if (removeReport) {
+        const { report, ...resultWithoutReport } = agentResult.result;
+        return c.json({
+          success: true,
+          result: resultWithoutReport,
+        });
+      } else {
+        return c.json(agentResult);
+      }
     } else {
       // When success is false, we have an ErrorResponse with an error property
       childLogger.error(
