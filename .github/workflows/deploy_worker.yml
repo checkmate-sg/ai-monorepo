@@ -21,16 +21,6 @@ on:
         description: Deploy a specific worker (leave empty for automatic detection)
         required: false
         type: string
-# Set all the neccessary secrets in Github
-env:
-  AGENT_SECRET_NAMES: AGENT_CF_ACCESS_CLIENT_ID,AGENT_CF_ACCESS_CLIENT_SECRET,ENVIRONMENT,PORTKEY_ENDPOINT,OPENAI_API_KEY,GROQ_API_KEY,AGENT_GOOGLE_CLIENT_ID,AGENT_GOOGLE_CLIENT_SECRET,VERTEX_PROJECT_ID,VERTEX_REGION,LANGFUSE_SECRET_KEY,LANGFUSE_PUBLIC_KEY,LANGFUSE_HOST
-  API_ENTRYPOINT_SECRET_NAMES: ENVIRONMENT
-  EMBEDDER_SECRET_NAMES: ENVIRONMENT
-  SCREENSHOT_SECRET_NAMES: SCREENSHOT_API_DOMAIN,ENVIRONMENT
-  SEARCH_SECRET_NAMES: SERPER_API_KEY,ENVIRONMENT
-  URLSCAN_SECRET_NAMES: URLSCAN_HOSTNAME,URLSCAN_APIKEY,ENVIRONMENT
-  SCREENSHOT_BACKUP_SECRET_NAMES: SCREENSHOT_BACKUP_GOOGLE_CLIENT_ID,SCREENSHOT_BACKUP_GOOGLE_CLIENT_SECRET,SCREENSHOT_BACKUP_API_ENDPOINT,ENVIRONMENT
-  TRIVIALFILTER_SECRET_NAMES: TRIVIALFILTER_CF_ACCESS_CLIENT_ID,TRIVIALFILTER_CF_ACCESS_CLIENT_SECRET,PORTKEY_ENDPOINT,OPENAI_API_KEY,GROQ_API_KEY,LANGFUSE_SECRET_KEY,LANGFUSE_PUBLIC_KEY,LANGFUSE_HOST,ENVIRONMENT
 
 jobs:
   scan-for-changes:
@@ -38,7 +28,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       worker-dirs: ${{ steps.changed-workers.outputs.worker-dirs }} # Output the list of workers to deploy
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -105,12 +94,8 @@ jobs:
           - screenshot-backup-service
           - trivialfilter-service
     timeout-minutes: 60 # Set timeout to prevent hung deployments
-
     steps:
       - uses: actions/checkout@v4.2.2
-      - uses: oNaiPs/secrets-to-env-action@v1
-        with:
-          secrets: ${{ toJSON(secrets) }}
       - uses: pnpm/action-setup@v4.1.0
         with:
           version: 10.5.2
@@ -118,6 +103,7 @@ jobs:
         id: check-changes
         run: |
           CHANGED_WORKERS='${{ needs.scan-for-changes.outputs.worker-dirs }}'
+
           if echo $CHANGED_WORKERS | jq -e 'contains(["${{ matrix.worker-dir }}"])' > /dev/null; then
             echo "Worker ${{ matrix.worker-dir }} has changes, will deploy"
             echo "has_changes=true" >> $GITHUB_OUTPUT
@@ -125,14 +111,6 @@ jobs:
             echo "Worker ${{ matrix.worker-dir }} has no changes, skipping deployment"
             echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
-      - name: Deploy with Wrangler CLI
-        if: "steps.check-changes.outputs.has_changes == 'true'"
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |-
-          cd ./workers/${{ matrix.worker-dir }}
-          ENV_NAME="${{ github.ref_name == 'main' && 'production' || github.ref_name }}"
 
       - name: Deploy with Wrangler CLI
         if: "steps.check-changes.outputs.has_changes == 'true'"
@@ -142,66 +120,8 @@ jobs:
         run: |-
           cd ./workers/${{ matrix.worker-dir }}
           ENV_NAME="${{ github.ref_name == 'main' && 'production' || github.ref_name }}"
+
           # Deploy the worker
           pnpm install
           npx wrangler deploy --env $ENV_NAME
 
-          # Get the appropriate secret names for this worker
-          SECRET_NAMES=""
-          case "${{ matrix.worker-dir }}" in
-            agent-service)
-              SECRET_NAMES="${{ env.AGENT_SECRET_NAMES }}"
-              ;;
-            api-entrypoint)
-              SECRET_NAMES="${{ env.API_ENTRYPOINT_SECRET_NAMES }}"
-              ;;
-            embedder-service)
-              SECRET_NAMES="${{ env.EMBEDDER_SECRET_NAMES }}"
-              ;;
-            screenshot-service)
-              SECRET_NAMES="${{ env.SCREENSHOT_SECRET_NAMES }}"
-              ;;
-            search-service)
-              SECRET_NAMES="${{ env.SEARCH_SECRET_NAMES }}"
-              ;;
-            urlscan-service)
-              SECRET_NAMES="${{ env.URLSCAN_SECRET_NAMES }}"
-              ;;
-            screenshot-backup-service)
-              SECRET_NAMES="${{ env.SCREENSHOT_BACKUP_SECRET_NAMES }}"
-              ;;
-            trivialfilter-service)
-              SECRET_NAMES="${{ env.TRIVIALFILTER_SECRET_NAMES }}"
-              ;;
-          esac
-
-          # Loop through each secret and set it
-          for NAME in $(echo "$SECRET_NAMES" | tr ',' '\n' | tr -d ' '); do
-            if [ -n "$NAME" ]; then
-              # Get the value of the secret
-              VALUE=$(eval echo \$$NAME)
-              
-              # Skip if the secret has no value
-              if [ -z "$VALUE" ]; then
-                echo "Warning: Secret $NAME has no value"
-                continue
-              fi
-              
-              # Determine if this is a prefixed secret that needs to be stripped
-              WORKER_DIR="${{ matrix.worker-dir }}"
-              WORKER_DIR=${WORKER_DIR//-/_}  # Replace hyphens with underscores
-              SERVICE_PREFIX=$(echo "${WORKER_DIR}" | sed 's/_service$//')
-              SERVICE_PREFIX_UPPER=$(echo "${SERVICE_PREFIX}" | tr '[:lower:]' '[:upper:]')
-              
-              if [[ "$NAME" == "${SERVICE_PREFIX_UPPER}_"* ]]; then
-                # Extract the actual secret name without the prefix
-                ACTUAL_NAME=${NAME#"${SERVICE_PREFIX_UPPER}_"}
-                echo "Setting secret: $ACTUAL_NAME (from $NAME)"
-                echo "$VALUE" | npx wrangler secret put "$ACTUAL_NAME" --env $ENV_NAME
-              else
-                # Regular secret (no prefix to strip)
-                echo "Setting secret: $NAME"
-                echo "$VALUE" | npx wrangler secret put "$NAME" --env $ENV_NAME
-              fi
-            fi
-          done
