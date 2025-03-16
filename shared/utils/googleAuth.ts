@@ -27,9 +27,14 @@ const sign = async (content: string, signingKey: string) => {
     .replace("-----END PRIVATE KEY-----", "")
     .replace(/(\r\n|\n|\r)/gm, "");
   console.log("plainKey", plainKey);
-  console.log("atob(plainKey)", atob(plainKey));
-  console.log("str2ab(atob(plainKey))", str2ab(atob(plainKey)));
-  const binaryKey = str2ab(atob(plainKey));
+  let binaryKey;
+  try {
+    binaryKey = str2ab(atob(plainKey));
+  } catch (err) {
+    console.log("Issue with atob(plainKey)");
+    console.log("err", err);
+    throw err;
+  }
   console.log("binaryKey", binaryKey);
   const signer = await crypto.subtle.importKey(
     "pkcs8",
