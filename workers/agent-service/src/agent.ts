@@ -426,21 +426,19 @@ export class CheckerAgent extends DurableObject<Env> {
       }
       const summary = summariseResult.result.summary;
 
-      const translateResult = await this.tools.translate_text.execute({
+      const cnResult = await this.tools.translate_text.execute({
         text: summary,
         language: "cn",
       });
-      if (!translateResult.success) {
-        throw new Error(
-          `Translate text failed: ${translateResult.error.message}`
-        );
+      if (!cnResult.success) {
+        throw new Error(`Translate text failed: ${cnResult.error.message}`);
       }
 
-      const translatedSummary = translateResult.result.translatedText;
+      const cnSummary = cnResult.result.translatedText;
 
       const communityNote: CommunityNote = {
-        en: translatedSummary,
-        cn: summary,
+        en: summary,
+        cn: cnSummary,
         links: sources,
       };
 
