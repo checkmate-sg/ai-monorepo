@@ -48,6 +48,7 @@ export default class extends WorkerEntrypoint<Env> {
     }
 
     try {
+      console.log("getting token");
       const token = await getGoogleIdToken(
         this.env.GOOGLE_CLIENT_ID,
         this.env.GOOGLE_CLIENT_SECRET,
