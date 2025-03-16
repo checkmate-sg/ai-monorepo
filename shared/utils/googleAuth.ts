@@ -25,7 +25,8 @@ const sign = async (content: string, signingKey: string) => {
   const plainKey = signingKey
     .replace("-----BEGIN PRIVATE KEY-----", "")
     .replace("-----END PRIVATE KEY-----", "")
-    .replace(/(\r\n|\n|\r)/gm, "");
+    .replace(/(\r\n|\n|\r)/gm, "")
+    .replace(/\\n/g, "");
   console.log("plainKey", plainKey);
   let binaryKey;
   try {
