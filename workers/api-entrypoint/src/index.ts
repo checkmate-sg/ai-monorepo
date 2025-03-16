@@ -9,6 +9,7 @@ import { ConsumerList } from "./endpoints/consumerList";
 import { ConsumerGet } from "./endpoints/consumerGet";
 import { consumerAuth } from "./middleware/consumerAuth";
 import { adminAuth } from "./middleware/adminAuth";
+import { ConsumerDelete } from "./endpoints/consumerDelete";
 export { Consumer } from "./durable-objects/consumer";
 
 // Start a Hono app
@@ -48,6 +49,8 @@ openapi.get("/consumer/details", ConsumerGet);
 // Consumer endpoints - these need admin auth middleware
 openapi.post("/consumers", ConsumerPost);
 openapi.get("/consumers", ConsumerList);
+// Support deletion by name (path param) or by API key (header) or both
+openapi.delete("/consumers/:consumerName?", ConsumerDelete);
 
 // Export the Hono app
 export default app;

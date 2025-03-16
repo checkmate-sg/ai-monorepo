@@ -54,6 +54,10 @@ export class Consumer extends DurableObject<Env> {
     this.tokens = (await this.ctx.storage.get("tokens")) || 0;
   }
 
+  async deleteConsumer() {
+    await this.ctx.storage.deleteAll();
+  }
+
   async createConsumer(request: AddConsumerRequest) {
     try {
       if (!request.name) {
