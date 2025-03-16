@@ -41,7 +41,6 @@ export class ConsumerList extends OpenAPIRoute {
     try {
       // Get all consumers from the registry
       const consumers = await c.env.CONSUMER_KV.list({ prefix: "consumer:" });
-      console.log(consumers);
       // Create an array to store consumer details
       const consumerDetails = [];
 

@@ -19,24 +19,13 @@ const str2ab = (str: string) => {
 };
 
 const sign = async (content: string, signingKey: string) => {
-  console.log("signingKey", signingKey);
   const buf = str2ab(content);
-  console.log("buf", buf);
   const plainKey = signingKey
     .replace("-----BEGIN PRIVATE KEY-----", "")
     .replace("-----END PRIVATE KEY-----", "")
     .replace(/(\r\n|\n|\r)/gm, "")
     .replace(/\\n/g, "");
-  console.log("plainKey", plainKey);
-  let binaryKey;
-  try {
-    binaryKey = str2ab(atob(plainKey));
-  } catch (err) {
-    console.log("Issue with atob(plainKey)");
-    console.log("err", err);
-    throw err;
-  }
-  console.log("binaryKey", binaryKey);
+  const binaryKey = str2ab(atob(plainKey));
   const signer = await crypto.subtle.importKey(
     "pkcs8",
     binaryKey,
@@ -47,7 +36,6 @@ const sign = async (content: string, signingKey: string) => {
     false,
     ["sign"]
   );
-  console.log("signer", signer);
   const binarySignature = await crypto.subtle.sign(
     { name: "RSASSA-PKCS1-V1_5" },
     signer,
@@ -102,10 +90,6 @@ export const getGoogleIdToken = async (
   const jwtHeader = objectToBase64url({ alg: "RS256", typ: "JWT" });
 
   try {
-    console.log("Client ID available:", !!user);
-    console.log("Client Secret available:", !!key);
-    console.log("Cloud Run URL available:", !!cloudRunUrl);
-
     const assertionTime = Math.round(Date.now() / 1000);
     const expiryTime = assertionTime + 3600;
     // Set the audience to the Cloud Run service URL
@@ -118,14 +102,9 @@ export const getGoogleIdToken = async (
       target_audience: cloudRunUrl,
     });
 
-    console.log("jwtHeader", jwtHeader);
-    console.log("claimset", claimset);
-
     const jwtUnsigned = `${jwtHeader}.${claimset}`;
     const signature = await sign(jwtUnsigned, key);
     const signedJwt = `${jwtUnsigned}.${signature}`;
-
-    console.log("signedJwt", signedJwt);
 
     const body = `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${signedJwt}`;
 
@@ -136,8 +115,6 @@ export const getGoogleIdToken = async (
       },
       body,
     });
-
-    console.log("response", response);
 
     const responseData = (await response.json()) as any;
     // The key we need is "id_token" instead of "access_token"
