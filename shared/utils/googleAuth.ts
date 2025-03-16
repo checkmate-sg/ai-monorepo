@@ -25,6 +25,7 @@ const sign = async (content: string, signingKey: string) => {
     .replace("-----END PRIVATE KEY-----", "")
     .replace(/(\r\n|\n|\r)/gm, "");
   const binaryKey = str2ab(atob(plainKey));
+  console.log("binaryKey", binaryKey);
   const signer = await crypto.subtle.importKey(
     "pkcs8",
     binaryKey,
@@ -35,6 +36,7 @@ const sign = async (content: string, signingKey: string) => {
     false,
     ["sign"]
   );
+  console.log("signer", signer);
   const binarySignature = await crypto.subtle.sign(
     { name: "RSASSA-PKCS1-V1_5" },
     signer,
