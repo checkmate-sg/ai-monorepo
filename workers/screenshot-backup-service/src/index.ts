@@ -48,13 +48,11 @@ export default class extends WorkerEntrypoint<Env> {
     }
 
     try {
-      console.log("getting token");
       const token = await getGoogleIdToken(
         this.env.GOOGLE_CLIENT_ID,
         this.env.GOOGLE_CLIENT_SECRET,
         this.env.API_ENDPOINT
       );
-      console.log("token", token);
       const response = await fetch(`${this.env.API_ENDPOINT}/get-screenshot`, {
         method: "POST",
         body: JSON.stringify({ url }),
@@ -75,8 +73,6 @@ export default class extends WorkerEntrypoint<Env> {
           id,
         };
       }
-      console.log("response", response);
-      console.log(await response.json());
       const data = (await response.json()) as ScreenshotAPIResponse;
 
       const imageUrl = data.result;
