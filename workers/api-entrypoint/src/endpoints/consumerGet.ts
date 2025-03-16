@@ -15,6 +15,15 @@ export class ConsumerGet extends OpenAPIRoute {
     tags: ["Consumer"],
     summary: "Get consumer information by API key",
     security: [{ ApiKeyAuth: [] }],
+    request: {
+      headers: z.object({
+        "x-api-key": z
+          .string({
+            required_error: "API key is required for authentication",
+          })
+          .describe("API key for authentication"),
+      }),
+    },
     responses: {
       "200": {
         description: "Returns consumer information",

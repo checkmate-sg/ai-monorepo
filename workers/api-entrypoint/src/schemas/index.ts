@@ -20,7 +20,9 @@ export const ConsumerCountsSchema = z.object({
 
 // Common error response schema
 export const ErrorResponseSchema = z.object({
-  success: Bool({ description: "Indicates if the operation was successful" }),
+  success: z
+    .literal(false)
+    .describe("Indicates if the operation was successful"),
   error: Str({ description: "Error message describing what went wrong" }),
 });
 

@@ -27,6 +27,11 @@ export const agentRequestSchema = {
       .string()
       .nullish()
       .describe("Unique request identifier for tracing"),
+    "x-api-key": z
+      .string({
+        required_error: "API key is required for authentication",
+      })
+      .describe("API key for authentication"),
   }),
   body: {
     content: {
@@ -159,6 +164,7 @@ export class AgentCheck extends OpenAPIRoute {
   schema = {
     tags: ["Agent"],
     summary: "Get the result of the agent check",
+    security: [{ ApiKeyAuth: [] }],
     request: agentRequestSchema,
     responses: {
       "200": {

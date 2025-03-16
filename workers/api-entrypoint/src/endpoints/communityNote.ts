@@ -17,6 +17,7 @@ export class CommunityNote extends OpenAPIRoute {
   schema = {
     tags: ["Agent"],
     summary: "Get only the community note",
+    security: [{ ApiKeyAuth: [] }],
     request: agentRequestSchema,
     responses: {
       "200": {

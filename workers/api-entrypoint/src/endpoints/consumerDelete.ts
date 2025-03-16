@@ -10,7 +10,6 @@ export class ConsumerDelete extends OpenAPIRoute {
   schema = {
     tags: ["Consumer"],
     summary: "Delete consumer by API key or name",
-    security: [{ ApiKeyAuth: [] }],
     parameters: [
       {
         name: "consumerName",
