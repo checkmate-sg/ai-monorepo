@@ -46,6 +46,9 @@ export const agentRequestSchema = {
             // Common properties
             provider: z.enum(["openai", "vertex-ai", "groq"]).optional(),
           })
+          .describe(
+            "Request body schema. For text, pass 'text' only. For image, pass 'imageUrl' or 'caption'. Leave 'provider' blank for default."
+          )
           .refine(
             (data) =>
               (data.text && !data.imageUrl) || (data.imageUrl && !data.text),
@@ -54,6 +57,21 @@ export const agentRequestSchema = {
                 "Either 'text' OR 'imageUrl' must be provided, but not both",
             }
           ),
+        examples: {
+          "Text Request Example": {
+            value: {
+              text: "Hello",
+            },
+            summary: "Example of a text-only request",
+          },
+          "Image Request Example": {
+            value: {
+              imageUrl: "https://example.com/image.jpg",
+              caption: "Is this true?",
+            },
+            summary: "Example of an image request with caption",
+          },
+        },
       },
     },
     required: true,
