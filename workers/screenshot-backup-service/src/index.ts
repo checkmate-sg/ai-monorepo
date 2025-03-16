@@ -53,6 +53,7 @@ export default class extends WorkerEntrypoint<Env> {
         this.env.GOOGLE_CLIENT_SECRET,
         this.env.API_ENDPOINT
       );
+      console.log("token", token);
       const response = await fetch(`${this.env.API_ENDPOINT}/get-screenshot`, {
         method: "POST",
         body: JSON.stringify({ url }),
