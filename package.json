@@ -15,7 +15,8 @@
     "dev:trivialfilter-service": "turbo dev --filter=trivialfilter-service",
     "dev:agent-service": "turbo dev --filter=agent-service",
     "dev:api-entrypoint": "turbo dev --filter=api-entrypoint",
-    "dev:embedder-service": "turbo dev --filter=embedder-service"
+    "dev:embedder-service": "turbo dev --filter=embedder-service",
+    "dev:portkey-service": "turbo dev --filter=portkey-service"
   },
   "workspaces": [
     "workers/*",

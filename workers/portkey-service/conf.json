@@ -1,0 +1,17 @@
+{
+  "plugins_enabled": [
+    "default",
+    "portkey",
+    "aporia",
+    "sydelabs",
+    "pillar",
+    "patronus",
+    "pangea"
+  ],
+  "credentials": {
+    "portkey": {
+      "apiKey": "..."
+    }
+  },
+  "cache": false
+}
