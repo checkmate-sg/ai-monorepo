@@ -142,3 +142,7 @@ CF Workers must be deployed first before triggering CF Secrets deployment.
 1. Go to **Actions** > **Deploy CF Secrets**.
 2. Click **Run workflow**.
 3. Choose **Force all deployment** or input a specific worker name.
+
+## How to update portkey worker
+
+Reclone for updates and commit
