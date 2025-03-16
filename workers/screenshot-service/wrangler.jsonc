@@ -69,10 +69,6 @@
     "binding": "BROWSER"
   },
 
-  "vars": {
-    "DOMAIN": "https://screenshots.checkmate.sg"
-  },
-
   /**
    * Environment-specific configurations
    */
@@ -84,10 +80,7 @@
           "binding": "SCREENSHOT_BUCKET",
           "bucket_name": "screenshots-staging"
         }
-      ],
-      "vars": {
-        "DOMAIN": "https://screenshots.staging.checkmate.sg"
-      }
+      ]
     },
     "production": {
       "name": "screenshot-service",
@@ -96,10 +89,7 @@
           "binding": "SCREENSHOT_BUCKET",
           "bucket_name": "screenshots"
         }
-      ],
-      "vars": {
-        "DOMAIN": "https://screenshots.checkmate.sg"
-      }
+      ]
     }
   }
 }

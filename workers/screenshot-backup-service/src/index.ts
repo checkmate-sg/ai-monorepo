@@ -51,19 +51,16 @@ export default class extends WorkerEntrypoint<Env> {
       const token = await getGoogleIdToken(
         this.env.GOOGLE_CLIENT_ID,
         this.env.GOOGLE_CLIENT_SECRET,
-        this.env.SCREENSHOT_API_ENDPOINT
+        this.env.API_ENDPOINT
       );
-      const response = await fetch(
-        `${this.env.SCREENSHOT_API_ENDPOINT}/get-screenshot`,
-        {
-          method: "POST",
-          body: JSON.stringify({ url }),
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const response = await fetch(`${this.env.API_ENDPOINT}/get-screenshot`, {
+        method: "POST",
+        body: JSON.stringify({ url }),
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       const data = (await response.json()) as ScreenshotAPIResponse;
 

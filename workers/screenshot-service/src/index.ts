@@ -45,7 +45,7 @@ export default class extends WorkerEntrypoint<Env> {
     let browser;
     try {
       const urlHash = await hashUrl(url);
-      const imageUrl = `${this.env.SCREENSHOT_API_DOMAIN}/${urlHash}`;
+      const imageUrl = `${this.env.API_DOMAIN}/${urlHash}`;
       const r2Object = await this.env.SCREENSHOT_BUCKET.get(urlHash);
 
       if (r2Object === null) {
