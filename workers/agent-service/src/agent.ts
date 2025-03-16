@@ -8,6 +8,7 @@ import {
   CommunityNote,
   AgentResponse,
   AgentResult,
+  LLMProvider,
 } from "@workspace/shared-types";
 import type {
   ChatCompletion,
@@ -25,11 +26,18 @@ interface AgentOutputs {
   is_controversial: boolean;
 }
 
+const providerMap = {
+  openai: "gpt-4o",
+  "vertex-ai": "gemini-2.0-flash",
+  groq: "llama-3.3-70b-versatile",
+};
+
 export class CheckerAgent extends DurableObject<Env> {
   private logger: Logger;
   private searchesRemaining: number;
   private screenshotsRemaining: number;
   private id: string;
+  private provider?: LLMProvider;
   private totalCost: number;
   private client?: OpenAI;
   private intent?: string;
@@ -59,6 +67,7 @@ export class CheckerAgent extends DurableObject<Env> {
     this.state = ctx;
     this.searchesRemaining = 5;
     this.screenshotsRemaining = 5;
+    this.provider = "openai";
     if (ctx.id.name) {
       this.id = ctx.id.name;
     } else {
@@ -285,6 +294,8 @@ export class CheckerAgent extends DurableObject<Env> {
         },
       ];
 
+      console.log(messages[1].content);
+
       let completed = false;
       let completion: ChatCompletion;
       let toolCalls: ChatCompletionMessageToolCall[];
@@ -297,7 +308,7 @@ export class CheckerAgent extends DurableObject<Env> {
         });
         messages[0].content = systemPrompt;
         completion = await observedClient.chat.completions.create({
-          model: "gpt-4o",
+          model: this.provider ? providerMap[this.provider] : "gpt-4o",
           messages: messages as any[],
           temperature: 0.0,
           seed: 11,
@@ -372,6 +383,7 @@ export class CheckerAgent extends DurableObject<Env> {
       },
     });
     this.trace = trace;
+    this.provider = provider;
     try {
       this.client = await createClient(provider, this.env);
       if (request.text) {
