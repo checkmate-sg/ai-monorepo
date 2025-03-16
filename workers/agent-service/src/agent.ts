@@ -294,8 +294,6 @@ export class CheckerAgent extends DurableObject<Env> {
         },
       ];
 
-      console.log(messages[1].content);
-
       let completed = false;
       let completion: ChatCompletion;
       let toolCalls: ChatCompletionMessageToolCall[];
