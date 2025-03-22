@@ -145,4 +145,4 @@ CF Workers must be deployed first before triggering CF Secrets deployment.
 
 ## How to update portkey worker
 
-Reclone for updates and commit
+Trigger 'Deploy Portkey to CF Worker' workflow
