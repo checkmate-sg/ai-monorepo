@@ -106,7 +106,7 @@ Refer to deploy_worker.yml to set all other worker-specific secrets in GitHub.
 
 Deploy independent workers first, followed by workers that depend on other workers, as service binding requires the dependent worker to exist beforehand.
 
-## Automated Deployment
+## Automated CF Worker Deployment 
 
 Triggered on PRs to `staging` or `main`:
 
@@ -118,9 +118,9 @@ Triggered on PRs to `staging` or `main`:
 - Changes in a specific worker folder trigger deployment for that worker only.
 - Changes in a shared folder trigger deployment for all workers.
 
-## Manual Deployment
+## Manual CF Worker Deployment 
 
-**Note:** Workflow YAML must be merged into `main` before manual execution.
+**Note:** Workflow YAML must be merged into default branch before manual execution.
 
 ### When to Use Manual Deployment
 
@@ -132,3 +132,17 @@ Triggered on PRs to `staging` or `main`:
 1. Go to **Actions** > **Deploy CF Worker**.
 2. Click **Run workflow**.
 3. Choose **Force all deployment** or input a specific worker name.
+
+## Manual CF Secrets Deployment 
+
+CF Workers must be deployed first before triggering CF Secrets deployment.
+
+### Steps
+
+1. Go to **Actions** > **Deploy CF Secrets**.
+2. Click **Run workflow**.
+3. Choose **Force all deployment** or input a specific worker name.
+
+## How to update portkey worker
+
+Reclone for updates and commit
