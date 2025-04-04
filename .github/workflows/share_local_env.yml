@@ -107,7 +107,7 @@ jobs:
           # Send via Telegram if chat ID is provided
           if [ ! -z "$TELEGRAM_CHATID" ]; then
             curl -F document=@".localdev.zip" \
-              "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
+              "https://api.telegram.org/bot${{ secrets.TELEGRAM_ADMIN_BOT_TOKEN }}/sendDocument" \
               -F chat_id="$TELEGRAM_CHATID" \
               -F caption="🔐 Here's the file with the environment variables for local development"
           fi
@@ -115,10 +115,10 @@ jobs:
           # Send via email if email is provided
           if [ ! -z "$EMAIL" ]; then
             # SMTP server settings for Gmail
-            SMTP_SERVER="smtp.gmail.com"
-            SMTP_PORT="587"
-            SMTP_USERNAME="${{ secrets.GMAIL_USER }}"
-            SMTP_PASSWORD="${{ secrets.GMAIL_APP_PASSWORD }}"
+            SMTP_SERVER="${{ secrets.SMTP_SERVER }}"
+            SMTP_PORT="${{ secrets.SMTP_PORT }}"
+            SMTP_USERNAME="${{ secrets.SMTP_USERNAME }}"
+            SMTP_PASSWORD="${{ secrets.SMTP_PASSWORD }}"
 
             # Recipient email address
             TO="${{ github.event.inputs.email }}"
