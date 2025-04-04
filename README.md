@@ -149,6 +149,13 @@ Trigger 'Deploy Portkey to CF Worker' workflow
 
 ## How to Share Environment Variables for Local Development with Other Developers
 
-1. Ensure that TELEGRAM_BOT_TOKEN is configured in GitHub Secrets for the "local" environment.
+# Via Telegram
+1. Ensure that `TELEGRAM_BOT_TOKEN` is configured in GitHub Secrets for the "local" environment.
 2. Ask the developer to retrieve their chat ID from Telegram.
-3. Go to Actions > Share Local Env workflow > Run workflow > enter the developer’s chat ID.
+3. Go to **Actions > Share Local Env workflow > Run workflow**, and enter the developer’s chat ID.
+
+# Via Gmail SMTP
+1. Generate an app password from [https://myaccount.google.com/](https://myaccount.google.com/).
+2. Store the app password in `GMAIL_APP_PASSWORD` in GitHub Secrets for the "local" environment.
+3. Store the Gmail address in `GMAIL_USER` in GitHub Secrets for the "local" environment.
+4. Go to **Actions > Share Local Env** workflow, click **Run workflow**, and enter the developer's email.

@@ -1,16 +1,15 @@
 name: Share Local Env
-# Trigger the workflow on pushes to staging/main branches when worker code changes
-# or manually via workflow_dispatch with optional parameters
+
 on:
   workflow_dispatch:
     inputs:
       tele_chatid:
         description: Enter the Telegram chat ID to send to. Make sure the chat ID is correct.
-        required: true
+        required: false
         type: string
       email:
-        description: Enter the email to send to. Make sure the chat ID is correct.
-        required: true
+        description: Enter the email to send to. Make sure the email is correct.
+        required: false
         type: string
 
 # Set all the neccessary secrets in Github
@@ -32,6 +31,13 @@ jobs:
     environment: "local"
     timeout-minutes: 60 # Set timeout to prevent hung deployments
     steps:
+
+      - name: Validate inputs
+        run: |
+          if [ -z "${{ github.event.inputs.tele_chatid }}" ] && [ -z "${{ github.event.inputs.email }}" ]; then
+            echo "Error: Either Telegram chat ID or email must be provided"
+            exit 1
+          fi
 
       - uses: oNaiPs/secrets-to-env-action@v1
         with:
@@ -108,22 +114,49 @@ jobs:
 
           # Send via email if email is provided
           if [ ! -z "$EMAIL" ]; then
-            # Install required tools
-            sudo apt-get update && sudo apt-get install -y mailutils
+            # SMTP server settings for Gmail
+            SMTP_SERVER="smtp.gmail.com"
+            SMTP_PORT="587"
+            SMTP_USERNAME="${{ secrets.GMAIL_USER }}"
+            SMTP_PASSWORD="${{ secrets.GMAIL_APP_PASSWORD }}"
 
-            # Create mailrc configuration
-            cat > ~/.mailrc << EOF
-            set smtp="smtp://smtp.gmail.com:587"
-            set smtp-auth=login
-            set smtp-auth-user="${{ secrets.GMAIL_USER }}"
-            set smtp-auth-password="${{ secrets.GMAIL_PASSWORD }}"
-            set from="${{ secrets.GMAIL_USER }}"
-            set ssl-verify=peer
-            EOF
+            # Recipient email address
+            TO="${{ github.event.inputs.email }}"
 
-            # Create email content
-            echo "Here's the file with the environment variables for local development" | \
-            mail -s "Local Development Environment Variables" \
-              -A .localdev.zip \
-              "${{ github.event.inputs.email }}"
+            # Email subject and body
+            SUBJECT="Local Dev Setup: ai-monorepo Environment Variables Inside 🔐"
+            ATTACHMENT_PATH=".localdev.zip"
+            FILENAME=$(basename "$ATTACHMENT_PATH")
+            MESSAGE=$(printf '%s\n' \
+            "From: $SMTP_USERNAME" \
+            "To: $TO" \
+            "Subject: $SUBJECT" \
+            "MIME-Version: 1.0" \
+            "Content-Type: multipart/mixed; boundary=\"boundary42\"" \
+            "" \
+            "--boundary42" \
+            "Content-Type: text/plain; charset=\"UTF-8\"" \
+            "" \
+            "🔐 Here's the file with the environment variables for local development" \
+            "" \
+            "--boundary42" \
+            "Content-Type: application/octet-stream; name=\"$FILENAME\"" \
+            "Content-Transfer-Encoding: base64" \
+            "Content-Disposition: attachment; filename=\"$FILENAME\"" \
+            "" \
+            "$(base64 "$ATTACHMENT_PATH")" \
+            "--boundary42--" \
+            )
+
+            # Send the email using Curl
+            curl --url "smtp://$SMTP_SERVER:$SMTP_PORT" \
+                --ssl-reqd \
+                --mail-from "$SMTP_USERNAME" \
+                --mail-rcpt "$TO" \
+                --user "$SMTP_USERNAME:$SMTP_PASSWORD" \
+                --tlsv1.2 \
+                -T <(echo -e "$MESSAGE")
+
+            echo "Email sent to $TO"
+
           fi
