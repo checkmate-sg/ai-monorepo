@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "langfuse": "^3.35.3",
+    "mongodb": "^6.15.0",
     "normalize-url": "^8.0.1",
     "url-regex-safe": "^4.0.0"
   }

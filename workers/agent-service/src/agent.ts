@@ -18,6 +18,10 @@ import type {
 } from "openai/resources";
 import { createTools, ToolContext } from "./tools";
 import { Langfuse, TextPromptClient, observeOpenAI } from "langfuse";
+import { DatabaseService } from "./db/database.service";
+import { ObjectId } from "mongodb";
+import { ErrorType } from "./models";
+
 const logger = createLogger("agent");
 
 interface AgentOutputs {
@@ -54,6 +58,7 @@ export class CheckerAgent extends DurableObject<Env> {
   private span?: ReturnType<Langfuse["span"]>;
   private tools: ReturnType<typeof createTools>;
   private state: DurableObjectState;
+  private db: DatabaseService;
   /**
    * The constructor is invoked once upon creation of the Durable Object, i.e. the first call to
    * 	`DurableObjectStub::get` for a given identifier (no-op constructors can be omitted)
@@ -68,15 +73,8 @@ export class CheckerAgent extends DurableObject<Env> {
     this.searchesRemaining = 5;
     this.screenshotsRemaining = 5;
     this.provider = "openai";
-    if (ctx.id.name) {
-      this.id = ctx.id.name;
-    } else {
-      this.id = crypto.randomUUID();
-      logger.warn({ id: this.id }, "Agent created with random ID");
-    }
-    this.logger = logger.child({
-      id: this.id,
-    });
+    this.id = "pending-initialization";
+    this.logger = logger;
     this.logger.info("Agent created");
     this.totalCost = 0;
     this.totalTime = 0;
@@ -85,6 +83,7 @@ export class CheckerAgent extends DurableObject<Env> {
       secretKey: this.env.LANGFUSE_SECRET_KEY,
       baseUrl: this.env.LANGFUSE_HOST,
     });
+    this.db = new DatabaseService(this.env.MONGODB_CONNECTION_STRING);
     this.prompt = null as any; // Temporary initialization
     const toolContext: ToolContext = {
       logger: this.logger,
@@ -369,19 +368,26 @@ export class CheckerAgent extends DurableObject<Env> {
     }
   }
 
-  async check(request: AgentRequest): Promise<AgentResult> {
+  async check(request: AgentRequest, id: string): Promise<AgentResult> {
     const provider = request.provider || "openai";
     const consumerName = request.consumerName || "unknown consumer";
+    if (!id) {
+      throw new Error("ID is required");
+    }
+    this.id = id;
+    this.logger = this.logger.child({ id });
+
     const trace = this.langfuse.trace({
       name: "agent-check",
       input: request,
-      id: this.id,
+      id: id,
       metadata: {
         provider,
       },
     });
     this.trace = trace;
     this.provider = provider;
+
     try {
       this.client = await createClient(provider, this.env);
       if (request.text) {
@@ -394,11 +400,92 @@ export class CheckerAgent extends DurableObject<Env> {
         }
         this.type = "image";
       }
+
+      // Create the check record in MongoDB with the ID passed from the worker
+      try {
+        // Create ObjectId from this.id (the ID passed from the worker)
+        const objectId = new ObjectId(this.id);
+
+        // Create the record immediately with null embeddings
+        const insertResult = await this.db.checkRepository.insert(
+          {
+            text: this.text || null,
+            imageUrl: this.imageUrl || null,
+            caption: this.caption || null,
+            textEmbedding: null,
+            textHash: "", // To be calculated later
+            type: this.type || "text",
+            generationStatus: "pending",
+            isControversial: false,
+            isAccessBlocked: false,
+            isVideo: false,
+            timestamp: new Date(),
+            longformResponse: {
+              en: null,
+              cn: null,
+            },
+            shortformResponse: {
+              en: null,
+              cn: null,
+              downvoted: false,
+            },
+            machineCategory: null,
+            crowdsourcedCategory: null,
+            pollId: null,
+            isExpired: false,
+          },
+          objectId // Pass the ObjectId to use as the document _id
+        );
+
+        if (!insertResult.success) {
+          throw new Error(
+            `Failed to create check record: ${insertResult.error}`
+          );
+        }
+
+        // Try to embed text as a background operation if applicable
+        if (this.type === "text" && this.text) {
+          this.state.waitUntil(
+            (async () => {
+              try {
+                const embedderResult = await this.env.EMBEDDER_SERVICE.embed({
+                  text: this.text,
+                });
+
+                if (embedderResult.success) {
+                  const textEmbedding = (embedderResult as any).embedding || [];
+                  // Update the record with embeddings
+                  await this.db.checkRepository.update(this.id, {
+                    textEmbedding,
+                  });
+                  this.logger.info(
+                    { id: this.id },
+                    "Updated check record with embeddings"
+                  );
+                }
+              } catch (error) {
+                this.logger.error(
+                  { error, id: this.id },
+                  "Failed to embed text or update check record"
+                );
+              }
+            })()
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          { error, id: this.id },
+          "Failed to create check record or convert ID to ObjectId"
+        );
+        throw error;
+      }
+
       const preprocessingResult = await this.tools.preprocess_inputs.execute(
         request
       );
 
       if (!preprocessingResult.success) {
+        // Don't update status here, just throw the error to be caught in the final catch block
         throw new Error(
           `Preprocessing failed: ${preprocessingResult.error.message}`
         );
@@ -407,19 +494,46 @@ export class CheckerAgent extends DurableObject<Env> {
       this.intent = preprocessingResult.result.intent;
       this.isAccessBlocked = preprocessingResult.result.is_access_blocked;
       this.isVideo = preprocessingResult.result.is_video;
+
+      // Update check with preprocessing results as a background operation
+      this.state.waitUntil(
+        this.db.checkRepository
+          .update(this.id, {
+            isAccessBlocked: this.isAccessBlocked,
+            isVideo: this.isVideo,
+            machineCategory: null,
+          })
+          .catch((err) => {
+            this.logger.error(
+              { err, id: this.id },
+              "Failed to update check with preprocessing results"
+            );
+          })
+      );
+
       const startingContent = preprocessingResult.result.starting_content;
       // Run the agent loop and return results
       const agentLoopResult = await this.agentLoop(startingContent);
       if (!agentLoopResult.success || "error" in agentLoopResult) {
+        // Don't update status here, just throw the error to be caught in the final catch block
         throw new Error(`Agent loop failed: ${agentLoopResult.error.message}`);
       }
       const report = agentLoopResult.report;
       const sources = agentLoopResult.sources;
       const isControversial = agentLoopResult.is_controversial;
+      // update the necessary fields in the check record
+      await this.db.checkRepository.update(this.id, {
+        isControversial,
+        longformResponse: {
+          en: report,
+          cn: null,
+        },
+      });
       const summariseResult = await this.tools.summarise_report.execute({
         report,
       });
       if (!summariseResult.success) {
+        // Don't update status here, just throw the error to be caught in the final catch block
         throw new Error(
           `Summarise report failed: ${summariseResult.error.message}`
         );
@@ -431,6 +545,7 @@ export class CheckerAgent extends DurableObject<Env> {
         language: "cn",
       });
       if (!cnResult.success) {
+        // Don't update status here, just throw the error to be caught in the final catch block
         throw new Error(`Translate text failed: ${cnResult.error.message}`);
       }
 
@@ -453,6 +568,30 @@ export class CheckerAgent extends DurableObject<Env> {
         },
       };
 
+      // Update check with complete results as a background operation
+      this.state.waitUntil(
+        this.db.checkRepository
+          .update(this.id, {
+            generationStatus: "completed",
+            isControversial,
+            longformResponse: {
+              en: report,
+              cn: null, // Could translate the full report if needed
+            },
+            shortformResponse: {
+              en: summary,
+              cn: cnSummary,
+              downvoted: false,
+            },
+          })
+          .catch((err) => {
+            this.logger.error(
+              { err, id: this.id },
+              "Failed to update check with completion results"
+            );
+          })
+      );
+
       trace.update({
         output: agentResponse,
         tags: [
@@ -466,7 +605,36 @@ export class CheckerAgent extends DurableObject<Env> {
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      logger.error({ error, errorMessage }, "Error in agent check");
+      this.logger.error({ error, errorMessage }, "Error in agent check");
+
+      // Determine what type of error occurred based on error message or stack trace
+      let errorType: ErrorType = "error";
+      if (errorMessage.includes("preprocessing")) {
+        errorType = "error-preprocessing";
+      } else if (errorMessage.includes("agent loop")) {
+        errorType = "error-agentLoop";
+      } else if (errorMessage.includes("summarise")) {
+        errorType = "error-summarization";
+      } else if (errorMessage.includes("translate")) {
+        errorType = "error-translation";
+      } else {
+        errorType = "error-other";
+      }
+
+      // Update check with error status as a background operation
+      this.state.waitUntil(
+        this.db.checkRepository
+          .update(this.id, {
+            generationStatus: errorType,
+          })
+          .catch((err) => {
+            this.logger.error(
+              { err, id: this.id },
+              "Failed to update check status to error"
+            );
+          })
+      );
+
       const errorReturn = {
         error: { message: errorMessage },
         success: false as const,

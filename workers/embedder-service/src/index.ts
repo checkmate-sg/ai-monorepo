@@ -15,7 +15,12 @@ export default class extends WorkerEntrypoint<Env> {
   async fetch(request: Request): Promise<Response> {
     this.logger.info("Received fetch request");
     // For any other request, return a simple message
-    return new Response("Hello from embedder service");
+    const embedding = await this.generateEmbedding(
+      "hello",
+      "@cf/baai/bge-small-en-v1.5"
+    );
+
+    return new Response(JSON.stringify({ embedding }));
   }
 
   async embed(request: EmbedRequest): Promise<EmbedResult> {

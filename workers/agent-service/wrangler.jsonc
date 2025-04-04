@@ -69,7 +69,8 @@
   "services": [
     { "binding": "SCREENSHOT_SERVICE", "service": "screenshot-backup-service" },
     { "binding": "SEARCH_SERVICE", "service": "search-service" },
-    { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" }
+    { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" },
+    { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" }
   ],
 
   /**
