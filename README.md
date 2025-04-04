@@ -146,3 +146,9 @@ CF Workers must be deployed first before triggering CF Secrets deployment.
 ## How to update portkey worker
 
 Trigger 'Deploy Portkey to CF Worker' workflow
+
+## How to Share Environment Variables for Local Development with Other Developers
+
+1. Ensure that TELEGRAM_BOT_TOKEN is configured in GitHub Secrets.
+2. Ask the developer to retrieve their chat ID from Telegram.
+3. Go to Actions > Share Local Env workflow > Run workflow > enter the developer’s chat ID.
