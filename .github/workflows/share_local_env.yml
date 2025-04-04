@@ -110,11 +110,13 @@ jobs:
               "https://api.telegram.org/bot${{ secrets.TELEGRAM_ADMIN_BOT_TOKEN }}/sendDocument" \
               -F chat_id="$TELEGRAM_CHATID" \
               -F caption="🔐 Here's the file with the environment variables for local development"
+
+            echo "Tele message to $TELEGRAM_CHATID"
           fi
 
           # Send via email if email is provided
           if [ ! -z "$EMAIL" ]; then
-            # SMTP server settings for Gmail
+            # SMTP server settings
             SMTP_SERVER="${{ secrets.SMTP_SERVER }}"
             SMTP_PORT="${{ secrets.SMTP_PORT }}"
             SMTP_USERNAME="${{ secrets.SMTP_USERNAME }}"
