@@ -7,7 +7,10 @@ on:
       tele_chatid:
         description: Enter the Telegram chat ID to send to. Make sure the chat ID is correct.
         required: true
-        default: "chat ID"
+        type: string
+      email:
+        description: Enter the email to send to. Make sure the chat ID is correct.
+        required: true
         type: string
 
 # Set all the neccessary secrets in Github
@@ -24,7 +27,7 @@ env:
 jobs:
 
   share-secrets:
-    name: "Share Local Env via Telegram"
+    name: "Share Local Env via Telegram/Email"
     runs-on: ubuntu-latest
     environment: "local"
     timeout-minutes: 60 # Set timeout to prevent hung deployments
@@ -86,16 +89,41 @@ jobs:
             done
           done
 
-      - name: Create ZIP Archive and send via telegram
+      - name: Create ZIP Archive and send via telegram/email
         run: |
           cd .localdev
           zip -r ../.localdev.zip ./*
           cd ..
 
           TELEGRAM_CHATID="${{ github.event.inputs.tele_chatid }}"
+          EMAIL="${{ github.event.inputs.email }}"
           
-          # Send the ZIP file
-          curl -F document=@".localdev.zip" \
-            "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
-            -F chat_id="$TELEGRAM_CHATID" \
-            -F caption="🔐 Here’s the file with the environment variables for local development"
+          # Send via Telegram if chat ID is provided
+          if [ ! -z "$TELEGRAM_CHATID" ]; then
+            curl -F document=@".localdev.zip" \
+              "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
+              -F chat_id="$TELEGRAM_CHATID" \
+              -F caption="🔐 Here's the file with the environment variables for local development"
+          fi
+
+          # Send via email if email is provided
+          if [ ! -z "$EMAIL" ]; then
+            # Install required tools
+            sudo apt-get update && sudo apt-get install -y mailutils
+
+            # Create mailrc configuration
+            cat > ~/.mailrc << EOF
+            set smtp="smtp://smtp.gmail.com:587"
+            set smtp-auth=login
+            set smtp-auth-user="${{ secrets.GMAIL_USER }}"
+            set smtp-auth-password="${{ secrets.GMAIL_PASSWORD }}"
+            set from="${{ secrets.GMAIL_USER }}"
+            set ssl-verify=peer
+            EOF
+
+            # Create email content
+            echo "Here's the file with the environment variables for local development" | \
+            mail -s "Local Development Environment Variables" \
+              -A .localdev.zip \
+              "${{ github.event.inputs.email }}"
+          fi
