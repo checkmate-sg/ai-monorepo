@@ -41,7 +41,7 @@ export const checkMaliciousUrlTool: Tool<
 
       return await context.env.URLSCAN_SERVICE.urlScan({
         url: params.url,
-        id: context.id,
+        id: context.getId(),
       });
     }
   ),

@@ -43,7 +43,7 @@ export const searchGoogleTool: Tool<SearchGoogleParams, SearchResult> = {
 
       const result = await context.env.SEARCH_SERVICE.search({
         q: params.q,
-        id: context.id,
+        id: context.getId(),
       });
 
       return result;

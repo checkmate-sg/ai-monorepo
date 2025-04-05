@@ -24,7 +24,7 @@ export function withLangfuseSpan<T, R>(
       span = langfuse.span({
         name: spanName,
         input: params,
-        traceId: context.id,
+        traceId: context.getId(),
       });
     }
     try {

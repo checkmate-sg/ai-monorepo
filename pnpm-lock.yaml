@@ -47,8 +47,8 @@ importers:
   workers/agent-service:
     dependencies:
       langfuse:
-        specifier: ^3.35.3
-        version: 3.35.3
+        specifier: ^3.37.1
+        version: 3.37.1
       normalize-url:
         specifier: ^8.0.1
         version: 8.0.1
@@ -197,8 +197,8 @@ importers:
   workers/trivialfilter-service:
     dependencies:
       langfuse:
-        specifier: ^3.35.3
-        version: 3.35.3
+        specifier: ^3.37.1
+        version: 3.37.1
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: ^0.6.4
@@ -1448,12 +1448,12 @@ packages:
   jsbn@1.1.0:
     resolution: {integrity: sha512-4bYVV3aAMtDTTu4+xsDYa6sy9GyJ69/amsu9sYF2zqjiEoZA5xJi3BrfX3uY+/IekIu7MwdObdbDWpoZdBv3/A==}
 
-  langfuse-core@3.35.3:
-    resolution: {integrity: sha512-Nvq8Q1FpyA0/Dr7nV9cni0jQDDKDa2AQsiYfUrax0y6paDans5kDjaKi4kbtySreTV83i+VfJcAmRUsgthAH6g==}
+  langfuse-core@3.37.1:
+    resolution: {integrity: sha512-YfCegzOmy8Ex1SQg2eCO5a77YwVAJZ7hVUUbfIx+ncREEM9Smk4FrveNG0bOKS3n9C4TJZpX12DfQ+819gmHtw==}
     engines: {node: '>=18'}
 
-  langfuse@3.35.3:
-    resolution: {integrity: sha512-/jCuraBLSdSymACohqN1OVBtsTpx0881/YLv6PxDJzGG2oGRvcYi9gDYFFWU0vLeW9z0RAxhyNw4+f4cS0BkpQ==}
+  langfuse@3.37.1:
+    resolution: {integrity: sha512-U+Jbbpeqaqb10k/xuEkXWvK0Jsh/vVRGOl5j3jIOl0K71V1oeDGRym2PI1kF7dJyIARyGUxBVSbeSIQFM32cxQ==}
     engines: {node: '>=18'}
 
   loupe@3.1.3:
@@ -3035,13 +3035,13 @@ snapshots:
 
   jsbn@1.1.0: {}
 
-  langfuse-core@3.35.3:
+  langfuse-core@3.37.1:
     dependencies:
       mustache: 4.2.0
 
-  langfuse@3.35.3:
+  langfuse@3.37.1:
     dependencies:
-      langfuse-core: 3.35.3
+      langfuse-core: 3.37.1
 
   loupe@3.1.3: {}
 
