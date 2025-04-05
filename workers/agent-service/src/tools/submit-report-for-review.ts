@@ -88,7 +88,10 @@ export const submitReportForReviewTool: Tool<
           "review_report",
           undefined,
           {
-            label: context.env.ENVIRONMENT,
+            label:
+              context.env.ENVIRONMENT === "production"
+                ? "cf-production"
+                : context.env.ENVIRONMENT, //TODO: revert after google version deprecated
             type: "chat",
           }
         );
