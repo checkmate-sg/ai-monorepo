@@ -1,0 +1,164 @@
+name: Share Local Env
+
+on:
+  workflow_dispatch:
+    inputs:
+      tele_chatid:
+        description: Enter the Telegram chat ID to send to. Make sure the chat ID is correct.
+        required: false
+        type: string
+      email:
+        description: Enter the email to send to. Make sure the email is correct.
+        required: false
+        type: string
+
+# Set all the neccessary secrets in Github
+env:
+  AGENT_SECRET_NAMES: AGENT_CF_ACCESS_CLIENT_ID,AGENT_CF_ACCESS_CLIENT_SECRET,ENVIRONMENT,PORTKEY_ENDPOINT,OPENAI_API_KEY,GROQ_API_KEY,AGENT_GOOGLE_CLIENT_ID,AGENT_GOOGLE_CLIENT_SECRET,VERTEX_PROJECT_ID,VERTEX_REGION,LANGFUSE_SECRET_KEY,LANGFUSE_PUBLIC_KEY,LANGFUSE_HOST
+  API_ENTRYPOINT_SECRET_NAMES: ENVIRONMENT
+  EMBEDDER_SECRET_NAMES: ENVIRONMENT
+  SCREENSHOT_SECRET_NAMES: SCREENSHOT_API_DOMAIN,ENVIRONMENT
+  SEARCH_SECRET_NAMES: SERPER_API_KEY,ENVIRONMENT
+  URLSCAN_SECRET_NAMES: URLSCAN_HOSTNAME,URLSCAN_APIKEY,ENVIRONMENT
+  SCREENSHOT_BACKUP_SECRET_NAMES: SCREENSHOT_BACKUP_GOOGLE_CLIENT_ID,SCREENSHOT_BACKUP_GOOGLE_CLIENT_SECRET,SCREENSHOT_BACKUP_API_ENDPOINT,ENVIRONMENT
+  TRIVIALFILTER_SECRET_NAMES: TRIVIALFILTER_CF_ACCESS_CLIENT_ID,TRIVIALFILTER_CF_ACCESS_CLIENT_SECRET,PORTKEY_ENDPOINT,OPENAI_API_KEY,GROQ_API_KEY,LANGFUSE_SECRET_KEY,LANGFUSE_PUBLIC_KEY,LANGFUSE_HOST,ENVIRONMENT
+
+jobs:
+
+  share-secrets:
+    name: "Share Local Env via Telegram/Email"
+    runs-on: ubuntu-latest
+    environment: "local"
+    timeout-minutes: 60 # Set timeout to prevent hung deployments
+    steps:
+
+      - name: Validate inputs
+        run: |
+          if [ -z "${{ github.event.inputs.tele_chatid }}" ] && [ -z "${{ github.event.inputs.email }}" ]; then
+            echo "Error: Either Telegram chat ID or email must be provided"
+            exit 1
+          fi
+
+      - uses: oNaiPs/secrets-to-env-action@v1
+        with:
+          secrets: ${{ toJSON(secrets) }}
+
+      - name: Create Local Dev Environment Files
+        run: |
+          # Create .localdev directory
+          mkdir -p .localdev
+
+          # Define services and their secrets
+          declare -A SERVICE_SECRETS=(
+            ["agent-service"]="${{ env.AGENT_SECRET_NAMES }}"
+            ["api-entrypoint"]="${{ env.API_ENTRYPOINT_SECRET_NAMES }}"
+            ["embedder-service"]="${{ env.EMBEDDER_SECRET_NAMES }}"
+            ["screenshot-service"]="${{ env.SCREENSHOT_SECRET_NAMES }}"
+            ["search-service"]="${{ env.SEARCH_SECRET_NAMES }}"
+            ["urlscan-service"]="${{ env.URLSCAN_SECRET_NAMES }}"
+            ["screenshot-backup-service"]="${{ env.SCREENSHOT_BACKUP_SECRET_NAMES }}"
+            ["trivialfilter-service"]="${{ env.TRIVIALFILTER_SECRET_NAMES }}"
+          )
+
+          # Loop through each service
+          for SERVICE in "${!SERVICE_SECRETS[@]}"; do
+            # Create service directory
+            mkdir -p ".localdev/$SERVICE"
+            
+            # Get secrets for this service
+            SECRET_NAMES="${SERVICE_SECRETS[$SERVICE]}"
+            
+            # Create .dev.vars file
+            touch ".localdev/$SERVICE/.dev.vars"
+            
+            # Process each secret
+            for NAME in $(echo "$SECRET_NAMES" | tr ',' '\n' | tr -d ' '); do
+              if [ -n "$NAME" ]; then
+                # Get the value of the secret
+                VALUE=$(eval echo \$$NAME)
+                
+                if [ -n "$VALUE" ]; then
+                  # Convert service name format for prefix checking
+                  SERVICE_NORMALIZED=${SERVICE//-/_}
+                  SERVICE_PREFIX=$(echo "${SERVICE_NORMALIZED}" | sed 's/_service$//')
+                  SERVICE_PREFIX_UPPER=$(echo "${SERVICE_PREFIX}" | tr '[:lower:]' '[:upper:]')
+                  
+                  # Handle prefixed secrets
+                  if [[ "$NAME" == "${SERVICE_PREFIX_UPPER}_"* ]]; then
+                    ACTUAL_NAME=${NAME#"${SERVICE_PREFIX_UPPER}_"}
+                    echo "$ACTUAL_NAME=$VALUE" >> ".localdev/$SERVICE/.dev.vars"
+                  else
+                    echo "$NAME=$VALUE" >> ".localdev/$SERVICE/.dev.vars"
+                  fi
+                fi
+              fi
+            done
+          done
+
+      - name: Create ZIP Archive and send via telegram/email
+        run: |
+          cd .localdev
+          zip -r ../.localdev.zip ./*
+          cd ..
+
+          TELEGRAM_CHATID="${{ github.event.inputs.tele_chatid }}"
+          EMAIL="${{ github.event.inputs.email }}"
+          
+          # Send via Telegram if chat ID is provided
+          if [ ! -z "$TELEGRAM_CHATID" ]; then
+            curl -F document=@".localdev.zip" \
+              "https://api.telegram.org/bot${{ secrets.TELEGRAM_ADMIN_BOT_TOKEN }}/sendDocument" \
+              -F chat_id="$TELEGRAM_CHATID" \
+              -F caption="🔐 Here's the file with the environment variables for local development"
+
+            echo "Tele message to $TELEGRAM_CHATID"
+          fi
+
+          # Send via email if email is provided
+          if [ ! -z "$EMAIL" ]; then
+            # SMTP server settings
+            SMTP_SERVER="${{ secrets.SMTP_SERVER }}"
+            SMTP_PORT="${{ secrets.SMTP_PORT }}"
+            SMTP_USERNAME="${{ secrets.SMTP_USERNAME }}"
+            SMTP_PASSWORD="${{ secrets.SMTP_PASSWORD }}"
+
+            # Recipient email address
+            TO="${{ github.event.inputs.email }}"
+
+            # Email subject and body
+            SUBJECT="Local Dev Setup: ai-monorepo Environment Variables Inside 🔐"
+            ATTACHMENT_PATH=".localdev.zip"
+            FILENAME=$(basename "$ATTACHMENT_PATH")
+            MESSAGE=$(printf '%s\n' \
+            "From: $SMTP_USERNAME" \
+            "To: $TO" \
+            "Subject: $SUBJECT" \
+            "MIME-Version: 1.0" \
+            "Content-Type: multipart/mixed; boundary=\"boundary42\"" \
+            "" \
+            "--boundary42" \
+            "Content-Type: text/plain; charset=\"UTF-8\"" \
+            "" \
+            "🔐 Here's the file with the environment variables for local development" \
+            "" \
+            "--boundary42" \
+            "Content-Type: application/octet-stream; name=\"$FILENAME\"" \
+            "Content-Transfer-Encoding: base64" \
+            "Content-Disposition: attachment; filename=\"$FILENAME\"" \
+            "" \
+            "$(base64 "$ATTACHMENT_PATH")" \
+            "--boundary42--" \
+            )
+
+            # Send the email using Curl
+            curl --url "smtp://$SMTP_SERVER:$SMTP_PORT" \
+                --ssl-reqd \
+                --mail-from "$SMTP_USERNAME" \
+                --mail-rcpt "$TO" \
+                --user "$SMTP_USERNAME:$SMTP_PASSWORD" \
+                --tlsv1.2 \
+                -T <(echo -e "$MESSAGE")
+
+            echo "Email sent to $TO"
+
+          fi
