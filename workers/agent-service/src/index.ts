@@ -68,6 +68,7 @@ export default class extends WorkerEntrypoint<Env> {
     // Initialize the repository if needed
     if (!this.db) {
       this.db = new DatabaseService(this.env.MONGODB_CONNECTION_STRING);
+      await this.db.init();
     }
     let submissionId: string | null = null;
     let checkId: ObjectId;
