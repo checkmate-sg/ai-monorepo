@@ -1,11 +1,11 @@
 import { createLogger } from "@workspace/shared-utils";
-import {
-  AgentRequest,
-  AgentResult,
-  CommunityNote,
-} from "@workspace/shared-types";
+import { AgentRequest, AgentResult } from "@workspace/shared-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 export { CheckerAgent } from "./agent";
+import { Submission } from "./models";
+import { ObjectId } from "mongodb";
+import { DatabaseService } from "./db";
+import { searchInternal } from "./tools/search-internal";
 /**
  * Welcome to Cloudflare Workers! This is your first Durable Objects application.
  *
@@ -24,6 +24,8 @@ export { CheckerAgent } from "./agent";
 export default class extends WorkerEntrypoint<Env> {
   private logger = createLogger("agent-service");
   private logContext: Record<string, any> = {};
+  private db: DatabaseService | null = null;
+
   /**
    * This is the standard fetch handler for a Cloudflare Worker
    *
@@ -46,12 +48,15 @@ export default class extends WorkerEntrypoint<Env> {
 
       // We call the `sayHello()` RPC method on the stub to invoke the method on the remote
       // Durable Object instance
-      let result = await stub.check({
-        id: "123",
-        imageUrl:
-          "https://storage.googleapis.com/checkmate-screenshots-uat/edb4972344acf6e7da688425e4490ab9.png",
-        caption: "Is this true?",
-      });
+      let result = await stub.check(
+        {
+          id: "123",
+          imageUrl:
+            "https://storage.googleapis.com/checkmate-screenshots-uat/edb4972344acf6e7da688425e4490ab9.png",
+          caption: "Is this true?",
+        },
+        "123"
+      );
 
       return new Response(JSON.stringify(result));
     } else {
@@ -60,6 +65,67 @@ export default class extends WorkerEntrypoint<Env> {
   }
 
   async check(request: AgentRequest): Promise<AgentResult> {
+    // Initialize the repository if needed
+    if (!this.db) {
+      this.db = new DatabaseService(this.env.MONGODB_CONNECTION_STRING);
+    }
+    let submissionId: ObjectId;
+    let checkId: ObjectId;
+    const submissionRepository = this.db.submissionRepository;
+
+    try {
+      submissionId = new ObjectId();
+      const submission: Submission = {
+        _id: submissionId,
+        requestId: request.id ?? null,
+        timestamp: new Date(),
+        sourceType:
+          request.consumerName === "checkmate-whatsapp" ? "internal" : "api",
+        consumerName: request.consumerName ?? "unknown",
+        type: request.imageUrl ? "image" : "text",
+        text: request.text ?? null,
+        imageUrl: request.imageUrl ?? null,
+        caption: request.caption ?? null,
+        checkId: null,
+        checkStatus: "pending",
+      };
+      //find matching check
+      if (request.findSimilar) {
+        console.log("Finding similar check");
+        const text = submission.text || submission.caption || "";
+        if (text) {
+          const searchResult = await searchInternal(
+            text,
+            this.env,
+            this.db.checkRepository
+          );
+
+          if (
+            searchResult.success &&
+            searchResult.result?.isMatch &&
+            searchResult.result.id
+          ) {
+            checkId = new ObjectId(searchResult.result.id);
+            //TODO: get the check from the database and return the necessary data
+          } else {
+            checkId = new ObjectId();
+          }
+        } else {
+          checkId = new ObjectId();
+        }
+      } else {
+        checkId = new ObjectId();
+      }
+
+      submission.checkId = checkId;
+      await submissionRepository.insert(submission);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      this.logger.error(this.logContext, errorMessage);
+      throw error;
+    }
+
     this.logContext = {
       request,
     };
@@ -76,15 +142,26 @@ export default class extends WorkerEntrypoint<Env> {
     }
     // Create a DurableObjectId from the string id
     try {
-      let objectId = this.env.CHECKER_AGENT.idFromName(id);
+      let objectId = this.env.CHECKER_AGENT.idFromName(checkId.toString());
       let stub = this.env.CHECKER_AGENT.get(objectId);
-      return stub.check(request);
+      const result = await stub.check(request, checkId.toString());
+      this.ctx.waitUntil(
+        submissionRepository.update(submissionId.toString(), {
+          checkStatus: "completed",
+        })
+      );
+      return result;
     } catch (error) {
       const errorMessage =
         error instanceof Error
           ? error.message
           : "Unknown error occurred in agent-service worker";
       this.logger.error(this.logContext, errorMessage);
+      this.ctx.waitUntil(
+        submissionRepository.update(submissionId.toString(), {
+          checkStatus: "completed",
+        })
+      );
       return {
         success: false,
         error: {

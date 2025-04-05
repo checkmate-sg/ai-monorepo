@@ -76,6 +76,7 @@ interface BaseAgentRequest {
   id?: string;
   provider?: LLMProvider;
   consumerName?: string;
+  findSimilar?: boolean;
 }
 
 // Text-only request
@@ -106,11 +107,17 @@ export interface AgentResponse extends ServiceResponse {
   };
 }
 
-export interface CommunityNote {
-  en: string;
-  cn: string;
-  links: string[];
+interface LanguageResponses {
+  en: string | null;
+  cn: string | null;
+  links: string[] | null;
 }
+
+export interface CommunityNote extends LanguageResponses {
+  downvoted?: boolean | null;
+}
+
+export interface Report extends LanguageResponses {}
 
 // Union type for all possible agent responses
 export type AgentResult = AgentResponse | ErrorResponse;

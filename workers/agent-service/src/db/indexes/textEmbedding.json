@@ -1,0 +1,19 @@
+{
+  "fields": [
+    {
+      "type": "vector",
+      "path": "embeddings.text",
+      "numDimensions": 384,
+      "similarity": "cosine",
+      "quantization": "binary"
+    },
+    {
+      "type": "filter",
+      "path": "isExpired"
+    },
+    {
+      "type": "filter",
+      "path": "type"
+    }
+  ]
+}

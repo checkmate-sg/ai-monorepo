@@ -15,8 +15,13 @@ interface Env {
     urlScan(params: URLScanRequest): Promise<URLScanResult>;
   } & ServiceWorkerGlobalScope;
 
+  EMBEDDER_SERVICE: {
+    embed(params: EmbedRequest): Promise<EmbedResult>;
+  } & ServiceWorkerGlobalScope;
+
   LANGFUSE_PUBLIC_KEY: string;
   LANGFUSE_SECRET_KEY: string;
   LANGFUSE_HOST: string;
   ENVIRONMENT: string;
+  MONGODB_CONNECTION_STRING: string;
 }

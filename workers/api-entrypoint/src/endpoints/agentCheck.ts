@@ -88,6 +88,7 @@ export async function handleAgentRequest(
       imageUrl?: string;
       caption?: string;
       provider?: "openai" | "vertex-ai" | "groq";
+      findSimilar?: boolean;
     };
   },
   loggerInstance = logger,
@@ -96,7 +97,7 @@ export async function handleAgentRequest(
   // Extract request ID from headers
   const requestId = data.headers?.["x-request-id"] || crypto.randomUUID();
   const childLogger = loggerInstance.child({ requestId });
-  const { text, imageUrl, caption, provider } = data.body;
+  const { text, imageUrl, caption, provider, findSimilar } = data.body;
   let agentRequest: AgentRequest;
   if (text) {
     agentRequest = {
@@ -118,10 +119,14 @@ export async function handleAgentRequest(
   if (provider) {
     agentRequest.provider = provider;
   }
-  // check if headers contains X-Consumer-Name
   const consumerName = c.get("consumerName");
   if (consumerName) {
     agentRequest.consumerName = consumerName;
+  }
+  if (findSimilar === false) {
+    agentRequest.findSimilar = false;
+  } else {
+    agentRequest.findSimilar = true;
   }
 
   try {
