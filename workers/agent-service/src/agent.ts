@@ -450,34 +450,30 @@ export class CheckerAgent extends DurableObject<Env> {
 
         // Try to embed text as a background operation if applicable
         if (this.type === "text" && this.text) {
-          this.state.waitUntil(
-            (async () => {
-              try {
-                const embedderResult = await this.env.EMBEDDER_SERVICE.embed({
-                  text: this.text,
-                });
+          try {
+            const embedderResult = await this.env.EMBEDDER_SERVICE.embed({
+              text: this.text,
+            });
 
-                if (embedderResult.success) {
-                  const textEmbedding = (embedderResult as any).embedding || [];
-                  // Update the record with embeddings
-                  await this.db.checkRepository.update(this.id, {
-                    embeddings: {
-                      text: textEmbedding,
-                    },
-                  });
-                  this.logger.info(
-                    { id: this.id },
-                    "Updated check record with embeddings"
-                  );
-                }
-              } catch (error) {
-                this.logger.error(
-                  { error, id: this.id },
-                  "Failed to embed text or update check record"
-                );
-              }
-            })()
-          );
+            if (embedderResult.success) {
+              const textEmbedding = (embedderResult as any).embedding || [];
+              // Update the record with embeddings
+              await this.db.checkRepository.update(this.id, {
+                embeddings: {
+                  text: textEmbedding,
+                },
+              });
+              this.logger.info(
+                { id: this.id },
+                "Updated check record with embeddings"
+              );
+            }
+          } catch (error) {
+            this.logger.error(
+              { error, id: this.id },
+              "Failed to embed text or update check record"
+            );
+          }
         }
       } catch (error) {
         this.logger.error(
@@ -503,20 +499,11 @@ export class CheckerAgent extends DurableObject<Env> {
       this.isVideo = preprocessingResult.result.is_video;
 
       // Update check with preprocessing results as a background operation
-      this.state.waitUntil(
-        this.db.checkRepository
-          .update(this.id, {
-            isAccessBlocked: this.isAccessBlocked,
-            isVideo: this.isVideo,
-            machineCategory: null,
-          })
-          .catch((err) => {
-            this.logger.error(
-              { err, id: this.id },
-              "Failed to update check with preprocessing results"
-            );
-          })
-      );
+      await this.db.checkRepository.update(this.id, {
+        isAccessBlocked: this.isAccessBlocked,
+        isVideo: this.isVideo,
+        machineCategory: null,
+      });
 
       const startingContent = preprocessingResult.result.starting_content;
       // Run the agent loop and return results
@@ -577,30 +564,21 @@ export class CheckerAgent extends DurableObject<Env> {
       };
 
       // Update check with complete results as a background operation
-      this.state.waitUntil(
-        this.db.checkRepository
-          .update(this.id, {
-            generationStatus: "completed",
-            isControversial,
-            longformResponse: {
-              en: report,
-              cn: null, // Could translate the full report if needed
-              links: sources,
-            },
-            shortformResponse: {
-              en: summary,
-              cn: cnSummary,
-              downvoted: false,
-              links: sources,
-            },
-          })
-          .catch((err) => {
-            this.logger.error(
-              { err, id: this.id },
-              "Failed to update check with completion results"
-            );
-          })
-      );
+      await this.db.checkRepository.update(this.id, {
+        generationStatus: "completed",
+        isControversial,
+        longformResponse: {
+          en: report,
+          cn: null, // Could translate the full report if needed
+          links: sources,
+        },
+        shortformResponse: {
+          en: summary,
+          cn: cnSummary,
+          downvoted: false,
+          links: sources,
+        },
+      });
 
       trace.update({
         output: agentResponse,
@@ -632,18 +610,9 @@ export class CheckerAgent extends DurableObject<Env> {
       }
 
       // Update check with error status as a background operation
-      this.state.waitUntil(
-        this.db.checkRepository
-          .update(this.id, {
-            generationStatus: errorType,
-          })
-          .catch((err) => {
-            this.logger.error(
-              { err, id: this.id },
-              "Failed to update check status to error"
-            );
-          })
-      );
+      await this.db.checkRepository.update(this.id, {
+        generationStatus: errorType,
+      });
 
       const errorReturn = {
         error: { message: errorMessage },

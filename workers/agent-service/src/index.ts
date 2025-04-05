@@ -148,11 +148,9 @@ export default class extends WorkerEntrypoint<Env> {
       let objectId = this.env.CHECKER_AGENT.idFromName(checkId.toString());
       let stub = this.env.CHECKER_AGENT.get(objectId);
       const result = await stub.check(request, checkId.toString());
-      this.ctx.waitUntil(
-        submissionRepository.update(submissionId, {
-          checkStatus: "completed",
-        })
-      );
+      await submissionRepository.update(submissionId, {
+        checkStatus: "completed",
+      });
       return result;
     } catch (error) {
       const errorMessage =
@@ -160,11 +158,9 @@ export default class extends WorkerEntrypoint<Env> {
           ? error.message
           : "Unknown error occurred in agent-service worker";
       this.logger.error(this.logContext, errorMessage);
-      this.ctx.waitUntil(
-        submissionRepository.update(submissionId, {
-          checkStatus: "completed",
-        })
-      );
+      await submissionRepository.update(submissionId, {
+        checkStatus: "completed",
+      });
       return {
         success: false,
         error: {
