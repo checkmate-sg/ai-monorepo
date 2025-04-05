@@ -86,6 +86,7 @@ export default class extends WorkerEntrypoint<Env> {
     try {
       const provider = "openai";
       langfuse = new Langfuse({
+        environment: this.env.ENVIRONMENT,
         publicKey: this.env.LANGFUSE_PUBLIC_KEY,
         secretKey: this.env.LANGFUSE_SECRET_KEY,
         baseUrl: this.env.LANGFUSE_HOST,

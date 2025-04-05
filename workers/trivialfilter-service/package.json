@@ -17,6 +17,6 @@
     "wrangler": "^4.4.0"
   },
   "dependencies": {
-    "langfuse": "^3.35.3"
+    "langfuse": "^3.37.1"
   }
 }

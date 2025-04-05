@@ -16,7 +16,7 @@
     "wrangler": "^4.4.0"
   },
   "dependencies": {
-    "langfuse": "^3.35.3",
+    "langfuse": "^3.37.1",
     "normalize-url": "^8.0.1",
     "url-regex-safe": "^4.0.0"
   }

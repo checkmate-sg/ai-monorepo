@@ -9,7 +9,7 @@ import { extractImageUrlsTool } from "./extract-image-urls";
 
 const configObject = {
   model: "gpt-4o",
-  temperature: 0.0,
+  temperature: 0,
   seed: 11,
   response_format: {
     type: "json_schema" as const,
@@ -18,20 +18,49 @@ const configObject = {
       schema: {
         type: "object",
         properties: {
+          links: {
+            type: "array",
+            description: "Array of link objects with details about each link.",
+            items: {
+              type: "object",
+              properties: {
+                url: {
+                  type: "string",
+                  description: "The URL of the link",
+                },
+                reasoning: {
+                  type: "string",
+                  description: "Why you think it is crucial or not",
+                },
+                is_crucial: {
+                  type: "boolean",
+                  description:
+                    "Whether the link is crucial to checking the message",
+                },
+                is_video: {
+                  type: "boolean",
+                  description: "Whether the link contains a video",
+                },
+                is_access_blocked: {
+                  type: "boolean",
+                  description:
+                    "Whether access to the link is blocked, or the contents are otherwise unavailable",
+                },
+              },
+              required: [
+                "url",
+                "reasoning",
+                "is_crucial",
+                "is_video",
+                "is_access_blocked",
+              ],
+              additionalProperties: false,
+            },
+          },
           reasoning: {
             type: "string",
             description:
               "The reasoning behind the intent you inferred from the message.",
-          },
-          is_access_blocked: {
-            type: "boolean",
-            description:
-              "True if the content or URL sent by the user to be checked is inaccessible/removed/blocked. An example is being led to a login page instead of post content.",
-          },
-          is_video: {
-            type: "boolean",
-            description:
-              "True if the content or URL sent by the user to be checked points to a video (e.g., YouTube, TikTok, Instagram Reels, Facebook videos).",
           },
           intent: {
             type: "string",
@@ -39,7 +68,7 @@ const configObject = {
               "What the user's intent is, e.g. to check whether this is a scam, to check if this is really from the government, to check the facts in this article, etc.",
           },
         },
-        required: ["is_access_blocked", "is_video", "reasoning", "intent"],
+        required: ["links", "reasoning", "intent"],
         additionalProperties: false,
       },
     },
@@ -142,7 +171,7 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
             try {
               const result = await context.env.SCREENSHOT_SERVICE.screenshot({
                 url,
-                id: context.id,
+                id: context.getId(),
               });
               screenshotSpan.end({
                 output: result,
@@ -218,9 +247,29 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
         const content = response.choices[0].message.content || "{}";
         const result = JSON.parse(content);
 
+        //loop through result.links and check if any of them are blocked
+        let isAccessBlocked = false;
+        let isVideo = false;
+
+        if (result.links && Array.isArray(result.links)) {
+          for (const link of result.links) {
+            if (link.is_access_blocked && link.is_crucial) {
+              isAccessBlocked = true;
+            }
+            if (link.is_video && link.is_crucial) {
+              isVideo = true;
+            }
+          }
+        }
+
         return {
           success: true,
-          result: { ...result, starting_content: userContent },
+          result: {
+            ...result,
+            isAccessBlocked,
+            isVideo,
+            starting_content: userContent,
+          },
         };
       } catch (error: unknown) {
         // Log the error with proper type handling
