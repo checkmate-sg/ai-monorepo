@@ -113,6 +113,55 @@ interface LanguageResponses {
   links: string[] | null;
 }
 
+// Import types from models
+export type ErrorType =
+  | "error"
+  | "error-preprocessing"
+  | "error-agentLoop"
+  | "error-summarization"
+  | "error-translation"
+  | "error-other";
+export interface Check {
+  _id: string;
+  text: string | null;
+  timestamp: Date;
+  isExpired: boolean;
+  imageUrl: string | null;
+  caption: string | null;
+  embeddings: {
+    text: number[] | null;
+  };
+  textHash: string;
+  type: "text" | "image";
+  generationStatus: "pending" | ErrorType | "completed" | "unusable";
+  isControversial: boolean;
+  isAccessBlocked: boolean;
+  isVideo: boolean;
+  longformResponse: Report;
+  shortformResponse: CommunityNote;
+  machineCategory: string | null;
+  crowdsourcedCategory: string | null;
+  pollId: string | null;
+}
+
+export interface Submission {
+  _id: string;
+  requestId: string | null;
+  timestamp: Date;
+  sourceType: "internal" | "api";
+  consumerName: string;
+  type: "text" | "image";
+  text: string | null;
+  imageUrl: string | null;
+  caption: string | null;
+  checkId: string | null;
+  checkStatus: "pending" | "completed" | "error";
+}
+
+interface DatabaseServiceEnvironment {
+  MONGODB_URI: string;
+}
+
 export interface CommunityNote extends LanguageResponses {
   downvoted?: boolean | null;
 }

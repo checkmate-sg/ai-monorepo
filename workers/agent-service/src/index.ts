@@ -1,10 +1,7 @@
 import { createLogger } from "@workspace/shared-utils";
-import { AgentRequest, AgentResult } from "@workspace/shared-types";
+import { AgentRequest, AgentResult, Submission } from "@workspace/shared-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 export { CheckerAgent } from "./agent";
-import { Submission } from "./models";
-import { ObjectId } from "mongodb";
-import { DatabaseService } from "./db";
 import { searchInternal } from "./tools/search-internal";
 /**
  * Welcome to Cloudflare Workers! This is your first Durable Objects application.
@@ -24,7 +21,6 @@ import { searchInternal } from "./tools/search-internal";
 export default class extends WorkerEntrypoint<Env> {
   private logger = createLogger("agent-service");
   private logContext: Record<string, any> = {};
-  private db: DatabaseService | null = null;
 
   /**
    * This is the standard fetch handler for a Cloudflare Worker
@@ -66,13 +62,9 @@ export default class extends WorkerEntrypoint<Env> {
 
   async check(request: AgentRequest): Promise<AgentResult> {
     // Initialize the repository if needed
-    if (!this.db) {
-      this.db = new DatabaseService(this.env.MONGODB_CONNECTION_STRING);
-      await this.db.init();
-    }
+
     let submissionId: string | null = null;
-    let checkId: ObjectId;
-    const submissionRepository = this.db.submissionRepository;
+    let checkId: string | null = null;
 
     try {
       const submission: Omit<Submission, "_id"> = {
@@ -92,34 +84,28 @@ export default class extends WorkerEntrypoint<Env> {
       if (request.findSimilar) {
         const text = submission.text || submission.caption || "";
         if (text) {
-          const searchResult = await searchInternal(
-            text,
-            this.env,
-            this.db.checkRepository
-          );
+          const searchResult = await searchInternal(text, this.env);
 
           if (
             searchResult.success &&
             searchResult.result?.isMatch &&
             searchResult.result.id
           ) {
-            checkId = new ObjectId(searchResult.result.id);
+            console.log("Found matching check", searchResult.result.id);
+            checkId = searchResult.result.id;
             //TODO: get the check from the database and return the necessary data
-          } else {
-            checkId = new ObjectId();
           }
-        } else {
-          checkId = new ObjectId();
         }
-      } else {
-        checkId = new ObjectId();
       }
 
       submission.checkId = checkId;
 
-      const result = await submissionRepository.insert(submission);
+      const result = await this.env.DATABASE_SERVICE.insertSubmission(
+        submission
+      );
       if (result.success && result.id) {
         submissionId = result.id;
+        checkId = result.checkId;
       } else {
         throw new Error("Failed to insert submission");
       }
@@ -145,11 +131,15 @@ export default class extends WorkerEntrypoint<Env> {
       };
     }
     // Create a DurableObjectId from the string id
+    if (!checkId) {
+      this.logger.error(this.logContext, "Missing check id");
+      throw new Error("Missing check id");
+    }
     try {
-      let objectId = this.env.CHECKER_AGENT.idFromName(checkId.toString());
+      let objectId = this.env.CHECKER_AGENT.idFromName(checkId);
       let stub = this.env.CHECKER_AGENT.get(objectId);
-      const result = await stub.check(request, checkId.toString());
-      await submissionRepository.update(submissionId, {
+      const result = await stub.check(request, checkId);
+      await this.env.DATABASE_SERVICE.updateSubmission(submissionId, {
         checkStatus: "completed",
       });
       return result;
@@ -159,7 +149,7 @@ export default class extends WorkerEntrypoint<Env> {
           ? error.message
           : "Unknown error occurred in agent-service worker";
       this.logger.error(this.logContext, errorMessage);
-      await submissionRepository.update(submissionId, {
+      await this.env.DATABASE_SERVICE.updateSubmission(submissionId, {
         checkStatus: "completed",
       });
       return {

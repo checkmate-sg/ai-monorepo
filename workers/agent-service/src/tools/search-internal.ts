@@ -1,7 +1,6 @@
 import { CommunityNote } from "@workspace/shared-types";
 import { Tool, ToolContext } from "./types";
 import { withLangfuseSpan } from "./utils";
-import { CheckRepository } from "../db";
 import type { ErrorResponse, ServiceResponse } from "@workspace/shared-types";
 import { createLogger } from "@workspace/shared-utils";
 import { Embedding } from "openai/resources/embeddings";
@@ -58,19 +57,14 @@ export const searchInternalTool: Tool<
       context: ToolContext,
       span
     ): Promise<SearchInternalResult> => {
-      return searchInternal(
-        params.text,
-        context.env,
-        context.getCheckRepository()
-      );
+      return searchInternal(params.text, context.env);
     }
   ),
 };
 
 export async function searchInternal(
   text: string,
-  env: Env,
-  checkRepository: CheckRepository
+  env: Env
 ): Promise<SearchInternalResult> {
   try {
     //embed the text
@@ -88,7 +82,7 @@ export async function searchInternal(
     }
 
     // Call vectorSearch with the embedding
-    const searchResults = await checkRepository.vectorSearch(
+    const searchResults = await env.DATABASE_SERVICE.vectorSearch(
       embedding.embedding,
       1
     );
