@@ -91,7 +91,6 @@ export default class extends WorkerEntrypoint<Env> {
             searchResult.result?.isMatch &&
             searchResult.result.id
           ) {
-            console.log("Found matching check", searchResult.result.id);
             checkId = searchResult.result.id;
             //TODO: get the check from the database and return the necessary data
           }
@@ -139,9 +138,14 @@ export default class extends WorkerEntrypoint<Env> {
       let objectId = this.env.CHECKER_AGENT.idFromName(checkId);
       let stub = this.env.CHECKER_AGENT.get(objectId);
       const result = await stub.check(request, checkId);
-      await this.env.DATABASE_SERVICE.updateSubmission(submissionId, {
-        checkStatus: "completed",
-      });
+      this.ctx.waitUntil(
+        this.env.DATABASE_SERVICE.updateSubmission(submissionId, {
+          checkStatus: "completed",
+        }).catch((error) => {
+          this.logger.error(this.logContext, "Failed to update submission");
+          throw error;
+        })
+      );
       return result;
     } catch (error) {
       const errorMessage =
@@ -149,9 +153,14 @@ export default class extends WorkerEntrypoint<Env> {
           ? error.message
           : "Unknown error occurred in agent-service worker";
       this.logger.error(this.logContext, errorMessage);
-      await this.env.DATABASE_SERVICE.updateSubmission(submissionId, {
-        checkStatus: "completed",
-      });
+      this.ctx.waitUntil(
+        this.env.DATABASE_SERVICE.updateSubmission(submissionId, {
+          checkStatus: "error",
+        }).catch((error) => {
+          this.logger.error(this.logContext, "Failed to update submission");
+          throw error;
+        })
+      );
       return {
         success: false,
         error: {

@@ -452,11 +452,16 @@ export class CheckerAgent extends DurableObject<Env> {
             if (embedderResult.success) {
               const textEmbedding = (embedderResult as any).embedding || [];
               // Update the record with embeddings
-              await this.env.DATABASE_SERVICE.updateCheck(this.id, {
-                embeddings: {
-                  text: textEmbedding,
-                },
-              });
+              this.state.waitUntil(
+                this.env.DATABASE_SERVICE.updateCheck(this.id, {
+                  embeddings: {
+                    text: textEmbedding,
+                  },
+                }).catch((error) => {
+                  this.logger.error("Failed to update check");
+                  throw error;
+                })
+              );
               this.logger.info(
                 { id: this.id },
                 "Updated check record with embeddings"
@@ -493,11 +498,16 @@ export class CheckerAgent extends DurableObject<Env> {
       this.isVideo = preprocessingResult.result.is_video;
 
       // Update check with preprocessing results as a background operation
-      await this.env.DATABASE_SERVICE.updateCheck(this.id, {
-        isAccessBlocked: this.isAccessBlocked,
-        isVideo: this.isVideo,
-        machineCategory: null,
-      });
+      this.state.waitUntil(
+        this.env.DATABASE_SERVICE.updateCheck(this.id, {
+          isAccessBlocked: this.isAccessBlocked,
+          isVideo: this.isVideo,
+          machineCategory: null,
+        }).catch((error) => {
+          this.logger.error("Failed to update check");
+          throw error;
+        })
+      );
 
       const startingContent = preprocessingResult.result.starting_content;
       // Run the agent loop and return results
@@ -510,14 +520,19 @@ export class CheckerAgent extends DurableObject<Env> {
       const sources = agentLoopResult.sources;
       const isControversial = agentLoopResult.is_controversial;
       // update the necessary fields in the check record
-      await this.env.DATABASE_SERVICE.updateCheck(this.id, {
-        isControversial,
-        longformResponse: {
-          en: report,
-          cn: null,
-          links: sources,
-        },
-      });
+      this.state.waitUntil(
+        this.env.DATABASE_SERVICE.updateCheck(this.id, {
+          isControversial,
+          longformResponse: {
+            en: report,
+            cn: null,
+            links: sources,
+          },
+        }).catch((error) => {
+          this.logger.error("Failed to update check");
+          throw error;
+        })
+      );
       const summariseResult = await this.tools.summarise_report.execute({
         report,
       });
@@ -558,21 +573,26 @@ export class CheckerAgent extends DurableObject<Env> {
       };
 
       // Update check with complete results as a background operation
-      await this.env.DATABASE_SERVICE.updateCheck(this.id, {
-        generationStatus: "completed",
-        isControversial,
-        longformResponse: {
-          en: report,
-          cn: null, // Could translate the full report if needed
-          links: sources,
-        },
-        shortformResponse: {
-          en: summary,
-          cn: cnSummary,
-          downvoted: false,
-          links: sources,
-        },
-      });
+      this.state.waitUntil(
+        this.env.DATABASE_SERVICE.updateCheck(this.id, {
+          generationStatus: "completed",
+          isControversial,
+          longformResponse: {
+            en: report,
+            cn: null, // Could translate the full report if needed
+            links: sources,
+          },
+          shortformResponse: {
+            en: summary,
+            cn: cnSummary,
+            downvoted: false,
+            links: sources,
+          },
+        }).catch((error) => {
+          this.logger.error("Failed to update check");
+          throw error;
+        })
+      );
 
       trace.update({
         output: agentResponse,
@@ -604,9 +624,14 @@ export class CheckerAgent extends DurableObject<Env> {
       }
 
       // Update check with error status as a background operation
-      await this.env.DATABASE_SERVICE.updateCheck(this.id, {
-        generationStatus: errorType,
-      });
+      this.state.waitUntil(
+        this.env.DATABASE_SERVICE.updateCheck(this.id, {
+          generationStatus: errorType,
+        }).catch((error) => {
+          this.logger.error("Failed to update check");
+          throw error;
+        })
+      );
 
       const errorReturn = {
         error: { message: errorMessage },
