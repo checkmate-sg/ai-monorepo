@@ -14,7 +14,7 @@ on:
 
 # Set all the neccessary secrets in Github
 env:
-  AGENT_SECRET_NAMES: AGENT_CF_ACCESS_CLIENT_ID,AGENT_CF_ACCESS_CLIENT_SECRET,ENVIRONMENT,PORTKEY_ENDPOINT,OPENAI_API_KEY,GROQ_API_KEY,AGENT_GOOGLE_CLIENT_ID,AGENT_GOOGLE_CLIENT_SECRET,VERTEX_PROJECT_ID,VERTEX_REGION,LANGFUSE_SECRET_KEY,LANGFUSE_PUBLIC_KEY,LANGFUSE_HOST,AGENT_MONGODB_CONNECTION_STRING
+  AGENT_SECRET_NAMES: AGENT_CF_ACCESS_CLIENT_ID,AGENT_CF_ACCESS_CLIENT_SECRET,ENVIRONMENT,PORTKEY_ENDPOINT,OPENAI_API_KEY,GROQ_API_KEY,AGENT_GOOGLE_CLIENT_ID,AGENT_GOOGLE_CLIENT_SECRET,VERTEX_PROJECT_ID,VERTEX_REGION,LANGFUSE_SECRET_KEY,LANGFUSE_PUBLIC_KEY,LANGFUSE_HOST
   API_ENTRYPOINT_SECRET_NAMES: ENVIRONMENT
   EMBEDDER_SECRET_NAMES: ENVIRONMENT
   SCREENSHOT_SECRET_NAMES: SCREENSHOT_API_DOMAIN,ENVIRONMENT
@@ -22,6 +22,7 @@ env:
   URLSCAN_SECRET_NAMES: URLSCAN_HOSTNAME,URLSCAN_APIKEY,ENVIRONMENT
   SCREENSHOT_BACKUP_SECRET_NAMES: SCREENSHOT_BACKUP_GOOGLE_CLIENT_ID,SCREENSHOT_BACKUP_GOOGLE_CLIENT_SECRET,SCREENSHOT_BACKUP_API_ENDPOINT,ENVIRONMENT
   TRIVIALFILTER_SECRET_NAMES: TRIVIALFILTER_CF_ACCESS_CLIENT_ID,TRIVIALFILTER_CF_ACCESS_CLIENT_SECRET,PORTKEY_ENDPOINT,OPENAI_API_KEY,GROQ_API_KEY,LANGFUSE_SECRET_KEY,LANGFUSE_PUBLIC_KEY,LANGFUSE_HOST,ENVIRONMENT
+  DATABASE_SECRET_NAMES: MONGODB_CONNECTION_STRING,ENVIRONMENT
 
 jobs:
   share-secrets:
@@ -56,6 +57,7 @@ jobs:
             ["urlscan-service"]="${{ env.URLSCAN_SECRET_NAMES }}"
             ["screenshot-backup-service"]="${{ env.SCREENSHOT_BACKUP_SECRET_NAMES }}"
             ["trivialfilter-service"]="${{ env.TRIVIALFILTER_SECRET_NAMES }}"
+            ["database-service"]="${{ env.DATABASE_SECRET_NAMES }}"
           )
 
           # Loop through each service
@@ -107,7 +109,7 @@ jobs:
             curl -F document=@".localdev.zip" \
               "https://api.telegram.org/bot${{ secrets.TELEGRAM_ADMIN_BOT_TOKEN }}/sendDocument" \
               -F chat_id="$TELEGRAM_CHATID" \
-              -F caption="🔐 Here's the file with the environment variables for local development"
+              -F caption="🔐 Here's the file with the environment variables for local development. Put the respective dev.vars into the root of the respective worker directory, e.g. /workers/agent-service/.dev.vars"
 
             echo "Tele message to $TELEGRAM_CHATID"
           fi
@@ -137,7 +139,7 @@ jobs:
             "--boundary42" \
             "Content-Type: text/plain; charset=\"UTF-8\"" \
             "" \
-            "🔐 Here's the file with the environment variables for local development" \
+            "🔐 Here's the file with the environment variables for local development. Put the respective dev.vars into the root of the respective worker directory, e.g. /workers/agent-service/.dev.vars" \
             "" \
             "--boundary42" \
             "Content-Type: application/octet-stream; name=\"$FILENAME\"" \

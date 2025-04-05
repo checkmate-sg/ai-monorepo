@@ -34,5 +34,4 @@ interface Env {
   LANGFUSE_SECRET_KEY: string;
   LANGFUSE_HOST: string;
   ENVIRONMENT: string;
-  MONGODB_CONNECTION_STRING: string;
 }
