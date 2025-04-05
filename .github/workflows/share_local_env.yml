@@ -149,7 +149,7 @@ jobs:
             )
 
             # Send the email using Curl
-            curl --url "smtp://$SMTP_SERVER:$SMTP_PORT" \
+            curl --url "smtps://$SMTP_SERVER:$SMTP_PORT" \
                 --ssl-reqd \
                 --mail-from "$SMTP_USERNAME" \
                 --mail-rcpt "$TO" \
