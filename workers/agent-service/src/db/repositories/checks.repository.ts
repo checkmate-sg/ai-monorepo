@@ -136,8 +136,11 @@ export class CheckRepository {
     data: Partial<Omit<Check, "_id">>
   ): Promise<{ success: boolean; error?: string }> {
     try {
+      console.log("Closing mongoClient");
       await this.mongoClient.close();
+      console.log("Connecting to mongoClient");
       await this.mongoClient.connect();
+      console.log("Connected to mongoClient");
       const db = this.mongoClient.db("checkmate-core");
       const checksCollection = db.collection<Check>("checks");
 
