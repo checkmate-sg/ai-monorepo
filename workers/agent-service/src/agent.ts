@@ -66,6 +66,7 @@ export class CheckerAgent extends DurableObject<Env> {
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
+    this.span = undefined;
     this.state = ctx;
     this.searchesRemaining = 5;
     this.screenshotsRemaining = 5;
@@ -76,6 +77,7 @@ export class CheckerAgent extends DurableObject<Env> {
     this.totalCost = 0;
     this.totalTime = 0;
     this.langfuse = new Langfuse({
+      environment: this.env.ENVIRONMENT,
       publicKey: this.env.LANGFUSE_PUBLIC_KEY,
       secretKey: this.env.LANGFUSE_SECRET_KEY,
       baseUrl: this.env.LANGFUSE_HOST,
@@ -83,7 +85,7 @@ export class CheckerAgent extends DurableObject<Env> {
     this.prompt = null as any; // Temporary initialization
     const toolContext: ToolContext = {
       logger: this.logger,
-      id: this.id,
+      getId: () => this.id,
       env: this.env,
       langfuse: this.langfuse,
       getSpan: () => this.span,
