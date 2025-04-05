@@ -108,7 +108,6 @@ export default class extends WorkerEntrypoint<Env> {
   ): Promise<{ success: boolean; error?: string }> {
     const client = new MongoClient(this.env.MONGODB_CONNECTION_STRING);
     try {
-      console.log("Updating check", id, data);
       const db = client.db("checkmate-core");
       const checksCollection = db.collection("checks");
 
