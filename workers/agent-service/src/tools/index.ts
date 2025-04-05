@@ -23,6 +23,10 @@ import {
 import { translateTextTool, type TranslateTextParams } from "./translation";
 import { ToolContext } from "./types";
 import { preprocessInputsTool } from "./preprocess-inputs";
+import {
+  searchInternalTool,
+  type SearchInternalParams,
+} from "./search-internal";
 export type { ToolContext } from "./types";
 
 export const createTools = (context: ToolContext) => {
@@ -66,6 +70,11 @@ export const createTools = (context: ToolContext) => {
       definition: extractImageUrlsTool.definition,
       execute: (params: ExtractImageUrlsParams) =>
         extractImageUrlsTool.execute(params, context),
+    },
+    search_internal: {
+      definition: searchInternalTool.definition,
+      execute: (params: SearchInternalParams) =>
+        searchInternalTool.execute(params, context),
     },
   };
 };

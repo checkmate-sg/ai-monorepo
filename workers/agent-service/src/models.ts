@@ -1,16 +1,5 @@
 import type { ObjectId } from "mongodb";
-
-// Language specific responses interface
-interface LanguageResponses {
-  en: string | null;
-  cn: string | null;
-}
-
-// Extended language responses with downvote status
-interface ShortformLanguageResponses extends LanguageResponses {
-  downvoted: boolean;
-}
-
+import type { CommunityNote, Report } from "@workspace/shared-types";
 // Error types for the agent
 export type ErrorType =
   | "error"
@@ -28,15 +17,17 @@ export interface Check {
   isExpired: boolean;
   imageUrl: string | null;
   caption: string | null;
-  textEmbedding: number[] | null;
+  embeddings: {
+    text: number[] | null;
+  };
   textHash: string;
   type: "text" | "image";
   generationStatus: "pending" | ErrorType | "completed" | "unusable";
   isControversial: boolean;
   isAccessBlocked: boolean;
   isVideo: boolean;
-  longformResponse: LanguageResponses;
-  shortformResponse: ShortformLanguageResponses;
+  longformResponse: Report;
+  shortformResponse: CommunityNote;
   machineCategory: string | null;
   crowdsourcedCategory: string | null;
   pollId: string | null;

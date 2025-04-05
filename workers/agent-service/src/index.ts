@@ -5,6 +5,7 @@ export { CheckerAgent } from "./agent";
 import { Submission } from "./models";
 import { ObjectId } from "mongodb";
 import { DatabaseService } from "./db";
+import { searchInternal } from "./tools/search-internal";
 /**
  * Welcome to Cloudflare Workers! This is your first Durable Objects application.
  *
@@ -89,16 +90,33 @@ export default class extends WorkerEntrypoint<Env> {
         checkStatus: "pending",
       };
       //find matching check
-      const matchingCheck = await this.getMatchingCheck(submission);
-      if (
-        matchingCheck.success &&
-        matchingCheck.data?.hasMatchingCheck &&
-        matchingCheck.data.checkId
-      ) {
-        checkId = matchingCheck.data.checkId;
+      if (request.findSimilar) {
+        console.log("Finding similar check");
+        const text = submission.text || submission.caption || "";
+        if (text) {
+          const searchResult = await searchInternal(
+            text,
+            this.env,
+            this.db.checkRepository
+          );
+
+          if (
+            searchResult.success &&
+            searchResult.result?.isMatch &&
+            searchResult.result.id
+          ) {
+            checkId = new ObjectId(searchResult.result.id);
+            //TODO: get the check from the database and return the necessary data
+          } else {
+            checkId = new ObjectId();
+          }
+        } else {
+          checkId = new ObjectId();
+        }
       } else {
         checkId = new ObjectId();
       }
+
       submission.checkId = checkId;
       await submissionRepository.insert(submission);
     } catch (error) {
@@ -149,40 +167,6 @@ export default class extends WorkerEntrypoint<Env> {
         error: {
           message: errorMessage,
         },
-      };
-    }
-  }
-
-  async getMatchingCheck(submission: Submission): Promise<{
-    success: boolean;
-    error?: string;
-    data?: {
-      hasMatchingCheck: boolean;
-      checkId: ObjectId | null;
-    };
-  }> {
-    if (!this.db) {
-      this.logger.error(this.logContext, "Database not initialized");
-      return {
-        success: false,
-        error: "Database not initialized",
-      };
-    }
-    try {
-      const checkRepository = this.db.checkRepository;
-      return {
-        success: true,
-        data: {
-          hasMatchingCheck: false,
-          checkId: null,
-        },
-      };
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
-      return {
-        success: false,
-        error: errorMessage,
       };
     }
   }

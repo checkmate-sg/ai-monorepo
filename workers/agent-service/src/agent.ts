@@ -105,6 +105,7 @@ export class CheckerAgent extends DurableObject<Env> {
       getText: () => this.text,
       getIntent: () => this.intent,
       getType: () => this.type,
+      getCheckRepository: () => this.db.checkRepository,
     };
 
     this.tools = createTools(toolContext);
@@ -412,7 +413,9 @@ export class CheckerAgent extends DurableObject<Env> {
             text: this.text || null,
             imageUrl: this.imageUrl || null,
             caption: this.caption || null,
-            textEmbedding: null,
+            embeddings: {
+              text: null,
+            },
             textHash: "", // To be calculated later
             type: this.type || "text",
             generationStatus: "pending",
@@ -423,11 +426,13 @@ export class CheckerAgent extends DurableObject<Env> {
             longformResponse: {
               en: null,
               cn: null,
+              links: null,
             },
             shortformResponse: {
               en: null,
               cn: null,
-              downvoted: false,
+              downvoted: null,
+              links: null,
             },
             machineCategory: null,
             crowdsourcedCategory: null,
@@ -456,7 +461,9 @@ export class CheckerAgent extends DurableObject<Env> {
                   const textEmbedding = (embedderResult as any).embedding || [];
                   // Update the record with embeddings
                   await this.db.checkRepository.update(this.id, {
-                    textEmbedding,
+                    embeddings: {
+                      text: textEmbedding,
+                    },
                   });
                   this.logger.info(
                     { id: this.id },
@@ -527,6 +534,7 @@ export class CheckerAgent extends DurableObject<Env> {
         longformResponse: {
           en: report,
           cn: null,
+          links: sources,
         },
       });
       const summariseResult = await this.tools.summarise_report.execute({
@@ -577,11 +585,13 @@ export class CheckerAgent extends DurableObject<Env> {
             longformResponse: {
               en: report,
               cn: null, // Could translate the full report if needed
+              links: sources,
             },
             shortformResponse: {
               en: summary,
               cn: cnSummary,
               downvoted: false,
+              links: sources,
             },
           })
           .catch((err) => {
@@ -675,17 +685,18 @@ export class CheckerAgent extends DurableObject<Env> {
 
   /**
    * Gets the available tool definitions, removing search and screenshot tools
-   * when their respective counters reach zero
+   * when their respective counters reach zero.
    */
   private get toolDefinitions(): ChatCompletionTool[] {
     return Object.entries(this.tools)
       .filter(([name, _]) => {
-        // Filter out all the unused tools
+        // Filter out all the unused tools. Adjust this to make defined tools available.
         if (
           name === "preprocess_inputs" ||
           name === "extract_image_urls" ||
           name === "summarise_report" ||
-          name === "translate_text"
+          name === "translate_text" ||
+          name === "search_internal"
         ) {
           return false;
         }
