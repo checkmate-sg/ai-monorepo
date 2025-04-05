@@ -1,6 +1,5 @@
 import type { Logger } from "pino";
 import type { Langfuse } from "langfuse";
-import { CheckRepository } from "../db/repositories/checks.repository";
 
 export interface ToolContext {
   logger: Logger;
@@ -19,7 +18,6 @@ export interface ToolContext {
   getType: () => "text" | "image" | undefined;
   langfuse: Langfuse;
   getSpan: () => ReturnType<Langfuse["span"]> | undefined;
-  getCheckRepository: () => CheckRepository;
 }
 
 export interface Tool<P, R> {

@@ -9,6 +9,7 @@ import {
   AgentResponse,
   AgentResult,
   LLMProvider,
+  ErrorType,
 } from "@workspace/shared-types";
 import type {
   ChatCompletion,
@@ -18,9 +19,6 @@ import type {
 } from "openai/resources";
 import { createTools, ToolContext } from "./tools";
 import { Langfuse, TextPromptClient, observeOpenAI } from "langfuse";
-import { DatabaseService } from "./db/database.service";
-import { ObjectId } from "mongodb";
-import { ErrorType } from "./models";
 
 const logger = createLogger("agent");
 
@@ -58,7 +56,6 @@ export class CheckerAgent extends DurableObject<Env> {
   private span?: ReturnType<Langfuse["span"]>;
   private tools: ReturnType<typeof createTools>;
   private state: DurableObjectState;
-  private db: DatabaseService;
   /**
    * The constructor is invoked once upon creation of the Durable Object, i.e. the first call to
    * 	`DurableObjectStub::get` for a given identifier (no-op constructors can be omitted)
@@ -83,7 +80,6 @@ export class CheckerAgent extends DurableObject<Env> {
       secretKey: this.env.LANGFUSE_SECRET_KEY,
       baseUrl: this.env.LANGFUSE_HOST,
     });
-    this.db = new DatabaseService(this.env.MONGODB_CONNECTION_STRING);
     this.prompt = null as any; // Temporary initialization
     const toolContext: ToolContext = {
       logger: this.logger,
@@ -105,7 +101,6 @@ export class CheckerAgent extends DurableObject<Env> {
       getText: () => this.text,
       getIntent: () => this.intent,
       getType: () => this.type,
-      getCheckRepository: () => this.db.checkRepository,
     };
 
     this.tools = createTools(toolContext);
@@ -116,7 +111,6 @@ export class CheckerAgent extends DurableObject<Env> {
 
   private async initialize() {
     try {
-      this.db.init();
       this.prompt = await this.langfuse.getPrompt(
         "agent_system_prompt",
         undefined,
@@ -406,10 +400,9 @@ export class CheckerAgent extends DurableObject<Env> {
       // Create the check record in MongoDB with the ID passed from the worker
       try {
         // Create ObjectId from this.id (the ID passed from the worker)
-        const objectId = new ObjectId(this.id);
 
         // Create the record immediately with null embeddings
-        const insertResult = await this.db.checkRepository.insert(
+        const insertResult = await this.env.DATABASE_SERVICE.insertCheck(
           {
             text: this.text || null,
             imageUrl: this.imageUrl || null,
@@ -440,7 +433,7 @@ export class CheckerAgent extends DurableObject<Env> {
             pollId: null,
             isExpired: false,
           },
-          objectId // Pass the ObjectId to use as the document _id
+          id // Pass the ObjectId to use as the document _id
         );
 
         if (!insertResult.success) {
@@ -459,7 +452,7 @@ export class CheckerAgent extends DurableObject<Env> {
             if (embedderResult.success) {
               const textEmbedding = (embedderResult as any).embedding || [];
               // Update the record with embeddings
-              await this.db.checkRepository.update(this.id, {
+              await this.env.DATABASE_SERVICE.updateCheck(this.id, {
                 embeddings: {
                   text: textEmbedding,
                 },
@@ -500,7 +493,7 @@ export class CheckerAgent extends DurableObject<Env> {
       this.isVideo = preprocessingResult.result.is_video;
 
       // Update check with preprocessing results as a background operation
-      await this.db.checkRepository.update(this.id, {
+      await this.env.DATABASE_SERVICE.updateCheck(this.id, {
         isAccessBlocked: this.isAccessBlocked,
         isVideo: this.isVideo,
         machineCategory: null,
@@ -517,7 +510,7 @@ export class CheckerAgent extends DurableObject<Env> {
       const sources = agentLoopResult.sources;
       const isControversial = agentLoopResult.is_controversial;
       // update the necessary fields in the check record
-      await this.db.checkRepository.update(this.id, {
+      await this.env.DATABASE_SERVICE.updateCheck(this.id, {
         isControversial,
         longformResponse: {
           en: report,
@@ -565,7 +558,7 @@ export class CheckerAgent extends DurableObject<Env> {
       };
 
       // Update check with complete results as a background operation
-      await this.db.checkRepository.update(this.id, {
+      await this.env.DATABASE_SERVICE.updateCheck(this.id, {
         generationStatus: "completed",
         isControversial,
         longformResponse: {
@@ -611,7 +604,7 @@ export class CheckerAgent extends DurableObject<Env> {
       }
 
       // Update check with error status as a background operation
-      await this.db.checkRepository.update(this.id, {
+      await this.env.DATABASE_SERVICE.updateCheck(this.id, {
         generationStatus: errorType,
       });
 

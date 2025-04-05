@@ -49,9 +49,6 @@ importers:
       langfuse:
         specifier: ^3.35.3
         version: 3.35.3
-      mongodb:
-        specifier: ^6.15.0
-        version: 6.15.0(socks@2.8.4)
       normalize-url:
         specifier: ^8.0.1
         version: 8.0.1
@@ -96,6 +93,28 @@ importers:
       '@types/service-worker-mock':
         specifier: ^2.0.1
         version: 2.0.4
+      wrangler:
+        specifier: ^4.4.0
+        version: 4.4.0(@cloudflare/workers-types@4.20250321.0)
+
+  workers/database-service:
+    dependencies:
+      mongodb:
+        specifier: ^6.15.0
+        version: 6.15.0(socks@2.8.4)
+    devDependencies:
+      '@cloudflare/vitest-pool-workers':
+        specifier: ^0.6.4
+        version: 0.6.16(@cloudflare/workers-types@4.20250321.0)(@vitest/runner@2.1.9)(@vitest/snapshot@2.1.9)(vitest@2.1.9(@types/node@20.8.3))
+      '@cloudflare/workers-types':
+        specifier: ^4.20250321.0
+        version: 4.20250321.0
+      typescript:
+        specifier: ^5.5.2
+        version: 5.8.2
+      vitest:
+        specifier: ~2.1.9
+        version: 2.1.9(@types/node@20.8.3)
       wrangler:
         specifier: ^4.4.0
         version: 4.4.0(@cloudflare/workers-types@4.20250321.0)
