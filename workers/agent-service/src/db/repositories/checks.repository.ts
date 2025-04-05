@@ -26,7 +26,10 @@ export class CheckRepository {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      this.logger.error({ error, check }, "Failed to insert check");
+      this.logger.error(
+        { error, errorMessage, check },
+        "Failed to insert check"
+      );
       return { success: false, error: errorMessage };
     }
   }

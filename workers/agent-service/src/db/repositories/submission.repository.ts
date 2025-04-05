@@ -83,7 +83,10 @@ export class SubmissionRepository {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      this.logger.error({ error, id, data }, "Failed to update submission");
+      this.logger.error(
+        { error, errorMessage, id, data },
+        "Failed to update submission"
+      );
       return { success: false, error: errorMessage };
     }
   }
