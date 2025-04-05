@@ -93,7 +93,8 @@
           "service": "screenshot-backup-service"
         },
         { "binding": "SEARCH_SERVICE", "service": "search-service" },
-        { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" }
+        { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" },
+        { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" }
       ]
     },
     "staging": {
@@ -115,7 +116,8 @@
           "binding": "SEARCH_SERVICE",
           "service": "search-service-staging"
         },
-        { "binding": "URLSCAN_SERVICE", "service": "urlscan-service-staging" }
+        { "binding": "URLSCAN_SERVICE", "service": "urlscan-service-staging" },
+        { "binding": "EMBEDDER_SERVICE", "service": "embedder-service-staging" }
       ]
     }
   }
