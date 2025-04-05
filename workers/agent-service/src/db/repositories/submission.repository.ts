@@ -64,6 +64,8 @@ export class SubmissionRepository {
     data: Partial<Omit<Submission, "_id">>
   ): Promise<{ success: boolean; error?: string }> {
     try {
+      await this.mongoClient.close();
+      await this.mongoClient.connect();
       const db = this.mongoClient.db("checkmate-core");
       const submissionsCollection = db.collection<Submission>("submissions");
 
