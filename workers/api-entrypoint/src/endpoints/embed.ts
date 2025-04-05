@@ -11,7 +11,15 @@ export class Embed extends OpenAPIRoute {
   schema = {
     tags: ["Embedding"],
     summary: "Get the embedding of a text",
+    security: [{ ApiKeyAuth: [] }],
     request: {
+      headers: z.object({
+        "x-api-key": z
+          .string({
+            required_error: "API key is required for authentication",
+          })
+          .describe("API key for authentication"),
+      }),
       body: {
         content: {
           "application/json": {

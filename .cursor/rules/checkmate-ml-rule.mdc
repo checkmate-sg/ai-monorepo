@@ -1,0 +1,15 @@
+---
+description: Any coding task
+globs: 
+alwaysApply: false
+---
+
+This project is done on Cloudflare Workers
+
+Use best practices for working on Cloudflare Workers and other edge environments. Note that nodeJS functionalities may not work on edge environments.
+
+Keep your edits well-scoped and concise. Avoid editing multiple files at once unless explicitly told to do so.
+
+Each worker is it's own microservice so to speak. When working on a worker, focus on the files within that worker (the xxx-service or api-entrypoint folder), as well as the shared folder.
+
+If you don't manage to get an expected output, ask me, the developer, for guidance. Don't just keep trying on and on.

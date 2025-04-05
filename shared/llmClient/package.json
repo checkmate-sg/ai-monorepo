@@ -1,0 +1,14 @@
+{
+  "name": "@workspace/shared-llm-client",
+  "version": "1.0.0",
+  "description": "Shared llm client for all services",
+  "main": "index.ts",
+  "types": "index.ts",
+  "private": true,
+  "dependencies": {
+    "openai": "^4.86.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

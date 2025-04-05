@@ -19,7 +19,9 @@
       "@workspace/shared-utils": ["shared/utils"],
       "@workspace/shared-utils/*": ["shared/utils/*"],
       "@workspace/shared-types": ["shared/types"],
-      "@workspace/shared-types/*": ["shared/types/*"]
+      "@workspace/shared-types/*": ["shared/types/*"],
+      "@workspace/shared-llm-client": ["shared/llmClient"],
+      "@workspace/shared-llm-client/*": ["shared/llmClient/*"]
     }
   },
   "exclude": ["node_modules"]
