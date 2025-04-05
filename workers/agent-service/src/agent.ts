@@ -116,6 +116,7 @@ export class CheckerAgent extends DurableObject<Env> {
 
   private async initialize() {
     try {
+      this.db.init();
       this.prompt = await this.langfuse.getPrompt(
         "agent_system_prompt",
         undefined,

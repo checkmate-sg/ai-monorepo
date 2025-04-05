@@ -13,6 +13,11 @@ export class DatabaseService {
     this.mongoClient = new MongoClient(uri);
   }
 
+  async init() {
+    await this.mongoClient.connect();
+    this.logger.info("Connected to MongoDB");
+  }
+
   get submissionRepository(): SubmissionRepository {
     if (!this._submissionRepository) {
       this._submissionRepository = new SubmissionRepository(this.mongoClient);
