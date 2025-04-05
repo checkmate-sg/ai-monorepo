@@ -117,7 +117,10 @@ export class CheckerAgent extends DurableObject<Env> {
         "agent_system_prompt",
         undefined,
         {
-          label: this.env.ENVIRONMENT,
+          label:
+            this.env.ENVIRONMENT === "production"
+              ? "cf-production"
+              : this.env.ENVIRONMENT, //TODO: revert after google version deprecated
           type: "text",
         }
       );
