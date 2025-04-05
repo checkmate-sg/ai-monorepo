@@ -33,7 +33,7 @@ export class SubmissionRepository {
     id: string
   ): Promise<{ success: boolean; data?: Submission; error?: string }> {
     try {
-      const db = this.mongoClient.db();
+      const db = this.mongoClient.db("checkmate-core");
       const submissionsCollection = db.collection<Submission>("submissions");
 
       const submission = await submissionsCollection.findOne({
@@ -61,7 +61,7 @@ export class SubmissionRepository {
     data: Partial<Omit<Submission, "_id">>
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      const db = this.mongoClient.db();
+      const db = this.mongoClient.db("checkmate-core");
       const submissionsCollection = db.collection<Submission>("submissions");
 
       const result = await submissionsCollection.updateOne(
@@ -87,7 +87,7 @@ export class SubmissionRepository {
 
   async delete(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const db = this.mongoClient.db();
+      const db = this.mongoClient.db("checkmate-core");
       const submissionsCollection = db.collection<Submission>("submissions");
 
       const result = await submissionsCollection.deleteOne({

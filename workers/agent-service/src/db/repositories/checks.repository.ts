@@ -105,7 +105,7 @@ export class CheckRepository {
     id: string
   ): Promise<{ success: boolean; data?: Check; error?: string }> {
     try {
-      const db = this.mongoClient.db();
+      const db = this.mongoClient.db("checkmate-core");
       const checksCollection = db.collection<Check>("checks");
 
       const check = await checksCollection.findOne({
@@ -133,7 +133,7 @@ export class CheckRepository {
     data: Partial<Omit<Check, "_id">>
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      const db = this.mongoClient.db();
+      const db = this.mongoClient.db("checkmate-core");
       const checksCollection = db.collection<Check>("checks");
 
       const result = await checksCollection.updateOne(
@@ -159,7 +159,7 @@ export class CheckRepository {
 
   async delete(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const db = this.mongoClient.db();
+      const db = this.mongoClient.db("checkmate-core");
       const checksCollection = db.collection<Check>("checks");
 
       const result = await checksCollection.deleteOne({
