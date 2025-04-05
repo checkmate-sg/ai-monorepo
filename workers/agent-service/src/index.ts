@@ -69,14 +69,12 @@ export default class extends WorkerEntrypoint<Env> {
     if (!this.db) {
       this.db = new DatabaseService(this.env.MONGODB_CONNECTION_STRING);
     }
-    let submissionId: ObjectId;
+    let submissionId: string | null = null;
     let checkId: ObjectId;
     const submissionRepository = this.db.submissionRepository;
 
     try {
-      submissionId = new ObjectId();
-      const submission: Submission = {
-        _id: submissionId,
+      const submission: Omit<Submission, "_id"> = {
         requestId: request.id ?? null,
         timestamp: new Date(),
         sourceType:
@@ -91,7 +89,6 @@ export default class extends WorkerEntrypoint<Env> {
       };
       //find matching check
       if (request.findSimilar) {
-        console.log("Finding similar check");
         const text = submission.text || submission.caption || "";
         if (text) {
           const searchResult = await searchInternal(
@@ -118,7 +115,13 @@ export default class extends WorkerEntrypoint<Env> {
       }
 
       submission.checkId = checkId;
-      await submissionRepository.insert(submission);
+
+      const result = await submissionRepository.insert(submission);
+      if (result.success && result.id) {
+        submissionId = result.id;
+      } else {
+        throw new Error("Failed to insert submission");
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
@@ -146,7 +149,7 @@ export default class extends WorkerEntrypoint<Env> {
       let stub = this.env.CHECKER_AGENT.get(objectId);
       const result = await stub.check(request, checkId.toString());
       this.ctx.waitUntil(
-        submissionRepository.update(submissionId.toString(), {
+        submissionRepository.update(submissionId, {
           checkStatus: "completed",
         })
       );
@@ -158,7 +161,7 @@ export default class extends WorkerEntrypoint<Env> {
           : "Unknown error occurred in agent-service worker";
       this.logger.error(this.logContext, errorMessage);
       this.ctx.waitUntil(
-        submissionRepository.update(submissionId.toString(), {
+        submissionRepository.update(submissionId, {
           checkStatus: "completed",
         })
       );

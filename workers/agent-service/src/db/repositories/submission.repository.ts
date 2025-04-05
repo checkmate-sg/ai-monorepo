@@ -9,18 +9,21 @@ export class SubmissionRepository {
 
   async insert(
     submission: Omit<Submission, "_id">
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<{ success: boolean; id?: string; error?: string }> {
     try {
       const db = this.mongoClient.db("checkmate-core");
       const submissionsCollection = db.collection<Submission>("submissions");
 
+      // Create new ID first
+      const newId = new ObjectId();
+
       // Properly await the insertion
       await submissionsCollection.insertOne({
         ...submission,
-        _id: new ObjectId(),
+        _id: newId,
       });
 
-      return { success: true };
+      return { success: true, id: newId.toString() };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";

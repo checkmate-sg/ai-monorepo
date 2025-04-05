@@ -45,6 +45,7 @@ export const agentRequestSchema = {
             caption: z.string().optional(),
             // Common properties
             provider: z.enum(["openai", "vertex-ai", "groq"]).optional(),
+            findSimilar: z.boolean().optional(),
           })
           .describe(
             "Request body schema. For text, pass 'text' only. For image, pass 'imageUrl' or 'caption'. Leave 'provider' blank for default."
