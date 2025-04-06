@@ -86,11 +86,10 @@ export type ReviewResult = ReviewResponse | ErrorResponse;
 export interface PreprocessResponse {
   success: true;
   result: {
-    reasoning: string;
-    is_access_blocked: boolean;
-    is_video: boolean;
+    isAccessBlocked: boolean;
+    isVideo: boolean;
     intent: string;
-    starting_content: any[];
+    startingContent: any[];
   };
 }
 

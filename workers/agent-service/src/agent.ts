@@ -499,8 +499,8 @@ export class CheckerAgent extends DurableObject<Env> {
       }
 
       this.intent = preprocessingResult.result.intent;
-      this.isAccessBlocked = preprocessingResult.result.is_access_blocked;
-      this.isVideo = preprocessingResult.result.is_video;
+      this.isAccessBlocked = preprocessingResult.result.isAccessBlocked;
+      this.isVideo = preprocessingResult.result.isVideo;
 
       // Update check with preprocessing results as a background operation
       this.state.waitUntil(
@@ -514,7 +514,7 @@ export class CheckerAgent extends DurableObject<Env> {
         })
       );
 
-      const startingContent = preprocessingResult.result.starting_content;
+      const startingContent = preprocessingResult.result.startingContent;
       // Run the agent loop and return results
       const agentLoopResult = await this.agentLoop(startingContent);
       if (!agentLoopResult.success || "error" in agentLoopResult) {
