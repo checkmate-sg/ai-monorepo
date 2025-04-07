@@ -18,57 +18,39 @@ const configObject = {
       schema: {
         type: "object",
         properties: {
-          links: {
-            type: "array",
-            description: "Array of link objects with details about each link.",
-            items: {
-              type: "object",
-              properties: {
-                url: {
-                  type: "string",
-                  description: "The URL of the link",
-                },
-                reasoning: {
-                  type: "string",
-                  description: "Why you think it is crucial or not",
-                },
-                is_crucial: {
-                  type: "boolean",
-                  description:
-                    "Whether the link is crucial to checking the message",
-                },
-                is_video: {
-                  type: "boolean",
-                  description: "Whether the link contains a video",
-                },
-                is_access_blocked: {
-                  type: "boolean",
-                  description:
-                    "Whether access to the link is blocked, or the contents are otherwise unavailable",
-                },
-              },
-              required: [
-                "url",
-                "reasoning",
-                "is_crucial",
-                "is_video",
-                "is_access_blocked",
-              ],
-              additionalProperties: false,
-            },
-          },
           reasoning: {
             type: "string",
             description:
-              "The reasoning behind the intent you inferred from the message.",
+              "The reasoning behind the intent you inferred from the message, as well as the reasoning why it can or cannot be assessed.",
           },
           intent: {
             type: "string",
             description:
               "What the user's intent is, e.g. to check whether this is a scam, to check if this is really from the government, to check the facts in this article, etc.",
           },
+          canBeAssessed: {
+            type: "boolean",
+            description:
+              "Whether you are confident that the information currently available is sufficient for the next agent, given google search and a malicious URL scanner, to assess this message.",
+          },
+          isAccessBlocked: {
+            type: "boolean",
+            description:
+              "True if critical information needed to assess this submission is behind a blocked webpage. Otherwise false.",
+          },
+          isVideo: {
+            type: "boolean",
+            description:
+              "True if there is a video that needs to be watched in order to properly assess this submission.",
+          },
         },
-        required: ["links", "reasoning", "intent"],
+        required: [
+          "reasoning",
+          "intent",
+          "canBeAssessed",
+          "isAccessBlocked",
+          "isVideo",
+        ],
         additionalProperties: false,
       },
     },
@@ -250,20 +232,9 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
         const content = response.choices[0].message.content || "{}";
         const result = JSON.parse(content);
 
-        //loop through result.links and check if any of them are blocked
-        let isAccessBlocked = false;
-        let isVideo = false;
-
-        if (result.links && Array.isArray(result.links)) {
-          for (const link of result.links) {
-            if (link.is_access_blocked && link.is_crucial) {
-              isAccessBlocked = true;
-            }
-            if (link.is_video && link.is_crucial) {
-              isVideo = true;
-            }
-          }
-        }
+        const canBeAssessed = result.canBeAssessed;
+        const isAccessBlocked = result.isAccessBlocked && !canBeAssessed;
+        const isVideo = result.isVideo && !canBeAssessed;
 
         return {
           success: true,
