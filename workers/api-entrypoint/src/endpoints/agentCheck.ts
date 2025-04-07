@@ -42,7 +42,7 @@ export const agentRequestSchema = {
             text: z.string().optional(),
             // For image requests
             imageUrl: z.string().optional(),
-            caption: z.string().optional(),
+            caption: z.string().nullable().optional(),
             // Common properties
             provider: z.enum(["openai", "vertex-ai", "groq"]).optional(),
             findSimilar: z.boolean().optional(),
@@ -87,7 +87,7 @@ export async function handleAgentRequest(
     body: {
       text?: string;
       imageUrl?: string;
-      caption?: string;
+      caption?: string | null;
       provider?: "openai" | "vertex-ai" | "groq";
       findSimilar?: boolean;
     };
@@ -108,7 +108,7 @@ export async function handleAgentRequest(
   } else if (imageUrl) {
     agentRequest = {
       imageUrl,
-      caption,
+      caption: caption ?? undefined,
       id: requestId, // Use request ID as fallback if id not provided
     };
     if (caption) {

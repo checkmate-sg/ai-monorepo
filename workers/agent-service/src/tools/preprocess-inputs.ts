@@ -271,7 +271,7 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
             ...result,
             isAccessBlocked,
             isVideo,
-            starting_content: userContent,
+            startingContent: userContent,
           },
         };
       } catch (error: unknown) {
