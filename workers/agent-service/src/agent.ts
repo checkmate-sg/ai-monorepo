@@ -381,9 +381,11 @@ export class CheckerAgent extends DurableObject<Env> {
     const trace = this.langfuse.trace({
       name: "agent-check",
       input: request,
-      id: id,
+      id: request.id ?? id,
       metadata: {
         provider,
+        mongoId: id,
+        requestId: request.id,
       },
     });
     this.trace = trace;
