@@ -380,8 +380,8 @@ export class CheckerAgent extends DurableObject<Env> {
     }
     this.id = id;
     this.langfuseTraceId = request.id ?? id;
-    this.logger = this.logger.child({ id });
-
+    this.logger = this.logger.child({ id, requestId: request.id });
+    request.id = id; // to log consistently with mongoDB ID as checkId,
     const trace = this.langfuse.trace({
       name: "agent-check",
       input: request,
