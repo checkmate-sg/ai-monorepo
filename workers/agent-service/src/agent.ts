@@ -29,7 +29,7 @@ interface AgentOutputs {
 }
 
 const providerMap = {
-  openai: "gpt-4o",
+  openai: "gpt-4.1-mini",
   "vertex-ai": "gemini-2.0-flash",
   groq: "llama-3.3-70b-versatile",
 };
@@ -309,7 +309,7 @@ export class CheckerAgent extends DurableObject<Env> {
         });
         messages[0].content = systemPrompt;
         completion = await observedClient.chat.completions.create({
-          model: this.provider ? providerMap[this.provider] : "gpt-4o",
+          model: this.provider ? providerMap[this.provider] : "gpt-4.1-mini",
           messages: messages as any[],
           temperature: 0.0,
           seed: 11,
