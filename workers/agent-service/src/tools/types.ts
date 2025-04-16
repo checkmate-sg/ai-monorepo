@@ -4,6 +4,7 @@ import type { Langfuse } from "langfuse";
 export interface ToolContext {
   logger: Logger;
   getId: () => string;
+  getTraceId: () => string;
   env: Env;
   // For search-google and get-website-screenshot
   getSearchesRemaining: () => number;
