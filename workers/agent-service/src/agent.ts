@@ -39,6 +39,7 @@ export class CheckerAgent extends DurableObject<Env> {
   private searchesRemaining: number;
   private screenshotsRemaining: number;
   private id: string;
+  private langfuseTraceId: string;
   private provider?: LLMProvider;
   private totalCost: number;
   private client?: OpenAI;
@@ -72,6 +73,7 @@ export class CheckerAgent extends DurableObject<Env> {
     this.screenshotsRemaining = 5;
     this.provider = "openai";
     this.id = "pending-initialization";
+    this.langfuseTraceId = "pending-initialization";
     this.logger = logger;
     this.logger.info("Agent created");
     this.totalCost = 0;
@@ -86,6 +88,7 @@ export class CheckerAgent extends DurableObject<Env> {
     const toolContext: ToolContext = {
       logger: this.logger,
       getId: () => this.id,
+      getTraceId: () => this.langfuseTraceId,
       env: this.env,
       langfuse: this.langfuse,
       getSpan: () => this.span,
@@ -376,12 +379,13 @@ export class CheckerAgent extends DurableObject<Env> {
       throw new Error("ID is required");
     }
     this.id = id;
+    this.langfuseTraceId = request.id ?? id;
     this.logger = this.logger.child({ id });
 
     const trace = this.langfuse.trace({
       name: "agent-check",
       input: request,
-      id: request.id ?? id,
+      id: this.langfuseTraceId,
       metadata: {
         provider,
         mongoId: id,
