@@ -1,6 +1,6 @@
 import type { ToolContext } from "./types";
 import type { Langfuse } from "langfuse";
-import { ScreenshotResult } from "@workspace/shared-types";
+import { ScreenshotResult, LLMProvider } from "@workspace/shared-types";
 
 // Updated decorator that passes the span to the function. Does the same as @observe in langfuse python sdk
 export function withLangfuseSpan<T, R>(
@@ -77,4 +77,16 @@ export function getOpenAIContent(screenshots: EnhancedScreenshotResult[]) {
   }
 
   return content;
+}
+
+export function getProviderFromModel(model: string): LLMProvider {
+  if (model.includes("gpt")) {
+    return "openai";
+  } else if (model.includes("gemini")) {
+    return "vertex-ai";
+  } else if (model.includes("llama")) {
+    return "groq";
+  } else {
+    throw new Error(`Unsupported model: ${model}`);
+  }
 }

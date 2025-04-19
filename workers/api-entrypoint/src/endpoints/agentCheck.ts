@@ -44,7 +44,7 @@ export const agentRequestSchema = {
             imageUrl: z.string().optional(),
             caption: z.string().nullable().optional(),
             // Common properties
-            provider: z.enum(["openai", "vertex-ai", "groq"]).optional(),
+            model: z.string().optional(),
             findSimilar: z.boolean().optional(),
           })
           .describe(
@@ -88,7 +88,7 @@ export async function handleAgentRequest(
       text?: string;
       imageUrl?: string;
       caption?: string | null;
-      provider?: "openai" | "vertex-ai" | "groq";
+      model?: string;
       findSimilar?: boolean;
     };
   },
@@ -98,7 +98,7 @@ export async function handleAgentRequest(
   // Extract request ID from headers
   const requestId = data.headers?.["x-request-id"] || crypto.randomUUID();
   const childLogger = loggerInstance.child({ requestId });
-  const { text, imageUrl, caption, provider, findSimilar } = data.body;
+  const { text, imageUrl, caption, model, findSimilar } = data.body;
   let agentRequest: AgentRequest;
   if (text) {
     agentRequest = {
@@ -117,8 +117,8 @@ export async function handleAgentRequest(
   } else {
     throw new Error("No text or imageUrl provided");
   }
-  if (provider) {
-    agentRequest.provider = provider;
+  if (model) {
+    agentRequest.model = model;
   }
   const consumerName = c.get("consumerName");
   if (consumerName) {

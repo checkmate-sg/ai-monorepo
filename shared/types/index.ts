@@ -74,7 +74,7 @@ export type LLMProvider = "openai" | "vertex-ai" | "groq";
 // Base interface with common properties
 interface BaseAgentRequest {
   id?: string;
-  provider?: LLMProvider;
+  model?: string;
   consumerName?: string;
   findSimilar?: boolean;
 }
