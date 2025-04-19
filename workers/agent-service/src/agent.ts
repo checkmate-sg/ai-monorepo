@@ -19,7 +19,7 @@ import type {
 } from "openai/resources";
 import { createTools, ToolContext } from "./tools";
 import { Langfuse, TextPromptClient, observeOpenAI } from "langfuse";
-
+import { getProviderFromModel } from "./tools/utils";
 const logger = createLogger("agent");
 
 interface AgentOutputs {
@@ -373,7 +373,8 @@ export class CheckerAgent extends DurableObject<Env> {
   }
 
   async check(request: AgentRequest, id: string): Promise<AgentResult> {
-    const provider = request.provider || "openai";
+    const model = request.model || "gpt-4.1-mini"; //default is gpt-4.1-mini
+    const provider = getProviderFromModel(model);
     const consumerName = request.consumerName || "unknown consumer";
     if (!id) {
       throw new Error("ID is required");
