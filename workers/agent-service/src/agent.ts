@@ -30,7 +30,7 @@ interface AgentOutputs {
 
 const providerMap = {
   openai: "gpt-4o",
-  "vertex-ai": "gemini-2.0-flash",
+  "vertex-ai": "gemini-2.5-pro-preview-03-25",
   groq: "llama-3.3-70b-versatile",
 };
 
