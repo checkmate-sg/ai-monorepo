@@ -41,6 +41,7 @@ export class CheckerAgent extends DurableObject<Env> {
   private id: string;
   private langfuseTraceId: string;
   private provider?: LLMProvider;
+  private model?: string;
   private totalCost: number;
   private client?: OpenAI;
   private intent?: string;
@@ -71,7 +72,6 @@ export class CheckerAgent extends DurableObject<Env> {
     this.state = ctx;
     this.searchesRemaining = 5;
     this.screenshotsRemaining = 5;
-    this.provider = "openai";
     this.id = "pending-initialization";
     this.langfuseTraceId = "pending-initialization";
     this.logger = logger;
@@ -106,6 +106,10 @@ export class CheckerAgent extends DurableObject<Env> {
       getText: () => this.text,
       getIntent: () => this.intent,
       getType: () => this.type,
+      getModelAndProvider: () => ({
+        model: this.model,
+        provider: this.provider,
+      }),
     };
 
     this.tools = createTools(toolContext);
@@ -309,7 +313,7 @@ export class CheckerAgent extends DurableObject<Env> {
         });
         messages[0].content = systemPrompt;
         completion = await observedClient.chat.completions.create({
-          model: this.provider ? providerMap[this.provider] : "gpt-4o",
+          model: this.model || "gpt-4.1-mini",
           messages: messages as any[],
           temperature: 0.0,
           seed: 11,
@@ -395,7 +399,7 @@ export class CheckerAgent extends DurableObject<Env> {
     });
     this.trace = trace;
     this.provider = provider;
-
+    this.model = model;
     try {
       this.client = await createClient(provider, this.env);
       if (request.text) {
