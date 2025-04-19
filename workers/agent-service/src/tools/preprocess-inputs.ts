@@ -88,7 +88,8 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
   execute: withLangfuseSpan<AgentRequest, PreprocessResult>(
     "preprocess-inputs",
     async (params, context, span) => {
-      const client = await createClient("openai", context.env);
+      const { model, provider } = context.getModelAndProvider();
+      const client = await createClient(provider ?? "openai", context.env);
 
       try {
         let userContent: any[];
@@ -221,9 +222,9 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
 
         // Make the API call to review the report
         const response = await observedClient.chat.completions.create({
-          model: config.model || "gpt-4o",
-          temperature: config.temperature || 0.0,
-          seed: config.seed || 11,
+          model: model || "gpt-4o",
+          temperature: config?.temperature || 0.0,
+          seed: config?.seed || 11,
           messages: messages as any[],
           response_format: config.response_format,
         });

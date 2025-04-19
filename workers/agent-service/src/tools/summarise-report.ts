@@ -64,7 +64,8 @@ export const summariseReportTool: Tool<
   execute: withLangfuseSpan<SummariseReportParams, SummariseReportResult>(
     "summarise-report",
     async (params, context, span) => {
-      const client = await createClient("openai", context.env);
+      const { model, provider } = context.getModelAndProvider();
+      const client = await createClient(provider ?? "openai", context.env);
 
       try {
         if (!params.report) {
@@ -149,9 +150,9 @@ export const summariseReportTool: Tool<
 
         // Make the API call to review the report
         const response = await observedClient.chat.completions.create({
-          model: config.model || "gpt-4o",
-          temperature: config.temperature || 0.0,
-          seed: config.seed || 11,
+          model: model || "gpt-4o",
+          temperature: config?.temperature || 0.0,
+          seed: config?.seed || 11,
           response_format: config.response_format,
           messages: messages as any[],
         });

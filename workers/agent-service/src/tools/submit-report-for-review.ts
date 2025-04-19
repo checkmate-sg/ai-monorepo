@@ -13,6 +13,8 @@ export interface SubmitReportForReviewParams {
 const configObject = {
   model: "o3-mini",
   reasoning_effort: "medium",
+  temperature: 0,
+  seed: 11,
   response_format: {
     type: "json_schema" as const,
     json_schema: {
@@ -81,7 +83,8 @@ export const submitReportForReviewTool: Tool<
   execute: withLangfuseSpan<SubmitReportForReviewParams, ReviewResult>(
     "submit-report-for-review",
     async (params, context, span) => {
-      const client = await createClient("openai", context.env);
+      const { model, provider } = context.getModelAndProvider();
+      const client = await createClient(provider ?? "openai", context.env);
 
       try {
         const prompt = await context.langfuse.getPrompt(
@@ -123,13 +126,11 @@ export const submitReportForReviewTool: Tool<
 
         // Make the API call to review the report
         const response = await observedClient.chat.completions.create({
-          model: config.model || "o3-mini",
-          reasoning_effort: (config.reasoning_effort || "medium") as
-            | "low"
-            | "medium"
-            | "high",
-          messages: messages as any[],
+          model: model || "gpt-4.1",
+          temperature: config?.temperature || 0.0,
+          seed: config?.seed || 11,
           response_format: config.response_format,
+          messages: messages as any[],
         });
 
         // Parse the result - handle null case
