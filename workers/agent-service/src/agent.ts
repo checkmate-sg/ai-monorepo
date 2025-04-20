@@ -19,7 +19,7 @@ import type {
 } from "openai/resources";
 import { createTools, ToolContext } from "./tools";
 import { Langfuse, TextPromptClient, observeOpenAI } from "langfuse";
-import { getProviderFromModel } from "./tools/utils";
+import { getProviderFromModel } from "@workspace/shared-utils";
 const logger = createLogger("agent");
 
 interface AgentOutputs {
