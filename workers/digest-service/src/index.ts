@@ -1,5 +1,9 @@
 import { WorkerEntrypoint } from "cloudflare:workers";
-import { createLogger, getGoogleAuthToken } from "@workspace/shared-utils";
+import {
+  createLogger,
+  getGoogleAuthToken,
+  getProviderFromModel,
+} from "@workspace/shared-utils";
 import { Langfuse, observeOpenAI } from "langfuse";
 import { createClient } from "@workspace/shared-llm-client";
 
@@ -222,7 +226,8 @@ export default class extends WorkerEntrypoint<Env> {
     }
 
     try {
-      const provider = "openai";
+      const model = "gpt-4.1";
+      const provider = getProviderFromModel(model);
       langfuse = new Langfuse({
         environment: this.env.ENVIRONMENT,
         publicKey: this.env.LANGFUSE_PUBLIC_KEY,
