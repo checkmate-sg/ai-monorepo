@@ -51,8 +51,8 @@ npm install -g pnpm
 2. Clone the repository:
 
 ```bash
-git clone https://github.com/your-username/checkmate-ai-monorepo.git
-cd checkmate-ai-monorepo
+git clone https://github.com/checkmate-sg/ai-monorepo.git
+cd ai-monorepo
 ```
 
 3. Install dependencies:
