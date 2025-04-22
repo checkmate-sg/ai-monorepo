@@ -7,72 +7,29 @@ import {
 import { Langfuse, observeOpenAI } from "langfuse";
 import { createClient } from "@workspace/shared-llm-client";
 
-const configObject = {
-  //TODO: can change
-  model: "gpt-4o",
-  temperature: 0,
-  seed: 11,
-  response_format: {
-    type: "json_schema" as const,
-    json_schema: {
-      name: "needs_checking",
-      schema: {
-        type: "object",
-        properties: {
-          reasoning: {
-            type: "string",
-            description:
-              "A detailed explanation of why the message does or does not require checking. This field should clearly articulate the decision-making process.",
-          },
-          needs_checking: {
-            type: "boolean",
-            description:
-              "A flag indicating whether the message contains content that requires checking. Set to true if it needs checking; false otherwise.",
-          },
-        },
-        required: ["reasoning", "needs_checking"],
-        additionalProperties: false,
-      },
-    },
-  },
-};
+// Define the structure for the digest result
+interface DigestResult {
+  full_digest: string;
+  truncated_digest: string;
+}
+
 
 export default class extends WorkerEntrypoint<Env> {
   private logger = createLogger("digest-service");
   private logContext: Record<string, any> = {};
 
   async fetch(request: Request): Promise<Response> {
+    this.logContext = { traceId: crypto.randomUUID() }; // Add traceId for logging
     try {
-      const data = await this.createDigest(true);
-      this.logger.info(this.logContext, "BigQuery data received");
+      // Call createDigest to generate the digests
+      const digestResult = await this.createDigest();
+      this.logger.info(this.logContext, "Digest generation complete");
 
-      // Parse the results if they exist
-      let results = [];
-      if (data.rows && Array.isArray(data.rows)) {
-        results = data.rows
-          .map((row: any) => {
-            // Convert BigQuery row format to simple objects
-            if (row.f && Array.isArray(row.f)) {
-              // Get the originalText value from the first field
-              return row.f[0]?.v;
-            }
-            return null;
-          })
-          .filter(Boolean); // Remove any null values
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          data: results,
-          totalRows: data.totalRows || 0,
-        }),
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      return new Response(JSON.stringify({ success: true, data: digestResult }), {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
     } catch (error) {
       this.logger.error(this.logContext, "Error in fetch:", error);
       return new Response(
@@ -98,7 +55,7 @@ export default class extends WorkerEntrypoint<Env> {
     );
 
     // Define the variables needed for the query
-    const project_id = this.env.GOOGLE_PROJECT_ID; // Replace with your actual project ID or environment variable
+    const project_id = this.env.GOOGLE_PROJECT_ID;
     const bqEndpoint = `https://bigquery.googleapis.com/bigquery/v2/projects/${project_id}/queries`;
 
     const requestBody = {
@@ -119,17 +76,31 @@ export default class extends WorkerEntrypoint<Env> {
 
     if (!response.ok) {
       const errorText = await response.text();
-
+      let errorJson: any;
       try {
-        const errorJson = JSON.parse(errorText);
+        errorJson = JSON.parse(errorText);
+        this.logger.error(
+          this.logContext,
+          `BigQuery API error: ${response.status} ${response.statusText}`,
+          errorJson
+        );
+        throw new Error(
+          `BigQuery API error: ${response.status} ${
+            errorJson?.error?.message || errorText
+          }`
+        );
       } catch (e) {
-        // If not JSON, use the text as is
+        this.logger.error(
+          this.logContext,
+          `BigQuery API error: ${response.status} ${response.statusText}`,
+          errorText
+        );
+        throw new Error(`BigQuery API error: ${response.status} ${errorText}`);
       }
     }
 
     const responseData = (await response.json()) as any;
 
-    // Check if job is not complete yet
     if (responseData.jobComplete === false && responseData.jobReference) {
       this.logger.info(
         this.logContext,
@@ -198,34 +169,17 @@ export default class extends WorkerEntrypoint<Env> {
     );
   }
 
-  async createDigest(test: boolean = false) {
-    this.logger.info(
-      this.logContext,
-      "Received needs checking assessment request"
-    );
+  async createDigest(): Promise<DigestResult> {
+    this.logger.info(this.logContext, "Starting digest generation process");
 
     let langfuse: Langfuse | undefined;
-    const project_id = this.env.GOOGLE_PROJECT_ID;
-    const dataset_id = "checkmate_export"; // Replace with your actual dataset ID or environment variable
-    const table_id = "messages_reporting_view"; // Replace with your actual table ID or environment variable
-    const start_date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
-    const end_date = new Date(); // current date
-    const query = `
-        SELECT originalText
-        FROM \`${project_id}.${dataset_id}.${table_id}\`
-        WHERE firstTimestamp >= TIMESTAMP('${start_date.toISOString()}')
-          AND firstTimestamp < TIMESTAMP('${end_date.toISOString()}')
-          AND originalText IS NOT NULL
-          AND (primaryCategory = "scam" OR primaryCategory = "misleading")
-    `;
-
-    const data = await this.fetchDataFromBigQuery(query);
-
-    if (test) {
-      return data;
-    }
+    const defaultDigestResult: DigestResult = {
+      full_digest: "No recent data found in BigQuery to generate a digest.",
+      truncated_digest: "No recent data found in BigQuery to generate a digest.",
+    };
 
     try {
+      // 1. Initialize Langfuse
       const model = "gpt-4.1";
       const provider = getProviderFromModel(model);
       langfuse = new Langfuse({
@@ -235,32 +189,81 @@ export default class extends WorkerEntrypoint<Env> {
         baseUrl: this.env.LANGFUSE_HOST,
       });
 
-      if (!langfuse) {
-        this.logger.error(this.logContext, "Langfuse is not configured");
+      // 2. Fetch data from BigQuery
+      const project_id = this.env.GOOGLE_PROJECT_ID;
+      const dataset_id = "checkmate_export";
+      const table_id = "messages_reporting_view";
+      const start_date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+      const end_date = new Date();
+      const query = `
+          SELECT originalText
+          FROM \`${project_id}.${dataset_id}.${table_id}\`
+          WHERE firstTimestamp >= TIMESTAMP('${start_date.toISOString()}')
+            AND firstTimestamp < TIMESTAMP('${end_date.toISOString()}')
+            AND originalText IS NOT NULL
+            AND primaryCategory != "trivial"
+      `;
+
+      this.logger.info(this.logContext, "Fetching data from BigQuery...");
+      const data = await this.fetchDataFromBigQuery(query);
+      this.logger.info(
+        this.logContext,
+        `Fetched ${data.rows?.length ?? 0} entries from BigQuery.`
+      );
+
+      // 3. Process BigQuery results
+      const texts: string[] =
+        data.rows
+          ?.map((row: { f?: { v: any }[] }) => row.f?.[0]?.v) // Added type for row
+          .filter((text: unknown): text is string => typeof text === "string") ?? [];
+
+      if (texts.length === 0) {
+        this.logger.warn(this.logContext, "No text data found for digest.");
+        return defaultDigestResult;
       }
 
+      const combined_text = texts.join("\n---\n");
+      this.logger.info(
+        this.logContext,
+        `Combined text length: ${combined_text.length} characters.`
+      );
+
+      // 4. Setup Langfuse Trace
       const trace = langfuse.trace({
         name: "create-digest",
-        input: "TODO",
-        id: crypto.randomUUID(),
+        input: { query_dates: { start: start_date.toISOString(), end: end_date.toISOString() }, text_count: texts.length },
+        id: this.logContext.traceId || crypto.randomUUID(),
         metadata: {
           provider: provider,
+          model: model,
         },
       });
 
-      const needsCheckingPrompt = await langfuse.getPrompt("TODO", undefined, {
-        //TODO: update
-        label: this.env.ENVIRONMENT,
-        type: "chat",
-      });
+      // 5. Fetch Langfuse Prompts
+      this.logger.info(this.logContext, "Fetching prompts from Langfuse...");
+      const langfuseLabel =
+        this.env.ENVIRONMENT === "production"
+          ? "cf-production"
+          : this.env.ENVIRONMENT;
 
-      // Compile the prompt with the report and formatted sources
-      const config = needsCheckingPrompt.config as typeof configObject; //TODO: update
-      const messages = needsCheckingPrompt.compile({
-        //TODO: update
-        message: "TODO",
-      });
+      const digestSystemPrompt = await langfuse.getPrompt(
+        "generate_digest",
+        undefined,
+        { label: langfuseLabel, type: "text" }
+      );
+      const shortenDigestPrompt = await langfuse.getPrompt(
+        "generate_digest_shorten",
+        undefined,
+        { label: langfuseLabel, type: "text" }
+      );
+      this.logger.info(this.logContext, "Prompts fetched successfully.");
 
+      // Extract config safely
+      const digestConfig = digestSystemPrompt.config ?? {};
+      const shortenConfig = shortenDigestPrompt.config ?? {};
+
+
+      // 6. Initialize LLM Client
       const client = await createClient(provider, this.env);
 
       const observedClient = observeOpenAI(client, {
@@ -269,57 +272,120 @@ export default class extends WorkerEntrypoint<Env> {
           secretKey: this.env.LANGFUSE_SECRET_KEY,
           baseUrl: this.env.LANGFUSE_HOST,
         },
-        langfusePrompt: needsCheckingPrompt, //TODO: update
         parent: trace,
       });
 
-      this.logger.info(this.logContext, "Calling LLM api");
+      // 7. Generate Full Digest
+      this.logger.info(this.logContext, "Generating full digest...");
+      const fullDigestMessages = [
+        { role: "system", content: digestSystemPrompt.prompt },
+        {
+          role: "user",
+          content: `Here is the collection of text snippets reported in the last week:\n\n${combined_text}`,
+        },
+      ];
 
-      const response = await observedClient.chat.completions.create({
-        //TODO: update
-        model: config.model || "gpt-4o",
-        temperature: config.temperature || 0,
-        seed: config.seed || 11,
-        messages: messages as any[],
-        response_format: config.response_format,
+      const fullDigestResponse = await observedClient.chat.completions.create(
+        {
+          model: digestConfig.model ?? "gpt-4o",
+          temperature: digestConfig.temperature ?? 0.2,
+          seed: digestConfig.seed || 11,
+          max_tokens: 1000,
+          messages: fullDigestMessages,
+        },
+        { langfusePrompt: digestSystemPrompt }
+      );
+
+      let full_digest = fullDigestResponse.choices[0].message.content ?? "";
+      this.logger.info(
+        this.logContext,
+        `Full digest generated (length: ${full_digest.length} chars).`
+      );
+
+      let truncated_digest = "";
+
+      // 8. Generate Truncated Digest (if needed)
+      if (full_digest.length > 1024) {
+        this.logger.info(
+          this.logContext,
+          "Full digest exceeds 1024 chars. Generating summarized version..."
+        );
+        const shortenMessages = [
+          { role: "system", content: "You are a summarization assistant." },
+          {
+            role: "user",
+            content: shortenDigestPrompt.compile({ text_to_summarize: full_digest }),
+          },
+        ];
+
+        const shortenResponse = await observedClient.chat.completions.create(
+          {
+            model: shortenConfig.model ?? "gpt-4o-mini", // Use mini for summarization?
+            temperature: shortenConfig.temperature ?? 0.2,
+            max_tokens: 350,
+            messages: shortenMessages,
+          },
+          { langfusePrompt: shortenDigestPrompt }
+        );
+
+        let summarized_digest = shortenResponse.choices[0].message.content ?? "";
+
+        if (summarized_digest.length > 1024) {
+          this.logger.warn(
+            this.logContext,
+            "Summarized digest still exceeded 1024 chars. Truncating."
+          );
+          truncated_digest = summarized_digest.substring(0, 1024);
+        } else {
+          truncated_digest = summarized_digest;
+        }
+        this.logger.info(
+          this.logContext,
+          `Summarized digest generated (length: ${truncated_digest.length} chars).`
+        );
+      } else {
+        this.logger.info(
+          this.logContext,
+          "Full digest is within 1024 chars. No summarization needed."
+        );
+        truncated_digest = full_digest;
+      }
+
+      // 9. Finalize and Update Trace
+      const finalResult: DigestResult = { full_digest, truncated_digest };
+      trace.update({
+        output: finalResult,
+        tags: [
+          this.env.ENVIRONMENT,
+          "digest-generation",
+          "cloudflare-workers",
+          `texts:${texts.length}`,
+        ],
       });
 
-      const content = response.choices[0].message.content || "{}"; //TODO: update
-      const result = JSON.parse(content);
-      if ("needs_checking" in result) {
-        const returnObject = {
-          success: true,
-          result: {
-            needsChecking: result.needs_checking,
-          },
-          id: "TODO",
-        };
-        trace.update({
-          output: returnObject,
-          tags: [
-            this.env.ENVIRONMENT,
-            "single-call",
-            "digest-generation",
-            "cloudflare-workers",
-          ],
-        });
-        return returnObject;
-      } else {
-        throw new Error("No needs_checking in result");
-      }
+      return finalResult;
+
     } catch (error) {
       this.logger.error(
         { ...this.logContext, error },
-        "Error processing needs checking request"
+        "Error generating digest"
       );
+      // Log error to trace if langfuse is available
+      if (langfuse) {
+         const traceId = this.logContext.traceId || 'unknown-trace'; // Get traceId if available
+         const errorTrace = langfuse.trace({ // Create a separate trace for the error? Or update existing?
+             name: "create-digest-error",
+             id: `${traceId}-error`,
+             input: this.logContext,
+             output: { error: error instanceof Error ? error.message : String(error) },
+             level: "ERROR",
+             tags: [this.env.ENVIRONMENT, "error", "digest-generation"]
+         });
+         this.ctx.waitUntil(errorTrace.flushAsync()); // Ensure error trace is flushed
+      }
       return {
-        error: {
-          message: `Error in needs checking: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        },
-        id: "TODO",
-        success: false,
+        full_digest: `Error: Failed to generate digest. ${error instanceof Error ? error.message : String(error)}`,
+        truncated_digest: `Error: Failed to generate digest. ${error instanceof Error ? error.message : String(error)}`,
       };
     } finally {
       if (langfuse) {
