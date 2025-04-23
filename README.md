@@ -37,6 +37,7 @@ The diagram above illustrates how our Cloudflare Workers connect to each other t
 - **urlscan-service**: Analyzes URLs for malicious content
 - **embedder-service**: Embeds URLs into a 384-dim vector using BGE
 - **trivialfilter-service**: Determines if submissions are worth checking
+- **digest-service**: Create weekly digest and summarised digest of max 1024 char
 
 Each worker can directly communicate with others through Cloudflare Workers service bindings, allowing for efficient microservice architecture without additional network hops.
 
@@ -90,6 +91,7 @@ This will start all workers concurrently based on the pipeline configuration in 
 - screenshot-backup-service: http://127.0.0.1:8792
 - embedder-service: http://127.0.0.1:8793
 - trivialfilter-service: http://127.0.0.1:8794
+- digest-service: http://127.0.0.1:8796
 
 # Cloudflare Workers Deployment via GitHub Actions
 
