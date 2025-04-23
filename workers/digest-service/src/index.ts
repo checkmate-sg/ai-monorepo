@@ -180,8 +180,6 @@ export default class extends WorkerEntrypoint<Env> {
 
     try {
       // 1. Initialize Langfuse
-      const model = "gpt-4.1";
-      const provider = getProviderFromModel(model);
       langfuse = new Langfuse({
         environment: this.env.ENVIRONMENT,
         publicKey: this.env.LANGFUSE_PUBLIC_KEY,
@@ -189,57 +187,7 @@ export default class extends WorkerEntrypoint<Env> {
         baseUrl: this.env.LANGFUSE_HOST,
       });
 
-      // 2. Fetch data from BigQuery
-      const project_id = this.env.GOOGLE_PROJECT_ID;
-      const dataset_id = "checkmate_export";
-      const table_id = "messages_reporting_view";
-      const start_date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
-      const end_date = new Date();
-      const query = `
-          SELECT originalText
-          FROM \`${project_id}.${dataset_id}.${table_id}\`
-          WHERE firstTimestamp >= TIMESTAMP('${start_date.toISOString()}')
-            AND firstTimestamp < TIMESTAMP('${end_date.toISOString()}')
-            AND originalText IS NOT NULL
-            AND primaryCategory != "trivial"
-      `;
-
-      this.logger.info(this.logContext, "Fetching data from BigQuery...");
-      const data = await this.fetchDataFromBigQuery(query);
-      this.logger.info(
-        this.logContext,
-        `Fetched ${data.rows?.length ?? 0} entries from BigQuery.`
-      );
-
-      // 3. Process BigQuery results
-      const texts: string[] =
-        data.rows
-          ?.map((row: { f?: { v: any }[] }) => row.f?.[0]?.v) // Added type for row
-          .filter((text: unknown): text is string => typeof text === "string") ?? [];
-
-      if (texts.length === 0) {
-        this.logger.warn(this.logContext, "No text data found for digest.");
-        return defaultDigestResult;
-      }
-
-      const combined_text = texts.join("\n---\n");
-      this.logger.info(
-        this.logContext,
-        `Combined text length: ${combined_text.length} characters.`
-      );
-
-      // 4. Setup Langfuse Trace
-      const trace = langfuse.trace({
-        name: "create-digest",
-        input: { query_dates: { start: start_date.toISOString(), end: end_date.toISOString() }, text_count: texts.length },
-        id: this.logContext.traceId || crypto.randomUUID(),
-        metadata: {
-          provider: provider,
-          model: model,
-        },
-      });
-
-      // 5. Fetch Langfuse Prompts
+      // 2. Fetch Langfuse Prompts
       this.logger.info(this.logContext, "Fetching prompts from Langfuse...");
       const langfuseLabel =
         this.env.ENVIRONMENT === "production"
@@ -262,11 +210,99 @@ export default class extends WorkerEntrypoint<Env> {
       const digestConfig = digestSystemPrompt.config ?? {};
       const shortenConfig = shortenDigestPrompt.config ?? {};
 
+      // Assign config values with defaults to ensure definite types
+      const fullDigestModel = digestConfig?.model ?? "gpt-4o";
+      const fullDigestTemperature = digestConfig?.temperature ?? 0.2;
+      const fullDigestSeed = digestConfig?.seed ?? 11; // Use ?? for consistency
+
+      // Assign config values with defaults
+      const shortenModel = shortenConfig?.model ?? "gpt-4o-mini";
+      const shortenTemperature = shortenConfig?.temperature ?? 0.2;
+
+      const fullDigestProvider = getProviderFromModel(fullDigestModel);
+      const shortenProvider = getProviderFromModel(shortenModel);
+
+      // 3. Fetch data from BigQuery
+      const project_id = this.env.GOOGLE_PROJECT_ID;
+      const dataset_id = "checkmate_export";
+      const table_id = "messages_reporting_view";
+      const start_date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+      const end_date = new Date();
+      const query = `
+          SELECT originalText
+          FROM \`${project_id}.${dataset_id}.${table_id}\`
+          WHERE firstTimestamp >= TIMESTAMP('${start_date.toISOString()}')
+            AND firstTimestamp < TIMESTAMP('${end_date.toISOString()}')
+            AND originalText IS NOT NULL
+            AND primaryCategory != "trivial"
+      `;
+
+      this.logger.info(this.logContext, "Fetching data from BigQuery...");
+      const data = await this.fetchDataFromBigQuery(query);
+      this.logger.info(
+        this.logContext,
+        `Fetched ${data.rows?.length ?? 0} entries from BigQuery.`
+      );
+
+      // 4. Process BigQuery results
+      const texts: string[] =
+        data.rows
+          ?.map((row: { f?: { v: any }[] }) => row.f?.[0]?.v) // Added type for row
+          .filter((text: unknown): text is string => typeof text === "string") ?? [];
+
+      if (texts.length === 0) {
+        this.logger.warn(this.logContext, "No text data found for digest.");
+        return defaultDigestResult;
+      }
+
+      // Count message frequencies
+      const messageCounts = new Map<string, number>();
+      texts.forEach(text => {
+        messageCounts.set(text, (messageCounts.get(text) || 0) + 1);
+      });
+
+      // Sort messages by frequency (most frequent first)
+      const sortedMessages = Array.from(messageCounts.entries()).sort(([, countA], [, countB]) => countB - countA);
+
+      // Prepare prioritized input string
+      const prioritized_text = sortedMessages
+        .map(([text, count]) => `- ${text} (appeared ${count} time${count > 1 ? 's' : ''})`)
+        .join("\n");
+
+      this.logger.info(
+        this.logContext,
+        `Prepared prioritized text input with ${sortedMessages.length} unique messages.`
+      );
+
+
+      // 5. Setup Langfuse Trace
+      const trace = langfuse.trace({
+        name: "create-digest",
+        input: { query_dates: { start: start_date.toISOString(), end: end_date.toISOString() }, text_count: texts.length },
+        id: this.logContext.traceId || crypto.randomUUID(),
+        metadata: {
+          fullDigestProvider: fullDigestProvider,
+          fullDigestModel: fullDigestModel,
+          shortenProvider: shortenProvider,
+          shortenModel: shortenModel
+        },
+      });
+
 
       // 6. Initialize LLM Client
-      const client = await createClient(provider, this.env);
+      const fullDigestClient = await createClient(fullDigestProvider, this.env);
+      const shortenClient = await createClient(shortenProvider, this.env);
 
-      const observedClient = observeOpenAI(client, {
+      const observedFullDigestClient = observeOpenAI(fullDigestClient, {
+        clientInitParams: {
+          publicKey: this.env.LANGFUSE_PUBLIC_KEY,
+          secretKey: this.env.LANGFUSE_SECRET_KEY,
+          baseUrl: this.env.LANGFUSE_HOST,
+        },
+        parent: trace,
+      });
+
+      const observedShortenClient = observeOpenAI(shortenClient, {
         clientInitParams: {
           publicKey: this.env.LANGFUSE_PUBLIC_KEY,
           secretKey: this.env.LANGFUSE_SECRET_KEY,
@@ -278,22 +314,24 @@ export default class extends WorkerEntrypoint<Env> {
       // 7. Generate Full Digest
       this.logger.info(this.logContext, "Generating full digest...");
       const fullDigestMessages = [
-        { role: "system", content: digestSystemPrompt.prompt },
+        { role: "system", content: digestSystemPrompt.prompt }, // System prompt remains unchanged as per user request
         {
           role: "user",
-          content: `Here is the collection of text snippets reported in the last week:\n\n${combined_text}`,
+          content: `Here is the collection of text snippets reported in the last week, sorted by frequency. Please give higher priority and focus to messages that appeared multiple times, as indicated by the counts next to them, when generating the digest:\n\n${prioritized_text}`,
         },
       ];
 
-      const fullDigestResponse = await observedClient.chat.completions.create(
+
+      const fullDigestResponse = await observedFullDigestClient.chat.completions.create(
         {
-          model: digestConfig.model ?? "gpt-4o",
-          temperature: digestConfig.temperature ?? 0.2,
-          seed: digestConfig.seed || 11,
+          model: fullDigestModel,
+          temperature: fullDigestTemperature,
+          seed: fullDigestSeed,
           max_tokens: 1000,
           messages: fullDigestMessages,
-        },
-        { langfusePrompt: digestSystemPrompt }
+          langfusePrompt: digestSystemPrompt, // Moved langfusePrompt here
+        }
+        // Removed options object
       );
 
       let full_digest = fullDigestResponse.choices[0].message.content ?? "";
@@ -315,18 +353,19 @@ export default class extends WorkerEntrypoint<Env> {
           {
             role: "user",
             content: shortenDigestPrompt.compile({ text_to_summarize: full_digest }),
-          },
-        ];
+        },
+      ];
 
-        const shortenResponse = await observedClient.chat.completions.create(
-          {
-            model: shortenConfig.model ?? "gpt-4o-mini", // Use mini for summarization?
-            temperature: shortenConfig.temperature ?? 0.2,
-            max_tokens: 350,
-            messages: shortenMessages,
-          },
-          { langfusePrompt: shortenDigestPrompt }
-        );
+
+      const shortenResponse = await observedShortenClient.chat.completions.create(
+        {
+          model: shortenModel,
+          temperature: shortenTemperature,
+          max_tokens: 256,
+          messages: shortenMessages,
+          langfusePrompt: shortenDigestPrompt,
+        }
+      );
 
         let summarized_digest = shortenResponse.choices[0].message.content ?? "";
 
@@ -359,7 +398,7 @@ export default class extends WorkerEntrypoint<Env> {
           this.env.ENVIRONMENT,
           "digest-generation",
           "cloudflare-workers",
-          `texts:${texts.length}`,
+          `messages-count:${texts.length}`,
         ],
       });
 
@@ -375,14 +414,12 @@ export default class extends WorkerEntrypoint<Env> {
          const traceId = this.logContext.traceId || 'unknown-trace'; // Get traceId if available
          const errorTrace = langfuse.trace({ // Create a separate trace for the error? Or update existing?
              name: "create-digest-error",
-             id: `${traceId}-error`,
-             input: this.logContext,
-             output: { error: error instanceof Error ? error.message : String(error) },
-             level: "ERROR",
-             tags: [this.env.ENVIRONMENT, "error", "digest-generation"]
-         });
-         this.ctx.waitUntil(errorTrace.flushAsync()); // Ensure error trace is flushed
-      }
+              id: `${traceId}-error`,
+              input: this.logContext,
+              output: { error: error instanceof Error ? error.message : String(error) },
+              tags: [this.env.ENVIRONMENT, "error", "digest-generation", "ERROR"]
+          });
+       }
       return {
         full_digest: `Error: Failed to generate digest. ${error instanceof Error ? error.message : String(error)}`,
         truncated_digest: `Error: Failed to generate digest. ${error instanceof Error ? error.message : String(error)}`,
