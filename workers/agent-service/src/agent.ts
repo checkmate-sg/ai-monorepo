@@ -1,5 +1,9 @@
 import { DurableObject } from "cloudflare:workers";
-import { createLogger } from "@workspace/shared-utils";
+import {
+  createLogger,
+  getProviderFromModel,
+  getSlugFromTitle,
+} from "@workspace/shared-utils";
 import { Logger } from "pino";
 import type OpenAI from "openai";
 import { createClient } from "@workspace/shared-llm-client";
@@ -19,7 +23,7 @@ import type {
 } from "openai/resources";
 import { createTools, ToolContext } from "./tools";
 import { Langfuse, TextPromptClient, observeOpenAI } from "langfuse";
-import { getProviderFromModel } from "@workspace/shared-utils";
+
 const logger = createLogger("agent");
 
 interface AgentOutputs {
@@ -516,12 +520,16 @@ export class CheckerAgent extends DurableObject<Env> {
       this.isVideo = preprocessingResult.result.isVideo;
       this.title = preprocessingResult.result.title;
 
+      const slug = getSlugFromTitle(this.title, this.id);
+
       // Update check with preprocessing results as a background operation
       this.state.waitUntil(
         this.env.DATABASE_SERVICE.updateCheck(this.id, {
           isAccessBlocked: this.isAccessBlocked,
           isVideo: this.isVideo,
           machineCategory: null,
+          title: this.title,
+          slug: slug,
         }).catch((error) => {
           this.logger.error("Failed to update check");
           throw error;
@@ -596,7 +604,6 @@ export class CheckerAgent extends DurableObject<Env> {
       this.state.waitUntil(
         this.env.DATABASE_SERVICE.updateCheck(this.id, {
           generationStatus: "completed",
-          title: this.title,
           isControversial,
           longformResponse: {
             en: report,
@@ -672,24 +679,6 @@ export class CheckerAgent extends DurableObject<Env> {
     } finally {
       this.state.waitUntil(this.langfuse.flushAsync());
     }
-  }
-
-  async sayHello(name: string): Promise<string> {
-    return `Hello`;
-  }
-
-  async test_search_google() {
-    const result = await this.tools.search_google.execute({
-      q: "What is the capital of France?",
-    });
-    return result;
-  }
-
-  async test_preprocess_inputs() {
-    const result = await this.tools.preprocess_inputs.execute({
-      text: "Donald Trump is an idiot",
-    });
-    return result;
   }
 
   /**

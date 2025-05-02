@@ -125,7 +125,8 @@ export type ErrorType =
 export interface Check {
   _id: string;
   text: string | null;
-  title: string | null;
+  title: string;
+  slug: string;
   timestamp: Date;
   isExpired: boolean;
   imageUrl: string | null;
