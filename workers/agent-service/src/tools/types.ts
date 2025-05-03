@@ -1,6 +1,6 @@
 import type { Logger } from "pino";
 import type { Langfuse } from "langfuse";
-
+import type { LLMProvider } from "@workspace/shared-types";
 export interface ToolContext {
   logger: Logger;
   getId: () => string;
@@ -19,6 +19,10 @@ export interface ToolContext {
   getType: () => "text" | "image" | undefined;
   langfuse: Langfuse;
   getSpan: () => ReturnType<Langfuse["span"]> | undefined;
+  getModelAndProvider: () => {
+    model: string | undefined;
+    provider: LLMProvider | undefined;
+  };
 }
 
 export interface Tool<P, R> {
@@ -91,6 +95,7 @@ export interface PreprocessResponse {
     isVideo: boolean;
     intent: string;
     startingContent: any[];
+    title: string | null;
   };
 }
 

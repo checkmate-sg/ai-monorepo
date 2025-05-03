@@ -1,5 +1,9 @@
 import { DurableObject } from "cloudflare:workers";
-import { createLogger } from "@workspace/shared-utils";
+import {
+  createLogger,
+  getProviderFromModel,
+  getSlugFromTitle,
+} from "@workspace/shared-utils";
 import { Logger } from "pino";
 import type OpenAI from "openai";
 import { createClient } from "@workspace/shared-llm-client";
@@ -41,6 +45,7 @@ export class CheckerAgent extends DurableObject<Env> {
   private id: string;
   private langfuseTraceId: string;
   private provider?: LLMProvider;
+  private model?: string;
   private totalCost: number;
   private client?: OpenAI;
   private intent?: string;
@@ -50,6 +55,7 @@ export class CheckerAgent extends DurableObject<Env> {
   private caption?: string;
   private text?: string;
   private totalTime?: number;
+  private title?: string | null;
   private type?: "text" | "image";
   private langfuse: Langfuse;
   private prompt: TextPromptClient;
@@ -71,7 +77,6 @@ export class CheckerAgent extends DurableObject<Env> {
     this.state = ctx;
     this.searchesRemaining = 5;
     this.screenshotsRemaining = 5;
-    this.provider = "openai";
     this.id = "pending-initialization";
     this.langfuseTraceId = "pending-initialization";
     this.logger = logger;
@@ -106,6 +111,10 @@ export class CheckerAgent extends DurableObject<Env> {
       getText: () => this.text,
       getIntent: () => this.intent,
       getType: () => this.type,
+      getModelAndProvider: () => ({
+        model: this.model,
+        provider: this.provider,
+      }),
     };
 
     this.tools = createTools(toolContext);
@@ -309,7 +318,7 @@ export class CheckerAgent extends DurableObject<Env> {
         });
         messages[0].content = systemPrompt;
         completion = await observedClient.chat.completions.create({
-          model: this.provider ? providerMap[this.provider] : "gpt-4o",
+          model: this.model || "gpt-4.1-mini",
           messages: messages as any[],
           temperature: 0.0,
           seed: 11,
@@ -373,7 +382,8 @@ export class CheckerAgent extends DurableObject<Env> {
   }
 
   async check(request: AgentRequest, id: string): Promise<AgentResult> {
-    const provider = request.provider || "openai";
+    const model = request.model || "gpt-4.1-mini"; //default is gpt-4.1-mini
+    const provider = getProviderFromModel(model);
     const consumerName = request.consumerName || "unknown consumer";
     if (!id) {
       throw new Error("ID is required");
@@ -394,7 +404,7 @@ export class CheckerAgent extends DurableObject<Env> {
     });
     this.trace = trace;
     this.provider = provider;
-
+    this.model = model;
     try {
       this.client = await createClient(provider, this.env);
       if (request.text) {
@@ -416,6 +426,7 @@ export class CheckerAgent extends DurableObject<Env> {
         const insertResult = await this.env.DATABASE_SERVICE.insertCheck(
           {
             text: this.text || null,
+            title: this.title || null,
             imageUrl: this.imageUrl || null,
             caption: this.caption || null,
             embeddings: {
@@ -507,6 +518,9 @@ export class CheckerAgent extends DurableObject<Env> {
       this.intent = preprocessingResult.result.intent;
       this.isAccessBlocked = preprocessingResult.result.isAccessBlocked;
       this.isVideo = preprocessingResult.result.isVideo;
+      this.title = preprocessingResult.result.title ?? null;
+
+      const slug = this.title ? getSlugFromTitle(this.title, this.id) : null;
 
       // Update check with preprocessing results as a background operation
       this.state.waitUntil(
@@ -514,6 +528,8 @@ export class CheckerAgent extends DurableObject<Env> {
           isAccessBlocked: this.isAccessBlocked,
           isVideo: this.isVideo,
           machineCategory: null,
+          title: this.title,
+          slug: slug,
         }).catch((error) => {
           this.logger.error("Failed to update check");
           throw error;
@@ -580,6 +596,8 @@ export class CheckerAgent extends DurableObject<Env> {
           isControversial,
           isVideo: this.isVideo,
           isAccessBlocked: this.isAccessBlocked,
+          title: this.title,
+          slug: slug,
         },
       };
 
@@ -662,24 +680,6 @@ export class CheckerAgent extends DurableObject<Env> {
     } finally {
       this.state.waitUntil(this.langfuse.flushAsync());
     }
-  }
-
-  async sayHello(name: string): Promise<string> {
-    return `Hello`;
-  }
-
-  async test_search_google() {
-    const result = await this.tools.search_google.execute({
-      q: "What is the capital of France?",
-    });
-    return result;
-  }
-
-  async test_preprocess_inputs() {
-    const result = await this.tools.preprocess_inputs.execute({
-      text: "Donald Trump is an idiot",
-    });
-    return result;
   }
 
   /**

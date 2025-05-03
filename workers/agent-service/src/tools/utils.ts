@@ -1,6 +1,6 @@
 import type { ToolContext } from "./types";
 import type { Langfuse } from "langfuse";
-import { ScreenshotResult } from "@workspace/shared-types";
+import { ScreenshotResult, LLMProvider } from "@workspace/shared-types";
 
 // Updated decorator that passes the span to the function. Does the same as @observe in langfuse python sdk
 export function withLangfuseSpan<T, R>(
