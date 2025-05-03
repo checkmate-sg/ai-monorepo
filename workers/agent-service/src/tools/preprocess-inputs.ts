@@ -8,13 +8,13 @@ import normalizeUrl from "normalize-url";
 import { extractImageUrlsTool } from "./extract-image-urls";
 
 const configObject = {
-  model: "gpt-4o",
+  model: "gpt-4.1-mini",
   temperature: 0,
   seed: 11,
   response_format: {
     type: "json_schema" as const,
     json_schema: {
-      name: "summarise_report",
+      name: "preprocess_inputs",
       schema: {
         type: "object",
         properties: {
@@ -43,6 +43,11 @@ const configObject = {
             description:
               "True if there is a video that needs to be watched in order to properly assess this submission.",
           },
+          title: {
+            type: "string",
+            description:
+              "A title, less than 8 words, describing the check to be done. E.g. 'Article on budget measures at mofbudget.life' or 'Claim that strawberry quick is circulating'. Do not include names, addresses, or phone numbers.",
+          },
         },
         required: [
           "reasoning",
@@ -50,6 +55,7 @@ const configObject = {
           "canBeAssessed",
           "isAccessBlocked",
           "isVideo",
+          "title",
         ],
         additionalProperties: false,
       },
