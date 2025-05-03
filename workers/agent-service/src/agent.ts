@@ -1,5 +1,9 @@
 import { DurableObject } from "cloudflare:workers";
-import { createLogger } from "@workspace/shared-utils";
+import {
+  createLogger,
+  getProviderFromModel,
+  getSlugFromTitle,
+} from "@workspace/shared-utils";
 import { Logger } from "pino";
 import type OpenAI from "openai";
 import { createClient } from "@workspace/shared-llm-client";
@@ -19,7 +23,7 @@ import type {
 } from "openai/resources";
 import { createTools, ToolContext } from "./tools";
 import { Langfuse, TextPromptClient, observeOpenAI } from "langfuse";
-import { getProviderFromModel } from "@workspace/shared-utils";
+
 const logger = createLogger("agent");
 
 interface AgentOutputs {
@@ -51,6 +55,7 @@ export class CheckerAgent extends DurableObject<Env> {
   private caption?: string;
   private text?: string;
   private totalTime?: number;
+  private title?: string | null;
   private type?: "text" | "image";
   private langfuse: Langfuse;
   private prompt: TextPromptClient;
@@ -421,6 +426,7 @@ export class CheckerAgent extends DurableObject<Env> {
         const insertResult = await this.env.DATABASE_SERVICE.insertCheck(
           {
             text: this.text || null,
+            title: this.title || null,
             imageUrl: this.imageUrl || null,
             caption: this.caption || null,
             embeddings: {
@@ -512,6 +518,9 @@ export class CheckerAgent extends DurableObject<Env> {
       this.intent = preprocessingResult.result.intent;
       this.isAccessBlocked = preprocessingResult.result.isAccessBlocked;
       this.isVideo = preprocessingResult.result.isVideo;
+      this.title = preprocessingResult.result.title ?? null;
+
+      const slug = this.title ? getSlugFromTitle(this.title, this.id) : null;
 
       // Update check with preprocessing results as a background operation
       this.state.waitUntil(
@@ -519,6 +528,8 @@ export class CheckerAgent extends DurableObject<Env> {
           isAccessBlocked: this.isAccessBlocked,
           isVideo: this.isVideo,
           machineCategory: null,
+          title: this.title,
+          slug: slug,
         }).catch((error) => {
           this.logger.error("Failed to update check");
           throw error;
@@ -585,6 +596,8 @@ export class CheckerAgent extends DurableObject<Env> {
           isControversial,
           isVideo: this.isVideo,
           isAccessBlocked: this.isAccessBlocked,
+          title: this.title,
+          slug: slug,
         },
       };
 
@@ -667,24 +680,6 @@ export class CheckerAgent extends DurableObject<Env> {
     } finally {
       this.state.waitUntil(this.langfuse.flushAsync());
     }
-  }
-
-  async sayHello(name: string): Promise<string> {
-    return `Hello`;
-  }
-
-  async test_search_google() {
-    const result = await this.tools.search_google.execute({
-      q: "What is the capital of France?",
-    });
-    return result;
-  }
-
-  async test_preprocess_inputs() {
-    const result = await this.tools.preprocess_inputs.execute({
-      text: "Donald Trump is an idiot",
-    });
-    return result;
   }
 
   /**

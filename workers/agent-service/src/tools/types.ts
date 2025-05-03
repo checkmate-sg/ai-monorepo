@@ -95,6 +95,7 @@ export interface PreprocessResponse {
     isVideo: boolean;
     intent: string;
     startingContent: any[];
+    title: string | null;
   };
 }
 

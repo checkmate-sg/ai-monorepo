@@ -104,6 +104,8 @@ export interface AgentResponse extends ServiceResponse {
     isControversial: boolean;
     isVideo: boolean;
     isAccessBlocked: boolean;
+    title: string | null;
+    slug: string | null;
   };
 }
 
@@ -124,6 +126,8 @@ export type ErrorType =
 export interface Check {
   _id: string;
   text: string | null;
+  title: string;
+  slug: string;
   timestamp: Date;
   isExpired: boolean;
   imageUrl: string | null;
