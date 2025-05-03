@@ -105,6 +105,7 @@ export interface AgentResponse extends ServiceResponse {
     isVideo: boolean;
     isAccessBlocked: boolean;
     title: string | null;
+    slug: string | null;
   };
 }
 

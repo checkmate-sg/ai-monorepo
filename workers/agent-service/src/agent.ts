@@ -518,9 +518,9 @@ export class CheckerAgent extends DurableObject<Env> {
       this.intent = preprocessingResult.result.intent;
       this.isAccessBlocked = preprocessingResult.result.isAccessBlocked;
       this.isVideo = preprocessingResult.result.isVideo;
-      this.title = preprocessingResult.result.title;
+      this.title = preprocessingResult.result.title ?? null;
 
-      const slug = getSlugFromTitle(this.title, this.id);
+      const slug = this.title ? getSlugFromTitle(this.title, this.id) : null;
 
       // Update check with preprocessing results as a background operation
       this.state.waitUntil(
@@ -597,6 +597,7 @@ export class CheckerAgent extends DurableObject<Env> {
           isVideo: this.isVideo,
           isAccessBlocked: this.isAccessBlocked,
           title: this.title,
+          slug: slug,
         },
       };
 
