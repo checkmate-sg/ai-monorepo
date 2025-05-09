@@ -239,8 +239,8 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
         const result = JSON.parse(content);
 
         const canBeAssessed = result.canBeAssessed;
-        const isAccessBlocked = result.isAccessBlocked && !canBeAssessed;
-        const isVideo = result.isVideo && !canBeAssessed;
+        const isAccessBlocked = result.isAccessBlocked;
+        const isVideo = result.isVideo;
 
         return {
           success: true,
