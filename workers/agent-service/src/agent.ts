@@ -589,6 +589,7 @@ export class CheckerAgent extends DurableObject<Env> {
       };
 
       const agentResponse: AgentResponse = {
+        id: this.id,
         success: true,
         result: {
           report,
