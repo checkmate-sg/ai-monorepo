@@ -115,16 +115,14 @@ export default class extends WorkerEntrypoint<Env> {
       for (let i = 0; i < uniquePhones.length; i += BATCH_SIZE) {
         const batch = uniquePhones.slice(i, i + BATCH_SIZE);
 
-        // Use Promise.all for parallel writes within each batch
-        await Promise.all(
-          batch.map((phone) =>
-            this.env.SCAMSHIELD_BLACKLIST_KV.put(
-              `${PHONE_PREFIX}${phone}`,
-              version,
-              { expirationTtl: TTL_SECONDS }
-            )
-          )
-        );
+        // Process batch sequentially to avoid rate limits
+        for (const phone of batch) {
+          await this.env.SCAMSHIELD_BLACKLIST_KV.put(
+            `${PHONE_PREFIX}${phone}`,
+            version,
+            { expirationTtl: TTL_SECONDS }
+          );
+        }
 
         this.logger.info(
           {

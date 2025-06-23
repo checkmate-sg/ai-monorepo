@@ -7,6 +7,9 @@ export const logger = pino({
   browser: {
     asObject: true,
   },
+  serializers: {
+    error: pino.stdSerializers.err,
+  },
   // Custom timestamp that formats the time in Singapore time (UTC+8)
   timestamp: () => {
     const now = new Date();
