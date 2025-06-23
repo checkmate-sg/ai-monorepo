@@ -97,6 +97,11 @@
         { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" },
         { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
         { "binding": "DATABASE_SERVICE", "service": "database-service" }
+      ],
+      "tail_consumers": [
+        {
+          "service": "tail-consumer-service"
+        }
       ]
     },
     "staging": {

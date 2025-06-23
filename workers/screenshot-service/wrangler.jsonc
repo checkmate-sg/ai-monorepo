@@ -89,6 +89,11 @@
           "binding": "SCREENSHOT_BUCKET",
           "bucket_name": "screenshots"
         }
+      ],
+      "tail_consumers": [
+        {
+          "service": "tail-consumer-service"
+        }
       ]
     }
   }

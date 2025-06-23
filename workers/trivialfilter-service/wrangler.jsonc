@@ -26,7 +26,12 @@
       "name": "trivialfilter-service-staging"
     },
     "production": {
-      "name": "trivialfilter-service"
+      "name": "trivialfilter-service",
+      "tail_consumers": [
+        {
+          "service": "tail-consumer-service"
+        }
+      ]
     }
   }
   /**

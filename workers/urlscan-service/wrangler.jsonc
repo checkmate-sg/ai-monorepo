@@ -26,7 +26,12 @@
       "name": "urlscan-service-staging"
     },
     "production": {
-      "name": "urlscan-service"
+      "name": "urlscan-service",
+      "tail_consumers": [
+        {
+          "service": "tail-consumer-service"
+        }
+      ]
     }
   }
   /**
