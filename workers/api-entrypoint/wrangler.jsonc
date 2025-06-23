@@ -124,6 +124,11 @@
           "binding": "BLACKLIST_SERVICE",
           "service": "blacklist-service"
         }
+      ],
+      "tail_consumers": [
+        {
+          "service": "tail-consumer-service"
+        }
       ]
     }
   }

@@ -45,6 +45,11 @@
           "binding": "SCAMSHIELD_BLACKLIST_KV",
           "id": "2910951daa51415cb42c5adc2dab25a8"
         }
+      ],
+      "tail_consumers": [
+        {
+          "service": "tail-consumer-service"
+        }
       ]
     }
   }

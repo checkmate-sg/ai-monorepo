@@ -27,7 +27,12 @@
       "name": "database-service-staging"
     },
     "production": {
-      "name": "database-service"
+      "name": "database-service",
+      "tail_consumers": [
+        {
+          "service": "tail-consumer-service"
+        }
+      ]
     }
   }
   /**
