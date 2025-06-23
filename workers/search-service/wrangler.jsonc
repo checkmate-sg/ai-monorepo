@@ -26,7 +26,12 @@
       "name": "search-service-staging"
     },
     "production": {
-      "name": "search-service"
+      "name": "search-service",
+      "tail_consumers": [
+        {
+          "service": "tail-consumer-service"
+        }
+      ]
     }
   }
   /**

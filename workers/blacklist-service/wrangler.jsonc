@@ -4,9 +4,10 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "trivialfilter-service",
+  "name": "blacklist-service",
   "main": "src/index.ts",
   "compatibility_date": "2025-02-24",
+  "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
   },
@@ -15,18 +16,36 @@
    * Configuration for local development environment
    */
   "dev": {
-    "port": 8794
+    "port": 8796
   },
+  "kv_namespaces": [
+    {
+      "binding": "SCAMSHIELD_BLACKLIST_KV",
+      "id": "e4b8ea66937840f793510bd40a2569f3"
+    }
+  ],
 
   /**
    * Environment-specific configurations
    */
   "env": {
     "staging": {
-      "name": "trivialfilter-service-staging"
+      "name": "blacklist-service-staging",
+      "kv_namespaces": [
+        {
+          "binding": "SCAMSHIELD_BLACKLIST_KV",
+          "id": "e4b8ea66937840f793510bd40a2569f3"
+        }
+      ]
     },
     "production": {
-      "name": "trivialfilter-service",
+      "name": "blacklist-service",
+      "kv_namespaces": [
+        {
+          "binding": "SCAMSHIELD_BLACKLIST_KV",
+          "id": "2910951daa51415cb42c5adc2dab25a8"
+        }
+      ],
       "tail_consumers": [
         {
           "service": "tail-consumer-service"

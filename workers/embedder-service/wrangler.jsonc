@@ -40,7 +40,12 @@
       "workers_dev": false,
       "ai": {
         "binding": "AI"
-      }
+      },
+      "tail_consumers": [
+        {
+          "service": "tail-consumer-service"
+        }
+      ]
     }
   }
 

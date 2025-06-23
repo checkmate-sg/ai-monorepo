@@ -230,13 +230,15 @@ export class CheckerAgent extends DurableObject<Env> {
       };
 
       if (toolName === "submit_report_for_review") {
-        return [
-          {
-            ...returnObject,
-            completed: true,
-            agentOutputs: toolParams,
-          },
-        ];
+        if ("passedReview" in result && result.passedReview) {
+          return [
+            {
+              ...returnObject,
+              completed: true,
+              agentOutputs: toolParams,
+            },
+          ];
+        }
       }
       return [returnObject];
     } catch (error) {
@@ -589,6 +591,7 @@ export class CheckerAgent extends DurableObject<Env> {
       };
 
       const agentResponse: AgentResponse = {
+        id: this.id,
         success: true,
         result: {
           report,
