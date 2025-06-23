@@ -12,9 +12,7 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 import { createLogger } from "@workspace/shared-utils";
 
 // Constants
-const BLACKLIST_VERSION_KEY = "blacklist:version";
-const BLACKLIST_BACKUP_KEY = "blacklist:backup";
-const PHONE_PREFIX = "phone:";
+const BLACKLIST_KEY = "blacklist:data";
 const TTL_SECONDS = 7 * 24 * 60 * 60; // 1 week
 
 // Types
@@ -35,11 +33,11 @@ interface CheckBlacklistResponse {
   error?: string;
 }
 
-interface BlacklistBackup {
+interface BlacklistData {
   version: string;
   timestamp: number;
   count: number;
-  phoneNumbers: string[];
+  phoneNumbers: Set<string>;
 }
 
 export default class extends WorkerEntrypoint<Env> {
@@ -89,8 +87,8 @@ export default class extends WorkerEntrypoint<Env> {
         "Starting blacklist update"
       );
 
-      // Step 1: Store backup of the complete list
-      const backup: BlacklistBackup = {
+      // Store the entire blacklist as a single JSON object
+      const blacklistData = {
         version,
         timestamp: Date.now(),
         count: uniquePhones.length,
@@ -98,40 +96,10 @@ export default class extends WorkerEntrypoint<Env> {
       };
 
       await this.env.SCAMSHIELD_BLACKLIST_KV.put(
-        BLACKLIST_BACKUP_KEY,
-        JSON.stringify(backup)
+        BLACKLIST_KEY,
+        JSON.stringify(blacklistData),
+        { expirationTtl: TTL_SECONDS }
       );
-
-      // Step 2: Update the version
-      await this.env.SCAMSHIELD_BLACKLIST_KV.put(
-        BLACKLIST_VERSION_KEY,
-        version
-      );
-
-      // Step 3: Batch update individual phone entries
-      // KV has a limit of 1000 operations per batch
-      const BATCH_SIZE = 1000;
-
-      for (let i = 0; i < uniquePhones.length; i += BATCH_SIZE) {
-        const batch = uniquePhones.slice(i, i + BATCH_SIZE);
-
-        // Process batch sequentially to avoid rate limits
-        for (const phone of batch) {
-          await this.env.SCAMSHIELD_BLACKLIST_KV.put(
-            `${PHONE_PREFIX}${phone}`,
-            version,
-            { expirationTtl: TTL_SECONDS }
-          );
-        }
-
-        this.logger.info(
-          {
-            processed: Math.min(i + BATCH_SIZE, uniquePhones.length),
-            total: uniquePhones.length,
-          },
-          "Batch processed"
-        );
-      }
 
       const duration = Date.now() - startTime;
       this.logger.info(
@@ -163,12 +131,12 @@ export default class extends WorkerEntrypoint<Env> {
    */
   async lookupBlacklist(phone: string): Promise<CheckBlacklistResponse> {
     try {
-      // Get current version
-      const currentVersion = await this.env.SCAMSHIELD_BLACKLIST_KV.get(
-        BLACKLIST_VERSION_KEY
+      // Get the blacklist data
+      const blacklistJson = await this.env.SCAMSHIELD_BLACKLIST_KV.get(
+        BLACKLIST_KEY
       );
 
-      if (!currentVersion) {
+      if (!blacklistJson) {
         // No blacklist has been set yet
         return {
           isBlacklisted: false,
@@ -176,14 +144,12 @@ export default class extends WorkerEntrypoint<Env> {
         };
       }
 
-      // Check if phone exists and matches current version
-      const phoneVersion = await this.env.SCAMSHIELD_BLACKLIST_KV.get(
-        `${PHONE_PREFIX}${phone.trim()}`
-      );
+      const blacklistData = JSON.parse(blacklistJson);
+      const phoneNumbers = new Set(blacklistData.phoneNumbers);
 
       return {
-        isBlacklisted: phoneVersion === currentVersion,
-        version: currentVersion,
+        isBlacklisted: phoneNumbers.has(phone.trim()),
+        version: blacklistData.version,
       };
     } catch (error) {
       this.logger.error({ error, phone }, "Failed to check blacklist");
