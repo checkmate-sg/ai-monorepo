@@ -225,15 +225,13 @@ export class CheckerAgent extends DurableObject<Env> {
       };
 
       if (toolName === "submit_report_for_review") {
-        if ("passedReview" in result && result.passedReview) {
-          return [
-            {
-              ...returnObject,
-              completed: true,
-              agentOutputs: toolParams,
-            },
-          ];
-        }
+        return [
+          {
+            ...returnObject,
+            completed: true,
+            agentOutputs: toolParams,
+          },
+        ];
       }
       return [returnObject];
     } catch (error) {
