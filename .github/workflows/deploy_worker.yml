@@ -36,7 +36,7 @@ jobs:
         id: changed-workers
         run: |
           # Define all worker directories
-          ALL_WORKER_DIRS='["agent-service", "api-entrypoint", "database-service", "embedder-service", "screenshot-service", "search-service", "urlscan-service", "screenshot-backup-service", "trivialfilter-service"]'
+          ALL_WORKER_DIRS='["agent-service", "api-entrypoint", "database-service", "embedder-service", "screenshot-service", "search-service", "urlscan-service", "screenshot-backup-service", "trivialfilter-service", "blacklist-service"]'
 
           # Case 1: Manual trigger with force_deploy=true - deploy all workers
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
@@ -94,6 +94,7 @@ jobs:
           - screenshot-backup-service
           - trivialfilter-service
           - database-service
+          - blacklist-service
     timeout-minutes: 60 # Set timeout to prevent hung deployments
     steps:
       - uses: actions/checkout@v4.2.2

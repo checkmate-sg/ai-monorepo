@@ -75,7 +75,7 @@ importers:
   workers/api-entrypoint:
     dependencies:
       chanfana:
-        specifier: ^2.0.2
+        specifier: ^2.6.3
         version: 2.6.3
       hono:
         specifier: ^4.4.7
@@ -93,6 +93,21 @@ importers:
       '@types/service-worker-mock':
         specifier: ^2.0.1
         version: 2.0.4
+
+  workers/blacklist-service:
+    devDependencies:
+      '@cloudflare/vitest-pool-workers':
+        specifier: ^0.6.4
+        version: 0.6.16(@cloudflare/workers-types@4.20250601.0)(@vitest/runner@2.1.9)(@vitest/snapshot@2.1.9)(vitest@2.1.9(@types/node@20.8.3))
+      '@cloudflare/workers-types':
+        specifier: ^4.20250321.0
+        version: 4.20250601.0
+      typescript:
+        specifier: ^5.5.2
+        version: 5.8.2
+      vitest:
+        specifier: ~2.1.9
+        version: 2.1.9(@types/node@20.8.3)
 
   workers/database-service:
     dependencies:
@@ -1540,6 +1555,7 @@ packages:
   node-domexception@1.0.0:
     resolution: {integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==}
     engines: {node: '>=10.5.0'}
+    deprecated: Use your platform's native DOMException instead
 
   node-fetch@2.7.0:
     resolution: {integrity: sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==}
@@ -2097,6 +2113,24 @@ snapshots:
       semver: 7.7.1
       vitest: 2.1.9(@types/node@20.8.3)
       wrangler: 3.109.1(@cloudflare/workers-types@4.20250321.0)
+      zod: 3.24.2
+    transitivePeerDependencies:
+      - '@cloudflare/workers-types'
+      - bufferutil
+      - utf-8-validate
+
+  '@cloudflare/vitest-pool-workers@0.6.16(@cloudflare/workers-types@4.20250601.0)(@vitest/runner@2.1.9)(@vitest/snapshot@2.1.9)(vitest@2.1.9(@types/node@20.8.3))':
+    dependencies:
+      '@vitest/runner': 2.1.9
+      '@vitest/snapshot': 2.1.9
+      birpc: 0.2.14
+      cjs-module-lexer: 1.4.3
+      devalue: 4.3.3
+      esbuild: 0.17.19
+      miniflare: 3.20250204.1
+      semver: 7.7.1
+      vitest: 2.1.9(@types/node@20.8.3)
+      wrangler: 3.109.1(@cloudflare/workers-types@4.20250601.0)
       zod: 3.24.2
     transitivePeerDependencies:
       - '@cloudflare/workers-types'
@@ -3608,6 +3642,25 @@ snapshots:
       workerd: 1.20250204.0
     optionalDependencies:
       '@cloudflare/workers-types': 4.20250321.0
+      fsevents: 2.3.3
+      sharp: 0.33.5
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
+  wrangler@3.109.1(@cloudflare/workers-types@4.20250601.0):
+    dependencies:
+      '@cloudflare/kv-asset-handler': 0.3.4
+      '@esbuild-plugins/node-globals-polyfill': 0.2.3(esbuild@0.17.19)
+      '@esbuild-plugins/node-modules-polyfill': 0.2.2(esbuild@0.17.19)
+      blake3-wasm: 2.1.5
+      esbuild: 0.17.19
+      miniflare: 3.20250204.1
+      path-to-regexp: 6.3.0
+      unenv: 2.0.0-rc.1
+      workerd: 1.20250204.0
+    optionalDependencies:
+      '@cloudflare/workers-types': 4.20250601.0
       fsevents: 2.3.3
       sharp: 0.33.5
     transitivePeerDependencies:

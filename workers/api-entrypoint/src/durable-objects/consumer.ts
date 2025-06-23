@@ -14,6 +14,7 @@ interface ConsumerDetailsResponse {
   name: string;
   apiKey: string;
   isActive: boolean;
+  allowedAPIs: string[];
   apiCounts: {
     [apiName: string]: {
       totalCalls: number;
@@ -178,6 +179,7 @@ export class Consumer extends DurableObject<Env> {
     }
     return {
       name: (await this.ctx.storage.get("name")) as string,
+      allowedAPIs: allowedAPIs,
       apiKey: (await this.ctx.storage.get("apiKey")) as string,
       isActive: (await this.ctx.storage.get("isActive")) as boolean,
       apiCounts,
@@ -186,6 +188,39 @@ export class Consumer extends DurableObject<Env> {
 
   async getName(): Promise<string | null> {
     return (await this.ctx.storage.get("name")) as string | null;
+  }
+
+  async updateAllowedAPIs(allowedAPIs: string[]) {
+    try {
+      if (!allowedAPIs || !Array.isArray(allowedAPIs)) {
+        throw new Error("Allowed APIs must be provided as an array");
+      }
+
+      // Check if consumer exists
+      const exists = await this.checkConsumerExists();
+      if (!exists) {
+        throw new Error("Consumer does not exist");
+      }
+
+      // Update the allowed APIs
+      await this.ctx.storage.put("allowedAPIs", allowedAPIs);
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      let errorMessage = "An unknown error occurred";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      this.logger.error(errorMessage);
+      return {
+        success: false,
+        error: {
+          message: errorMessage,
+        },
+      };
+    }
   }
 
   // Rate limiting functionality

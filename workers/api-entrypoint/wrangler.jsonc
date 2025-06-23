@@ -24,7 +24,8 @@
   "services": [
     { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
     { "binding": "AGENT_SERVICE", "service": "agent-service" },
-    { "binding": "TRIVIAL_FILTER_SERVICE", "service": "trivialfilter-service" }
+    { "binding": "TRIVIAL_FILTER_SERVICE", "service": "trivialfilter-service" },
+    { "binding": "BLACKLIST_SERVICE", "service": "blacklist-service" }
   ],
   "durable_objects": {
     "bindings": [
@@ -82,6 +83,10 @@
         {
           "binding": "TRIVIAL_FILTER_SERVICE",
           "service": "trivialfilter-service-staging"
+        },
+        {
+          "binding": "BLACKLIST_SERVICE",
+          "service": "blacklist-service-staging"
         }
       ]
     },
@@ -114,6 +119,10 @@
         {
           "binding": "TRIVIAL_FILTER_SERVICE",
           "service": "trivialfilter-service"
+        },
+        {
+          "binding": "BLACKLIST_SERVICE",
+          "service": "blacklist-service"
         }
       ]
     }
