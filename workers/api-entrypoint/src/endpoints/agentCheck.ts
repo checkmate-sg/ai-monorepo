@@ -1,24 +1,15 @@
-import { Bool, OpenAPIRoute, Str } from "chanfana";
+import { Bool, DateTime, OpenAPIRoute, Str } from "chanfana";
 import { z } from "zod";
 import { Context } from "hono";
 import { createLogger } from "@workspace/shared-utils";
 import { AgentRequest, AgentResult } from "@workspace/shared-types";
-import { ErrorResponseSchema, SuccessResponseSchema } from "../schemas";
+import {
+  ErrorResponseSchema,
+  SuccessResponseSchema,
+  CheckResultSchema,
+} from "../schemas";
 
 const logger = createLogger("agentCheck");
-
-// Define the agent check result schema
-export const AgentCheckResultSchema = z.object({
-  report: Str(),
-  communityNote: z.object({
-    en: Str(),
-    cn: Str(),
-    links: z.array(Str()),
-  }),
-  isControversial: Bool(),
-  isVideo: Bool(),
-  isAccessBlocked: Bool(),
-});
 
 // Define the shared request schema
 export const agentRequestSchema = {
@@ -195,7 +186,7 @@ export class AgentCheck extends OpenAPIRoute {
         description: "Returns the agent check result",
         content: {
           "application/json": {
-            schema: SuccessResponseSchema(AgentCheckResultSchema),
+            schema: SuccessResponseSchema(CheckResultSchema),
           },
         },
       },

@@ -1,17 +1,17 @@
 import { OpenAPIRoute } from "chanfana";
 import { Context } from "hono";
 import { createLogger } from "@workspace/shared-utils";
-import { ErrorResponseSchema, SuccessResponseSchema } from "../schemas";
 import {
-  AgentCheckResultSchema,
-  handleAgentRequest,
-  agentRequestSchema,
-} from "./agentCheck";
+  ErrorResponseSchema,
+  SuccessResponseSchema,
+  CheckResultSchema,
+} from "../schemas";
+import { handleAgentRequest, agentRequestSchema } from "./agentCheck";
 
 const logger = createLogger("communityNote");
 
 // Define the community note result schema by omitting the report field from AgentCheckResultSchema
-const CommunityNoteResultSchema = AgentCheckResultSchema.omit({ report: true });
+const CommunityNoteResultSchema = CheckResultSchema.omit({ report: true });
 
 export class CommunityNote extends OpenAPIRoute {
   schema = {

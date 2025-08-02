@@ -1,5 +1,10 @@
 import { createLogger } from "@workspace/shared-utils";
-import { AgentRequest, AgentResult, Submission } from "@workspace/shared-types";
+import {
+  AgentRequest,
+  AgentResult,
+  Check,
+  Submission,
+} from "@workspace/shared-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 export { CheckerAgent } from "./agent";
 import { searchInternal } from "./tools/search-internal";
@@ -60,6 +65,38 @@ export default class extends WorkerEntrypoint<Env> {
     }
   }
 
+  async getCheck(id: string): Promise<AgentResult> {
+    this.logger.info({ id }, "Getting check");
+    const check = (await this.env.DATABASE_SERVICE.findCheckById(id))
+      .data as Check;
+    if (!check) {
+      return {
+        success: false,
+        error: {
+          message: "Check not found",
+        },
+      };
+    } else {
+      this.logger.info({ check }, "Found check");
+      return {
+        success: true,
+        id: check._id,
+        result: {
+          report: check.longformResponse,
+          communityNote: check.shortformResponse,
+          isControversial: check.isControversial,
+          isVideo: check.isVideo,
+          isAccessBlocked: check.isAccessBlocked,
+          title: check.title,
+          slug: check.slug,
+          timestamp: check.timestamp,
+          isHumanAssessed: check.isHumanAssessed,
+          isVoteTriggered: check.isVoteTriggered,
+        },
+      };
+    }
+  }
+
   async check(request: AgentRequest): Promise<AgentResult> {
     // Initialize the repository if needed
 
@@ -92,7 +129,12 @@ export default class extends WorkerEntrypoint<Env> {
             searchResult.result.id
           ) {
             checkId = searchResult.result.id;
-            //TODO: get the check from the database and return the necessary data
+            const check = await this.getCheck(checkId);
+            if (check.success) {
+              return check;
+            } else {
+              throw new Error("Failed to get check");
+            }
           }
         }
       }

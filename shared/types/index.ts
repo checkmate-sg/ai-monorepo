@@ -99,13 +99,16 @@ export type AgentRequest = TextAgentRequest | ImageAgentRequest;
 export interface AgentResponse extends ServiceResponse {
   success: true;
   result: {
-    report: string;
+    report: Report;
     communityNote: CommunityNote;
     isControversial: boolean;
     isVideo: boolean;
     isAccessBlocked: boolean;
     title: string | null;
     slug: string | null;
+    timestamp: Date;
+    isHumanAssessed: boolean;
+    isVoteTriggered: boolean;
   };
 }
 
@@ -146,6 +149,8 @@ export interface Check {
   machineCategory: string | null;
   crowdsourcedCategory: string | null;
   pollId: string | null;
+  isHumanAssessed: boolean;
+  isVoteTriggered: boolean;
 }
 
 export interface Submission {
@@ -168,9 +173,12 @@ interface DatabaseServiceEnvironment {
 
 export interface CommunityNote extends LanguageResponses {
   downvoted?: boolean | null;
+  timestamp: Date;
 }
 
-export interface Report extends LanguageResponses {}
+export interface Report extends LanguageResponses {
+  timestamp: Date;
+}
 
 // Union type for all possible agent responses
 export type AgentResult = AgentResponse | ErrorResponse;

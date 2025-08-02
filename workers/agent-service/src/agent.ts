@@ -14,6 +14,7 @@ import {
   AgentResult,
   LLMProvider,
   ErrorType,
+  Report,
 } from "@workspace/shared-types";
 import type {
   ChatCompletion,
@@ -419,6 +420,7 @@ export class CheckerAgent extends DurableObject<Env> {
         }
         this.type = "image";
       }
+      const timestamp = new Date();
 
       // Create the check record in MongoDB with the ID passed from the worker
       try {
@@ -440,7 +442,7 @@ export class CheckerAgent extends DurableObject<Env> {
             isControversial: false,
             isAccessBlocked: false,
             isVideo: false,
-            timestamp: new Date(),
+            timestamp: timestamp,
             longformResponse: {
               en: null,
               cn: null,
@@ -456,6 +458,8 @@ export class CheckerAgent extends DurableObject<Env> {
             crowdsourcedCategory: null,
             pollId: null,
             isExpired: false,
+            isHumanAssessed: false,
+            isVoteTriggered: false,
           },
           id // Pass the ObjectId to use as the document _id
         );
@@ -588,19 +592,31 @@ export class CheckerAgent extends DurableObject<Env> {
         en: summary,
         cn: cnSummary,
         links: sources,
+        downvoted: null,
+        timestamp: timestamp,
+      };
+
+      const longformReport: Report = {
+        en: report,
+        cn: null,
+        links: sources,
+        timestamp: timestamp,
       };
 
       const agentResponse: AgentResponse = {
         id: this.id,
         success: true,
         result: {
-          report,
+          report: longformReport,
           communityNote,
           isControversial,
           isVideo: this.isVideo,
           isAccessBlocked: this.isAccessBlocked,
           title: this.title,
           slug: slug,
+          timestamp: timestamp,
+          isHumanAssessed: false,
+          isVoteTriggered: false,
         },
       };
 
