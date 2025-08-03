@@ -3,6 +3,7 @@ import {
   createLogger,
   getProviderFromModel,
   getSlugFromTitle,
+  hashText,
 } from "@workspace/shared-utils";
 import { Logger } from "pino";
 import type OpenAI from "openai";
@@ -424,7 +425,8 @@ export class CheckerAgent extends DurableObject<Env> {
 
       // Create the check record in MongoDB with the ID passed from the worker
       try {
-        // Create ObjectId from this.id (the ID passed from the worker)
+        // hash the text if it exists
+        const textHash = this.text ? await hashText(this.text) : null;
 
         // Create the record immediately with null embeddings
         const insertResult = await this.env.DATABASE_SERVICE.insertCheck(
@@ -436,7 +438,7 @@ export class CheckerAgent extends DurableObject<Env> {
             embeddings: {
               text: null,
             },
-            textHash: "", // To be calculated later
+            textHash: textHash,
             type: this.type || "text",
             generationStatus: "pending",
             isControversial: false,

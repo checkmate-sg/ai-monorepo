@@ -119,7 +119,7 @@ export default class extends WorkerEntrypoint<Env> {
       };
       //find matching check
       if (request.findSimilar) {
-        const text = submission.text || submission.caption || "";
+        const text = submission.text;
         if (text) {
           const searchResult = await searchInternal(
             text,

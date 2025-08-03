@@ -102,6 +102,43 @@ export default class extends WorkerEntrypoint<Env> {
     }
   }
 
+  async findCheckByTextHash(
+    textHash: string
+  ): Promise<{ success: boolean; data?: Check; error?: string }> {
+    const client = new MongoClient(this.env.MONGODB_CONNECTION_STRING);
+    try {
+      const db = client.db("checkmate-core");
+      const checksCollection = db.collection("checks");
+
+      const check = await checksCollection.findOne({
+        textHash: textHash,
+      });
+
+      if (!check) {
+        return {
+          success: false,
+          error: `Check with textHash ${textHash} not found`,
+        };
+      }
+
+      // Convert _id to string for the external interface
+      return {
+        success: true,
+        data: {
+          ...check,
+          _id: check._id.toString(),
+        } as Check,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      logger.error({ error, textHash }, "Failed to find check by text hash");
+      return { success: false, error: errorMessage };
+    } finally {
+      await client.close();
+    }
+  }
+
   async updateCheck(
     id: string,
     data: Partial<Omit<Check, "_id">>

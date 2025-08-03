@@ -2,7 +2,7 @@ import { CommunityNote } from "@workspace/shared-types";
 import { Tool, ToolContext } from "./types";
 import { withLangfuseSpan } from "./utils";
 import type { ErrorResponse, ServiceResponse } from "@workspace/shared-types";
-import { createLogger } from "@workspace/shared-utils";
+import { createLogger, hashText } from "@workspace/shared-utils";
 import { Embedding } from "openai/resources/embeddings";
 import { createClient } from "@workspace/shared-llm-client";
 import { Langfuse, observeOpenAI } from "langfuse";
@@ -110,10 +110,42 @@ export async function searchInternal(
   llmCheck: boolean = false
 ): Promise<SearchInternalResult> {
   try {
-    //embed the text
+    // First, try to find exact match by text hash
     logger.debug(
       { text: text.substring(0, 100) },
-      "Starting vector search for text"
+      "Starting search - checking for exact hash match first"
+    );
+
+    const textHash = await hashText(text);
+    const hashResult = await env.DATABASE_SERVICE.findCheckByTextHash(textHash);
+    
+    if (hashResult.success && hashResult.data) {
+      logger.info(
+        { 
+          checkId: hashResult.data._id,
+          textHash,
+          method: "hash_lookup" 
+        },
+        "Found exact match via text hash"
+      );
+      
+      return {
+        success: true,
+        result: {
+          id: hashResult.data._id,
+          similarityScore: 1.0, // Exact match
+          isMatch: true,
+          reasoning: "Exact text match found via hash lookup",
+          text,
+          communityNote: hashResult.data.shortformResponse || null,
+          crowdsourcedCategory: hashResult.data.crowdsourcedCategory || null,
+        },
+      };
+    }
+
+    logger.debug(
+      { textHash },
+      "No exact hash match found, proceeding with vector search"
     );
 
     let embedding: Embedding;
