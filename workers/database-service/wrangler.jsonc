@@ -24,16 +24,6 @@
     ]
   },
   /**
-   * Migrations for Durable Objects
-   * Required when first deploying Durable Objects
-   */
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_classes": ["DatabaseDurableObject"]
-    }
-  ],
-  /**
    * Dev configuration
    * Configuration for local development environment
    */
