@@ -121,7 +121,14 @@ export default class extends WorkerEntrypoint<Env> {
       if (request.findSimilar) {
         const text = submission.text || submission.caption || "";
         if (text) {
-          const searchResult = await searchInternal(text, this.env);
+          const searchResult = await searchInternal(
+            text,
+            this.env,
+            null,
+            null,
+            this.logger,
+            true
+          );
 
           if (
             searchResult.success &&
@@ -131,15 +138,36 @@ export default class extends WorkerEntrypoint<Env> {
             checkId = searchResult.result.id;
             const check = await this.getCheck(checkId);
             if (check.success) {
+              // Found matching check - insert submission and return existing result
+              submission.checkId = checkId;
+              submission.checkStatus = "completed";
+
+              const insertResult =
+                await this.env.DATABASE_SERVICE.insertSubmission(submission);
+
+              if (!insertResult.success) {
+                throw new Error("Failed to insert submission");
+              }
+
+              this.logger.info(
+                {
+                  checkId,
+                  submissionId: insertResult.id,
+                  similarityScore: searchResult.result.similarityScore,
+                },
+                "Returning existing check result for similar submission"
+              );
+
               return check;
             } else {
-              throw new Error("Failed to get check");
+              this.logger.error(
+                { check },
+                "Failed to get check from search result"
+              );
             }
           }
         }
       }
-
-      submission.checkId = checkId;
 
       const result = await this.env.DATABASE_SERVICE.insertSubmission(
         submission
