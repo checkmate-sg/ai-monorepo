@@ -371,6 +371,14 @@ export default class extends WorkerEntrypoint<Env> {
       const db = client.db("checkmate-core");
       const checksCollection = db.collection("checks");
 
+      const filter: Partial<Pick<Check, "isExpired" | "isHumanAssessed">> = {
+        isExpired: false,
+      };
+
+      if (this.env.ENVIRONMENT === "production") {
+        filter.isHumanAssessed = true;
+      }
+
       const pipeline = [
         {
           $vectorSearch: {
@@ -379,7 +387,7 @@ export default class extends WorkerEntrypoint<Env> {
             path: "embeddings.text",
             numCandidates: limit * 10,
             limit: limit,
-            filter: { isExpired: false },
+            filter: filter,
           },
         },
         {

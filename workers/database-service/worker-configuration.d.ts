@@ -2,4 +2,5 @@
 
 interface Env {
   MONGODB_CONNECTION_STRING: string;
+  ENVIRONMENT: "production" | "staging";
 }

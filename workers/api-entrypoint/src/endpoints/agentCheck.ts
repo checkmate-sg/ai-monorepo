@@ -39,7 +39,7 @@ export const agentRequestSchema = {
             findSimilar: z.boolean().optional(),
           })
           .describe(
-            "Request body schema. For text, pass 'text' only. For image, pass 'imageUrl' or 'caption'. Leave 'provider' blank for default."
+            "Request body schema. For text, pass 'text' only. For image, pass 'imageUrl' or 'caption'. Leave 'model' blank for default."
           )
           .refine(
             (data) =>

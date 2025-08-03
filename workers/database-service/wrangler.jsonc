@@ -24,10 +24,16 @@
    */
   "env": {
     "staging": {
-      "name": "database-service-staging"
+      "name": "database-service-staging",
+      "vars": {
+        "ENVIRONMENT": "staging"
+      }
     },
     "production": {
       "name": "database-service",
+      "vars": {
+        "ENVIRONMENT": "production"
+      },
       "tail_consumers": [
         {
           "service": "tail-consumer-service"
