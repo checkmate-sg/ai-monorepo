@@ -12,6 +12,28 @@
     "enabled": true
   },
   /**
+   * Durable Objects binding for MongoDB connection pooling
+   * This allows the worker to maintain persistent database connections
+   */
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "DATABASE_DURABLE_OBJECT",
+        "class_name": "DatabaseDurableObject"
+      }
+    ]
+  },
+  /**
+   * Migrations for Durable Objects
+   * Required when first deploying Durable Objects
+   */
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["DatabaseDurableObject"]
+    }
+  ],
+  /**
    * Dev configuration
    * Configuration for local development environment
    */
@@ -27,12 +49,28 @@
       "name": "database-service-staging",
       "vars": {
         "ENVIRONMENT": "staging"
+      },
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "DATABASE_DURABLE_OBJECT",
+            "class_name": "DatabaseDurableObject"
+          }
+        ]
       }
     },
     "production": {
       "name": "database-service",
       "vars": {
         "ENVIRONMENT": "production"
+      },
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "DATABASE_DURABLE_OBJECT",
+            "class_name": "DatabaseDurableObject"
+          }
+        ]
       },
       "tail_consumers": [
         {
