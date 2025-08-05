@@ -23,6 +23,12 @@
       }
     ]
   },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["DatabaseDurableObject"]
+    }
+  ],
   /**
    * Dev configuration
    * Configuration for local development environment
