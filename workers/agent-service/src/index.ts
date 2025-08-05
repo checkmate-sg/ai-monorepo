@@ -78,6 +78,12 @@ export default class extends WorkerEntrypoint<Env> {
       };
     } else {
       this.logger.info({ check }, "Found check");
+      if (!check.longformResponse.timestamp) {
+        check.longformResponse.timestamp = check.timestamp;
+      }
+      if (!check.shortformResponse.timestamp) {
+        check.shortformResponse.timestamp = check.timestamp;
+      }
       return {
         success: true,
         id: check._id,

@@ -562,6 +562,7 @@ export class CheckerAgent extends DurableObject<Env> {
             en: report,
             cn: null,
             links: sources,
+            timestamp: timestamp,
           },
         }).catch((error) => {
           this.logger.error("Failed to update check");
@@ -631,12 +632,14 @@ export class CheckerAgent extends DurableObject<Env> {
             en: report,
             cn: null, // Could translate the full report if needed
             links: sources,
+            timestamp: timestamp,
           },
           shortformResponse: {
             en: summary,
             cn: cnSummary,
             downvoted: false,
             links: sources,
+            timestamp: timestamp,
           },
         }).catch((error) => {
           this.logger.error("Failed to update check");
