@@ -90,6 +90,7 @@ export default class extends WorkerEntrypoint<Env> {
         result: {
           report: check.longformResponse,
           communityNote: check.shortformResponse,
+          humanNote: check.humanResponse,
           isControversial: check.isControversial,
           isVideo: check.isVideo,
           isAccessBlocked: check.isAccessBlocked,
