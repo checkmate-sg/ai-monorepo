@@ -101,6 +101,7 @@ export interface AgentResponse extends ServiceResponse {
   result: {
     report: Report;
     communityNote: CommunityNote;
+    humanNote: HumanNote | null;
     isControversial: boolean;
     isVideo: boolean;
     isAccessBlocked: boolean;
@@ -146,6 +147,7 @@ export interface Check {
   isVideo: boolean;
   longformResponse: Report;
   shortformResponse: CommunityNote;
+  humanResponse: HumanNote | null;
   machineCategory: string | null;
   crowdsourcedCategory: string | null;
   pollId: string | null;
@@ -178,6 +180,11 @@ export interface CommunityNote extends LanguageResponses {
 
 export interface Report extends LanguageResponses {
   timestamp: Date;
+}
+
+export interface HumanNote extends LanguageResponses {
+  timestamp: Date;
+  updatedBy: string;
 }
 
 // Union type for all possible agent responses
