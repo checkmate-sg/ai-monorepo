@@ -153,6 +153,7 @@ export interface Check {
   pollId: string | null;
   isHumanAssessed: boolean;
   isVoteTriggered: boolean;
+  isApprovedForPublishing: boolean;
 }
 
 export interface Submission {

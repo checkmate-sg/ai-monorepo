@@ -465,6 +465,7 @@ export class CheckerAgent extends DurableObject<Env> {
             isExpired: false,
             isHumanAssessed: false,
             isVoteTriggered: false,
+            isApprovedForPublishing: false,
           },
           id // Pass the ObjectId to use as the document _id
         );
