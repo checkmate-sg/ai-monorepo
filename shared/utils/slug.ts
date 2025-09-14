@@ -10,7 +10,7 @@
  */
 export function getSlugFromTitle(title: string | null, id: string): string {
   if (!title) {
-    return id.slice(0, 6);
+    return id.slice(-6);
   }
 
   const slug = title
@@ -20,5 +20,5 @@ export function getSlugFromTitle(title: string | null, id: string): string {
     .replace(/^-+|-+$/g, ""); // remove leading/trailing hyphens
 
   // append first 6 characters of id
-  return `${slug}-${id.slice(0, 6)}`;
+  return `${slug}-${id.slice(-6)}`;
 }
