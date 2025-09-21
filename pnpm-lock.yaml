@@ -128,6 +128,21 @@ importers:
         specifier: ~2.1.9
         version: 2.1.9(@types/node@20.8.3)
 
+  workers/email-service:
+    devDependencies:
+      '@cloudflare/vitest-pool-workers':
+        specifier: ^0.6.4
+        version: 0.6.16(@cloudflare/workers-types@4.20250601.0)(@vitest/runner@2.1.9)(@vitest/snapshot@2.1.9)(vitest@2.1.9(@types/node@20.8.3))
+      '@cloudflare/workers-types':
+        specifier: ^4.20250321.0
+        version: 4.20250601.0
+      typescript:
+        specifier: ^5.5.2
+        version: 5.8.2
+      vitest:
+        specifier: ~2.1.9
+        version: 2.1.9(@types/node@20.8.3)
+
   workers/embedder-service:
     devDependencies:
       '@cloudflare/vitest-pool-workers':
@@ -136,6 +151,28 @@ importers:
       '@cloudflare/workers-types':
         specifier: ^4.20250321.0
         version: 4.20250321.0
+      typescript:
+        specifier: ^5.5.2
+        version: 5.8.2
+      vitest:
+        specifier: ~2.1.9
+        version: 2.1.9(@types/node@20.8.3)
+
+  workers/mailer-service:
+    dependencies:
+      '@workspace/shared-utils':
+        specifier: workspace:*
+        version: link:../../shared/utils
+      worker-mailer:
+        specifier: ^1.1.5
+        version: 1.1.5
+    devDependencies:
+      '@cloudflare/vitest-pool-workers':
+        specifier: ^0.6.4
+        version: 0.6.16(@cloudflare/workers-types@4.20250601.0)(@vitest/runner@2.1.9)(@vitest/snapshot@2.1.9)(vitest@2.1.9(@types/node@20.8.3))
+      '@cloudflare/workers-types':
+        specifier: ^4.20250321.0
+        version: 4.20250601.0
       typescript:
         specifier: ^5.5.2
         version: 5.8.2
@@ -1858,9 +1895,6 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  ufo@1.5.4:
-    resolution: {integrity: sha512-UsUk3byDzKd04EyoZ7U4DOlxQaD14JUKQl6/P7wiX4FNvUfm3XL246n9W5AmqwW5RSFJ27NAuM0iLscAOYUiGQ==}
-
   ufo@1.6.1:
     resolution: {integrity: sha512-9a4/uxlTWJ4+a5i0ooc1rU7C7YOw3wT+UGqdeNNHWnOF9qcMBgLRS+4IYUqbczewFx4mLEig6gawh7X6mFlEkA==}
 
@@ -1972,6 +2006,9 @@ packages:
     resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==}
     engines: {node: '>=8'}
     hasBin: true
+
+  worker-mailer@1.1.5:
+    resolution: {integrity: sha512-Yq+LiQ25CHjdQakO3IE/srzYFS94XVQH9e0z30y/NoPyw6vLiLacYDPOBDD9CLpEMhy6vTgLQbsJzFBt9/7E2w==}
 
   workerd@1.20250204.0:
     resolution: {integrity: sha512-zcKufjVFsQMiD3/acg1Ix00HIMCkXCrDxQXYRDn/1AIz3QQGkmbVDwcUk1Ki2jBUoXmBCMsJdycRucgMVEypWg==}
@@ -3129,7 +3166,7 @@ snapshots:
       acorn: 8.14.0
       pathe: 2.0.3
       pkg-types: 1.3.1
-      ufo: 1.5.4
+      ufo: 1.6.1
 
   mongodb-connection-string-url@3.0.2:
     dependencies:
@@ -3494,8 +3531,6 @@ snapshots:
 
   typescript@5.8.2: {}
 
-  ufo@1.5.4: {}
-
   ufo@1.6.1: {}
 
   unbzip2-stream@1.4.3:
@@ -3515,7 +3550,7 @@ snapshots:
       mlly: 1.7.4
       ohash: 1.1.4
       pathe: 1.1.2
-      ufo: 1.5.4
+      ufo: 1.6.1
 
   unenv@2.0.0-rc.17:
     dependencies:
@@ -3612,6 +3647,8 @@ snapshots:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
+
+  worker-mailer@1.1.5: {}
 
   workerd@1.20250204.0:
     optionalDependencies:
