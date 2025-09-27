@@ -123,6 +123,10 @@
         {
           "binding": "BLACKLIST_SERVICE",
           "service": "blacklist-service"
+        },
+        {
+          "binding": "NOTIFICATION_SERVICE",
+          "service": "notification-service"
         }
       ],
       "tail_consumers": [

@@ -9,5 +9,6 @@ interface Env {
     import("./src/durable-objects/consumer").Consumer
   >;
   CONSUMER_KV: KVNamespace;
+  NOTIFICATION_SERVICE: Fetcher;
   // Service bindings with custom methods
 }

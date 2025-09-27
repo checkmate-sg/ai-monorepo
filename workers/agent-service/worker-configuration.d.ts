@@ -29,6 +29,7 @@ interface Env {
   } & ServiceWorkerGlobalScope;
 
   DATABASE_SERVICE: DatabaseServiceMethods & ServiceWorkerGlobalScope;
+  NOTIFICATION_SERVICE: NotificationServiceMethods & ServiceWorkerGlobalScope;
 
   LANGFUSE_PUBLIC_KEY: string;
   LANGFUSE_SECRET_KEY: string;

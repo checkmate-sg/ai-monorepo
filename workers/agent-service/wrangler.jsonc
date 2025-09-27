@@ -71,7 +71,8 @@
     { "binding": "SEARCH_SERVICE", "service": "search-service" },
     { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" },
     { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
-    { "binding": "DATABASE_SERVICE", "service": "database-service" }
+    { "binding": "DATABASE_SERVICE", "service": "database-service" },
+    { "binding": "NOTIFICATION_SERVICE", "service": "notification-service" }
   ],
 
   /**
@@ -96,7 +97,8 @@
         { "binding": "SEARCH_SERVICE", "service": "search-service" },
         { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" },
         { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
-        { "binding": "DATABASE_SERVICE", "service": "database-service" }
+        { "binding": "DATABASE_SERVICE", "service": "database-service" },
+        { "binding": "NOTIFICATION_SERVICE", "service": "notification-service" }
       ],
       "tail_consumers": [
         {
@@ -128,7 +130,14 @@
           "binding": "EMBEDDER_SERVICE",
           "service": "embedder-service-staging"
         },
-        { "binding": "DATABASE_SERVICE", "service": "database-service-staging" }
+        {
+          "binding": "DATABASE_SERVICE",
+          "service": "database-service-staging"
+        },
+        {
+          "binding": "NOTIFICATION_SERVICE",
+          "service": "notification-service-staging"
+        }
       ]
     }
   }
