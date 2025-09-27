@@ -29,7 +29,7 @@ app.use("/getAgentResult", consumerAuth);
 app.use("/getCommunityNote", consumerAuth);
 app.use("/getNeedsChecking", consumerAuth);
 app.use("/upsertBlacklist", consumerAuth);
-app.use("/getCheck", consumerAuth);
+app.use("/checks/:id", consumerAuth);
 
 // Apply adminAuth middleware to admin routes
 app.use("/consumers", adminAuth);
