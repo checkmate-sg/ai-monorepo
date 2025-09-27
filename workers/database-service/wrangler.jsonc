@@ -43,9 +43,6 @@
   "env": {
     "staging": {
       "name": "database-service-staging",
-      "vars": {
-        "ENVIRONMENT": "staging"
-      },
       "durable_objects": {
         "bindings": [
           {
@@ -57,9 +54,6 @@
     },
     "production": {
       "name": "database-service",
-      "vars": {
-        "ENVIRONMENT": "production"
-      },
       "durable_objects": {
         "bindings": [
           {

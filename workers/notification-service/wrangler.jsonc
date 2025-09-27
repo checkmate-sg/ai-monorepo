@@ -28,6 +28,12 @@
       "name": "notification-service-staging",
       "services": [
         { "binding": "DATABASE_SERVICE", "service": "database-service-staging" }
+      ],
+      "routes": [
+        {
+          "pattern": "admin-notifications.staging.checkmate.sg",
+          "custom_domain": true
+        }
       ]
     },
     "production": {
@@ -39,6 +45,12 @@
       ],
       "services": [
         { "binding": "DATABASE_SERVICE", "service": "database-service" }
+      ],
+      "routes": [
+        {
+          "pattern": "admin-notifications.checkmate.sg",
+          "custom_domain": true
+        }
       ]
     }
   }
