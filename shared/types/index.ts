@@ -154,6 +154,7 @@ export interface Check {
   isHumanAssessed: boolean;
   isVoteTriggered: boolean;
   isApprovedForPublishing: boolean;
+  approvedBy: number | null;
 }
 
 export interface Submission {

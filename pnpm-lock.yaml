@@ -143,6 +143,28 @@ importers:
         specifier: ~2.1.9
         version: 2.1.9(@types/node@20.8.3)
 
+  workers/notification-service:
+    dependencies:
+      grammy:
+        specifier: ^1.38.2
+        version: 1.38.2
+      hono:
+        specifier: ^4.4.7
+        version: 4.7.2
+    devDependencies:
+      '@cloudflare/vitest-pool-workers':
+        specifier: ^0.6.4
+        version: 0.6.16(@cloudflare/workers-types@4.20250601.0)(@vitest/runner@2.1.9)(@vitest/snapshot@2.1.9)(vitest@2.1.9(@types/node@20.8.3))
+      '@cloudflare/workers-types':
+        specifier: ^4.20250321.0
+        version: 4.20250601.0
+      typescript:
+        specifier: ^5.5.2
+        version: 5.8.2
+      vitest:
+        specifier: ~2.1.9
+        version: 2.1.9(@types/node@20.8.3)
+
   workers/screenshot-backup-service:
     devDependencies:
       '@cloudflare/vitest-pool-workers':
@@ -767,6 +789,9 @@ packages:
     resolution: {integrity: sha512-vBZP4NlzfOlerQTnba4aqZoMhE/a9HY7HRqoOPaETQcSQuWEIyZMHGfVu6w9wGtGK5fED5qRs2DteVCjOH60sA==}
     engines: {node: '>=14'}
 
+  '@grammyjs/types@3.22.1':
+    resolution: {integrity: sha512-QJX0Y8lpjE+/nuTKGmxybKmvdrLHV7gqbhI/UXoWlJLWtowbwk+oW+ngfHKwegD+ewL2SX8+tQo/1E14Ma0qlw==}
+
   '@img/sharp-darwin-arm64@0.33.5':
     resolution: {integrity: sha512-UT4p+iz/2H4twwAoLCqfA9UH5pI6DggwKEGuaPy7nCVQ8ZsiY5PIcrRvD1DzuY3qYL07NtIQcWnBSY/heikIFQ==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
@@ -1390,6 +1415,10 @@ packages:
   gopd@1.2.0:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
     engines: {node: '>= 0.4'}
+
+  grammy@1.38.2:
+    resolution: {integrity: sha512-11O8rA3kt54Avk6cIyqdXFphkq1fbFz9Vh8hbbj8vid0VqJbZ4Yz2fpqDeaDONxnX3h9NdE/JGMk7VHVtmwKuQ==}
+    engines: {node: ^12.20.0 || >=14.13.1}
 
   has-symbols@1.1.0:
     resolution: {integrity: sha512-1cDNdwJ2Jaohmb3sg4OmKaMBwuC48sYni5HUw2DvsC8LjGTLK9h+eb1X6RyuOHe4hT0ULCW68iomhjUoKUqlPQ==}
@@ -2402,6 +2431,8 @@ snapshots:
 
   '@fastify/busboy@2.1.1': {}
 
+  '@grammyjs/types@3.22.1': {}
+
   '@img/sharp-darwin-arm64@0.33.5':
     optionalDependencies:
       '@img/sharp-libvips-darwin-arm64': 1.0.4
@@ -3003,6 +3034,16 @@ snapshots:
   glob-to-regexp@0.4.1: {}
 
   gopd@1.2.0: {}
+
+  grammy@1.38.2:
+    dependencies:
+      '@grammyjs/types': 3.22.1
+      abort-controller: 3.0.0
+      debug: 4.4.0
+      node-fetch: 2.7.0
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
 
   has-symbols@1.1.0: {}
 

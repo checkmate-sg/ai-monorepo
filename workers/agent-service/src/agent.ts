@@ -386,6 +386,7 @@ export class CheckerAgent extends DurableObject<Env> {
   }
 
   async check(request: AgentRequest, id: string): Promise<AgentResult> {
+    let notificationId: number | null = null;
     const model = request.model || "gpt-4.1-mini"; //default is gpt-4.1-mini
     const provider = getProviderFromModel(model);
     const consumerName = request.consumerName || "unknown consumer";
@@ -466,6 +467,7 @@ export class CheckerAgent extends DurableObject<Env> {
             isHumanAssessed: false,
             isVoteTriggered: false,
             isApprovedForPublishing: false,
+            approvedBy: null,
           },
           id // Pass the ObjectId to use as the document _id
         );
@@ -474,6 +476,22 @@ export class CheckerAgent extends DurableObject<Env> {
           throw new Error(
             `Failed to create check record: ${insertResult.error}`
           );
+        }
+
+        try {
+          notificationId =
+            await this.env.NOTIFICATION_SERVICE.sendNewCheckNotification({
+              id: this.id,
+              agentRequest: request,
+            });
+          this.state.waitUntil(
+            this.env.DATABASE_SERVICE.updateCheck(this.id, {
+              notificationId: notificationId,
+            })
+          );
+        } catch (error) {
+          this.logger.error("Failed to send new check notification");
+          throw error;
         }
 
         // Try to embed text as a background operation if applicable
@@ -652,6 +670,20 @@ export class CheckerAgent extends DurableObject<Env> {
         })
       );
 
+      //notify block
+      console.log(`${notificationId} - sending community note notification`);
+      this.state.waitUntil(
+        this.env.NOTIFICATION_SERVICE.sendCommunityNoteNotification({
+          id: this.id,
+          replyId: notificationId,
+          communityNote: communityNote,
+          isAccessBlocked: this.isAccessBlocked,
+          isVideo: this.isVideo,
+          isControversial: isControversial,
+          isError: false,
+        })
+      );
+
       trace.update({
         output: agentResponse,
         tags: [
@@ -688,6 +720,20 @@ export class CheckerAgent extends DurableObject<Env> {
         }).catch((error) => {
           this.logger.error("Failed to update check");
           throw error;
+        })
+      );
+
+      //TODO: send notification
+      console.log("sending community note error notification");
+      this.state.waitUntil(
+        this.env.NOTIFICATION_SERVICE.sendCommunityNoteNotification({
+          id: this.id,
+          replyId: notificationId,
+          communityNote: null,
+          isAccessBlocked: this.isAccessBlocked,
+          isVideo: this.isVideo,
+          isControversial: false,
+          isError: true,
         })
       );
 
