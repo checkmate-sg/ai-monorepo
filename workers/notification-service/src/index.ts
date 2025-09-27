@@ -35,10 +35,22 @@ export default class extends WorkerEntrypoint<Env> {
   }
 
   async sendCommunityNoteNotification(params: CommunityNoteNotificationParams) {
-    await this.telegramNotifier.sendCommunityNoteNotification(params);
+    try {
+      await this.telegramNotifier.sendCommunityNoteNotification(params);
+    } catch (error) {
+      logger.error(
+        `Failed to send community note notification: ${JSON.stringify(error)}`
+      );
+    }
   }
 
   async sendNewCheckNotification(params: NewCheckNotificationParams) {
-    return await this.telegramNotifier.sendNewCheckNotification(params);
+    try {
+      return await this.telegramNotifier.sendNewCheckNotification(params);
+    } catch (error) {
+      logger.error(
+        `Failed to send new check notification: ${JSON.stringify(error)}`
+      );
+    }
   }
 }

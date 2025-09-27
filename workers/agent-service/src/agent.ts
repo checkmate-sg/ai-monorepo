@@ -491,7 +491,6 @@ export class CheckerAgent extends DurableObject<Env> {
           );
         } catch (error) {
           this.logger.error("Failed to send new check notification");
-          throw error;
         }
 
         // Try to embed text as a background operation if applicable
