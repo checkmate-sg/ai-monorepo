@@ -16,8 +16,6 @@ import { setupTelegramBot, createWebhookHandler } from "./webhookHandler";
 
 const app = new Hono<{ Bindings: Env }>();
 
-const logger = createLogger("notification-service");
-
 app.post("/webhook", async (c) => {
   const expectedToken = c.env.TELEGRAM_WEBHOOK_SECRET;
 
@@ -28,6 +26,7 @@ app.post("/webhook", async (c) => {
 });
 
 export default class extends WorkerEntrypoint<Env> {
+  private logger = createLogger("notification-service");
   private telegramNotifier = createTelegramNotifier(this.env);
 
   async fetch(request: Request): Promise<Response> {
@@ -38,9 +37,18 @@ export default class extends WorkerEntrypoint<Env> {
     try {
       await this.telegramNotifier.sendCommunityNoteNotification(params);
     } catch (error) {
-      logger.error(
-        `Failed to send community note notification: ${JSON.stringify(error)}`
-      );
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
+      console.error("Failed to send community note notification", {
+        error: errorMessage,
+        stack: errorStack,
+        params: JSON.stringify(params),
+      });
+
+      // Re-throw to ensure RPC failure is properly reported
+      throw new Error(`Community note notification failed: ${errorMessage}`);
     }
   }
 
@@ -48,9 +56,18 @@ export default class extends WorkerEntrypoint<Env> {
     try {
       return await this.telegramNotifier.sendNewCheckNotification(params);
     } catch (error) {
-      logger.error(
-        `Failed to send new check notification: ${JSON.stringify(error)}`
-      );
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
+      console.error("Failed to send new check notification", {
+        error: errorMessage,
+        stack: errorStack,
+        params: JSON.stringify(params),
+      });
+
+      // Re-throw to ensure RPC failure is properly reported
+      throw new Error(`New check notification failed: ${errorMessage}`);
     }
   }
 }
