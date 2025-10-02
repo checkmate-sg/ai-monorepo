@@ -257,11 +257,39 @@ export default class extends WorkerEntrypoint<Env> {
     const messages = batch.messages;
     for (const message of messages) {
       const update = message.body as CheckUpdate;
+      const check = await this.getCheck(update.id);
+      let downvoteEvent = false;
+      let assessedEvent = false;
+      if (check.success) {
+        const checkData = check.result;
+        if (!checkData.isHumanAssessed && update.isHumanAssessed) {
+          assessedEvent = true;
+        }
+        if (
+          !checkData.communityNote.downvoted &&
+          update.isCommunityNoteDownvoted &&
+          update.isHumanAssessed
+        ) {
+          downvoteEvent = true;
+        }
+      }
       await this.env.DATABASE_SERVICE.updateCheck(update.id, {
         isHumanAssessed: update.isHumanAssessed,
         "shortformResponse.downvoted": update.isCommunityNoteDownvoted ?? false,
         crowdsourcedCategory: update.crowdsourcedCategory,
       });
+      if (assessedEvent) {
+        await this.env.CORE_CHECK_EVENTS_QUEUE.send({
+          checkId: update.id,
+          event: "assessed",
+        });
+      }
+      if (downvoteEvent) {
+        await this.env.CORE_CHECK_EVENTS_QUEUE.send({
+          checkId: update.id,
+          event: "downvoted",
+        });
+      }
     }
   }
 }

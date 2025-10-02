@@ -75,6 +75,12 @@
     { "binding": "NOTIFICATION_SERVICE", "service": "notification-service" }
   ],
   "queues": {
+    "producers": [
+      {
+        "queue": "core-check-events-queue",
+        "binding": "CORE_CHECK_EVENTS_QUEUE"
+      }
+    ],
     "consumers": [
       {
         "queue": "checkers-poll-update-queue"
@@ -97,6 +103,12 @@
         ]
       },
       "queues": {
+        "producers": [
+          {
+            "queue": "core-check-events-queue",
+            "binding": "CORE_CHECK_EVENTS_QUEUE"
+          }
+        ],
         "consumers": [
           {
             "queue": "checkers-poll-update-queue"
@@ -131,6 +143,12 @@
         ]
       },
       "queues": {
+        "producers": [
+          {
+            "queue": "core-check-events-queue-staging",
+            "binding": "CORE_CHECK_EVENTS_QUEUE"
+          }
+        ],
         "consumers": [
           {
             "queue": "checkers-poll-update-queue-staging"

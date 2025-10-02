@@ -35,4 +35,6 @@ interface Env {
   LANGFUSE_SECRET_KEY: string;
   LANGFUSE_HOST: string;
   ENVIRONMENT: string;
+
+  CORE_CHECK_EVENTS_QUEUE: Queue<unknown>;
 }
