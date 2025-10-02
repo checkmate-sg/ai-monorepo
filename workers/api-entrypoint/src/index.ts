@@ -12,7 +12,8 @@ import { consumerAuth } from "./middleware/consumerAuth";
 import { adminAuth } from "./middleware/adminAuth";
 import { ConsumerDelete } from "./endpoints/consumerDelete";
 import { ConsumerUpdateAPIs } from "./endpoints/consumerUpdateAPIs";
-import { GetCheck } from "./endpoints/getCheck";
+import { GetCheck } from "./endpoints/checkGet";
+import { PatchCheck } from "./endpoints/checkPatch";
 export { Consumer } from "./durable-objects/consumer";
 
 // Start a Hono app
@@ -53,6 +54,9 @@ openapi.get("/consumer/details", ConsumerGet);
 
 // Get the check details
 openapi.get("/checks/:id", GetCheck);
+
+// Update the check details
+openapi.patch("/checks/:id", PatchCheck);
 
 // Upsert the phone number blacklist
 openapi.post("/upsertBlacklist", UpsertBlacklist);

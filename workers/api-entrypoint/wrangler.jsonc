@@ -27,6 +27,11 @@
     { "binding": "TRIVIAL_FILTER_SERVICE", "service": "trivialfilter-service" },
     { "binding": "BLACKLIST_SERVICE", "service": "blacklist-service" }
   ],
+  "queues": {
+    "producers": [
+      { "queue": "checkers-poll-update-queue", "binding": "POLL_UPDATE_QUEUE" }
+    ]
+  },
   "durable_objects": {
     "bindings": [
       {
@@ -88,7 +93,15 @@
           "binding": "BLACKLIST_SERVICE",
           "service": "blacklist-service-staging"
         }
-      ]
+      ],
+      "queues": {
+        "producers": [
+          {
+            "queue": "checkers-poll-update-queue-staging",
+            "binding": "POLL_UPDATE_QUEUE"
+          }
+        ]
+      }
     },
     "production": {
       "name": "api-entrypoint",
@@ -133,7 +146,15 @@
         {
           "service": "tail-consumer-service"
         }
-      ]
+      ],
+      "queues": {
+        "producers": [
+          {
+            "queue": "checkers-poll-update-queue",
+            "binding": "POLL_UPDATE_QUEUE"
+          }
+        ]
+      }
     }
   }
 

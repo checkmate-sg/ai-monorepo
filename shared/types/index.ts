@@ -103,6 +103,9 @@ export interface AgentResponse extends ServiceResponse {
     communityNote: CommunityNote;
     humanNote: HumanNote | null;
     isControversial: boolean;
+    text: string | null;
+    imageUrl: string | null;
+    caption: string | null;
     isVideo: boolean;
     isAccessBlocked: boolean;
     title: string | null;
@@ -110,7 +113,15 @@ export interface AgentResponse extends ServiceResponse {
     timestamp: Date;
     isHumanAssessed: boolean;
     isVoteTriggered: boolean;
+    crowdsourcedCategory: string | null;
   };
+}
+
+export interface CheckUpdate {
+  id: string;
+  isHumanAssessed: boolean;
+  crowdsourcedCategory: string | null;
+  isCommunityNoteDownvoted: boolean | null;
 }
 
 interface LanguageResponses {
