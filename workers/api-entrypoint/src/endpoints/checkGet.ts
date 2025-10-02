@@ -55,6 +55,15 @@ export async function handleGetCheck(
         { error: agentResult.error, id },
         "Failed to get check"
       );
+      if (agentResult.error?.message === "Check not found") {
+        return c.json(
+          {
+            success: false,
+            error: "Check not found",
+          },
+          404
+        );
+      }
       throw new Error(agentResult.error?.message || "Failed to get check");
     }
   } catch (error: unknown) {

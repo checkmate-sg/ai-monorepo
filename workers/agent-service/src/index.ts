@@ -4,6 +4,7 @@ import {
   AgentResult,
   Check,
   Submission,
+  CheckUpdate,
 } from "@workspace/shared-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 export { CheckerAgent } from "./agent";
@@ -92,11 +93,15 @@ export default class extends WorkerEntrypoint<Env> {
           communityNote: check.shortformResponse,
           humanNote: check.humanResponse,
           isControversial: check.isControversial,
+          text: check.text,
+          imageUrl: check.imageUrl,
+          caption: check.caption,
           isVideo: check.isVideo,
           isAccessBlocked: check.isAccessBlocked,
           title: check.title,
           slug: check.slug,
           timestamp: check.timestamp,
+          crowdsourcedCategory: check.crowdsourcedCategory,
           isHumanAssessed: check.isHumanAssessed,
           isVoteTriggered: check.isVoteTriggered,
         },
@@ -244,6 +249,19 @@ export default class extends WorkerEntrypoint<Env> {
           message: errorMessage,
         },
       };
+    }
+  }
+
+  async queue(batch: MessageBatch<unknown>): Promise<void> {
+    this.logger.info({ batch }, "Consuming from queue");
+    const messages = batch.messages;
+    for (const message of messages) {
+      const update = message.body as CheckUpdate;
+      await this.env.DATABASE_SERVICE.updateCheck(update.id, {
+        isHumanAssessed: update.isHumanAssessed,
+        "shortformResponse.downvoted": update.isCommunityNoteDownvoted ?? false,
+        crowdsourcedCategory: update.crowdsourcedCategory,
+      });
     }
   }
 }

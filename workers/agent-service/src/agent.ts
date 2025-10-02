@@ -635,6 +635,9 @@ export class CheckerAgent extends DurableObject<Env> {
           communityNote,
           humanNote: null,
           isControversial,
+          text: this.text ?? null,
+          imageUrl: this.imageUrl ?? null,
+          caption: this.caption ?? null,
           isVideo: this.isVideo,
           isAccessBlocked: this.isAccessBlocked,
           title: this.title,
@@ -642,6 +645,7 @@ export class CheckerAgent extends DurableObject<Env> {
           timestamp: timestamp,
           isHumanAssessed: false,
           isVoteTriggered: false,
+          crowdsourcedCategory: null,
         },
       };
 
