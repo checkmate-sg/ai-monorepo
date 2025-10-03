@@ -398,7 +398,7 @@ export class CheckerAgent extends DurableObject<Env> {
       throw new Error("ID is required");
     }
     this.id = id;
-    this.langfuseTraceId = request.id ?? id;
+    this.langfuseTraceId = id;
     this.logger = this.logger.child({ id, requestId: request.id });
     request.id = id; // to log consistently with mongoDB ID as checkId,
     const trace = this.langfuse.trace({
