@@ -37,4 +37,5 @@ interface Env {
   ENVIRONMENT: string;
 
   CORE_CHECK_EVENTS_QUEUE: Queue<unknown>;
+  CHECKERS_APP_URL: string;
 }
