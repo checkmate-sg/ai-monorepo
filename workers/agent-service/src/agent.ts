@@ -766,6 +766,7 @@ export class CheckerAgent extends DurableObject<Env> {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "x-api-key": this.env.CHECKERS_APP_API_KEY,
           },
           body: JSON.stringify({
             id: this.id,
