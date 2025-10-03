@@ -745,6 +745,7 @@ export class CheckerAgent extends DurableObject<Env> {
       );
 
       const errorReturn = {
+        id: this.id || id,
         error: { message: errorMessage },
         success: false as const,
       };
