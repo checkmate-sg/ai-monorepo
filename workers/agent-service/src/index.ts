@@ -272,13 +272,13 @@ export default class extends WorkerEntrypoint<Env> {
         if (result.changes.becameHumanAssessed) {
           await this.env.CORE_CHECK_EVENTS_QUEUE.send({
             checkId: update.id,
-            event: "assessed",
+            type: "assessed",
           });
         }
         if (result.changes.becameDownvoted) {
           await this.env.CORE_CHECK_EVENTS_QUEUE.send({
             checkId: update.id,
-            event: "downvoted",
+            type: "downvoted",
           });
         }
       }
