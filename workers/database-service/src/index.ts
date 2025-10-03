@@ -160,6 +160,56 @@ export class DatabaseDurableObject extends DurableObject<Env> {
     }
   }
 
+  async updateCheckWithChanges(
+    id: string,
+    data: Partial<Omit<Check, "_id">> & Record<string, any>
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    changes?: {
+      becameHumanAssessed: boolean;
+      becameDownvoted: boolean;
+    };
+  }> {
+    try {
+      await this.connectPromise;
+      const db = this.client.db("checkmate-core");
+      const checksCollection = db.collection("checks");
+
+      // Get the document before update atomically
+      const result = await checksCollection.findOneAndUpdate(
+        { _id: new ObjectId(id) },
+        { $set: data },
+        { returnDocument: "before" }
+      );
+
+      if (!result) {
+        return {
+          success: false,
+          error: `Check with id ${id} not found`,
+        };
+      }
+
+      const oldDoc = result as any;
+
+      // Calculate what changed
+      const changes = {
+        becameHumanAssessed:
+          !oldDoc.isHumanAssessed && data.isHumanAssessed === true,
+        becameDownvoted:
+          !oldDoc.shortformResponse?.downvoted &&
+          data["shortformResponse.downvoted"] === true,
+      };
+
+      return { success: true, changes };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      this.logger.error({ error, id, data }, "Failed to update check with changes");
+      return { success: false, error: errorMessage };
+    }
+  }
+
   async deleteCheck(id: string): Promise<{ success: boolean; error?: string }> {
     try {
       await this.connectPromise;
@@ -498,6 +548,21 @@ export default class extends WorkerEntrypoint<Env> {
   ): Promise<{ success: boolean; error?: string }> {
     const durableObject = this.getDurableObject();
     return durableObject.updateCheck(id, data);
+  }
+
+  async updateCheckWithChanges(
+    id: string,
+    data: Partial<Omit<Check, "_id">> & Record<string, any>
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    changes?: {
+      becameHumanAssessed: boolean;
+      becameDownvoted: boolean;
+    };
+  }> {
+    const durableObject = this.getDurableObject();
+    return durableObject.updateCheckWithChanges(id, data);
   }
 
   async deleteCheck(id: string): Promise<{ success: boolean; error?: string }> {

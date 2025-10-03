@@ -387,6 +387,10 @@ export class CheckerAgent extends DurableObject<Env> {
 
   async check(request: AgentRequest, id: string): Promise<AgentResult> {
     let notificationId: number | null = null;
+    let communityNote: CommunityNote | null = null;
+    let isControversial = false;
+    let slug: string | null = null;
+    let generationStatus: string = "pending";
     const model = request.model || "gpt-4.1-mini"; //default is gpt-4.1-mini
     const provider = getProviderFromModel(model);
     const consumerName = request.consumerName || "unknown consumer";
@@ -455,13 +459,13 @@ export class CheckerAgent extends DurableObject<Env> {
             shortformResponse: {
               en: null,
               cn: null,
-              downvoted: null,
+              downvoted: false,
               links: null,
               timestamp: null,
             },
             humanResponse: null,
             machineCategory: null,
-            crowdsourcedCategory: null,
+            crowdsourcedCategory: "unsure",
             pollId: null,
             isExpired: false,
             isHumanAssessed: false,
@@ -549,7 +553,7 @@ export class CheckerAgent extends DurableObject<Env> {
       this.isVideo = preprocessingResult.result.isVideo;
       this.title = preprocessingResult.result.title ?? null;
 
-      const slug = this.title ? getSlugFromTitle(this.title, this.id) : null;
+      slug = this.title ? getSlugFromTitle(this.title, this.id) : null;
 
       // Update check with preprocessing results as a background operation
       this.state.waitUntil(
@@ -574,7 +578,7 @@ export class CheckerAgent extends DurableObject<Env> {
       }
       const report = agentLoopResult.report;
       const sources = agentLoopResult.sources;
-      const isControversial = agentLoopResult.is_controversial;
+      isControversial = agentLoopResult.is_controversial;
       // update the necessary fields in the check record
       this.state.waitUntil(
         this.env.DATABASE_SERVICE.updateCheck(this.id, {
@@ -612,11 +616,11 @@ export class CheckerAgent extends DurableObject<Env> {
 
       const cnSummary = cnResult.result.translatedText;
 
-      const communityNote: CommunityNote = {
+      communityNote = {
         en: summary,
         cn: cnSummary,
         links: sources,
-        downvoted: null,
+        downvoted: false,
         timestamp: timestamp,
       };
 
@@ -650,9 +654,10 @@ export class CheckerAgent extends DurableObject<Env> {
       };
 
       // Update check with complete results as a background operation
+      generationStatus = "completed";
       this.state.waitUntil(
         this.env.DATABASE_SERVICE.updateCheck(this.id, {
-          generationStatus: "completed",
+          generationStatus: generationStatus,
           isControversial,
           longformResponse: {
             en: report,
@@ -674,7 +679,6 @@ export class CheckerAgent extends DurableObject<Env> {
       );
 
       //notify block
-      console.log(`${notificationId} - sending community note notification`);
       this.state.waitUntil(
         this.env.NOTIFICATION_SERVICE.sendCommunityNoteNotification({
           id: this.id,
@@ -716,10 +720,11 @@ export class CheckerAgent extends DurableObject<Env> {
         errorType = "error-other";
       }
 
+      generationStatus = errorType;
       // Update check with error status as a background operation
       this.state.waitUntil(
         this.env.DATABASE_SERVICE.updateCheck(this.id, {
-          generationStatus: errorType,
+          generationStatus: generationStatus,
         }).catch((error) => {
           this.logger.error("Failed to update check");
           throw error;
@@ -727,7 +732,6 @@ export class CheckerAgent extends DurableObject<Env> {
       );
 
       //TODO: send notification
-      console.log("sending community note error notification");
       this.state.waitUntil(
         this.env.NOTIFICATION_SERVICE.sendCommunityNoteNotification({
           id: this.id,
@@ -756,6 +760,44 @@ export class CheckerAgent extends DurableObject<Env> {
       });
       return errorReturn;
     } finally {
+      //trigger voting block
+      try {
+        await fetch(`${this.env.CHECKERS_APP_URL}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": this.env.CHECKERS_APP_API_KEY,
+          },
+          body: JSON.stringify({
+            id: this.id,
+            machineCategory: "unsure",
+            isMachineCategorised: false,
+            imageUrl: this.imageUrl ?? null,
+            text: this.text ?? null,
+            caption: this.caption ?? null,
+            isControversial: isControversial,
+            communityNoteStatus: generationStatus,
+            communityNote: communityNote,
+            isCommunityNoteUsable:
+              generationStatus === "completed" &&
+              !this.isAccessBlocked &&
+              !this.isVideo,
+            isIrrelevant: false,
+            title: this.title ?? null,
+            slug: slug,
+          }),
+        });
+        this.state.waitUntil(
+          this.env.DATABASE_SERVICE.updateCheck(this.id, {
+            isVoteTriggered: true,
+          }).catch((error) => {
+            this.logger.error("Failed to update check");
+            throw error;
+          })
+        );
+      } catch (error) {
+        this.logger.error("Voting failed to trigger");
+      }
       this.state.waitUntil(this.langfuse.flushAsync());
     }
   }
