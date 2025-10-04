@@ -268,7 +268,7 @@ export default class extends WorkerEntrypoint<Env> {
         }
       );
 
-      if (!this.env.SEND_NOTIFICATIONS) {
+      if (this.env.IS_ROLLBACK) {
         this.logger.info({ update }, "Skipping notification for check");
         return;
       }

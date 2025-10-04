@@ -483,7 +483,7 @@ export class CheckerAgent extends DurableObject<Env> {
         }
 
         try {
-          if (this.env.SEND_NOTIFICATIONS) {
+          if (!this.env.IS_ROLLBACK) {
             notificationId =
               await this.env.NOTIFICATION_SERVICE.sendNewCheckNotification({
                 id: this.id,
@@ -681,7 +681,7 @@ export class CheckerAgent extends DurableObject<Env> {
       );
 
       //notify block
-      if (this.env.SEND_NOTIFICATIONS) {
+      if (!this.env.IS_ROLLBACK) {
         this.state.waitUntil(
           this.env.NOTIFICATION_SERVICE.sendCommunityNoteNotification({
             id: this.id,
@@ -736,7 +736,7 @@ export class CheckerAgent extends DurableObject<Env> {
       );
 
       //TODO: send notification
-      if (this.env.SEND_NOTIFICATIONS) {
+      if (!this.env.IS_ROLLBACK) {
         this.state.waitUntil(
           this.env.NOTIFICATION_SERVICE.sendCommunityNoteNotification({
             id: this.id,
@@ -768,7 +768,7 @@ export class CheckerAgent extends DurableObject<Env> {
     } finally {
       //trigger voting block
       try {
-        if (this.env.SEND_NOTIFICATIONS) {
+        if (!this.env.IS_ROLLBACK) {
           await fetch(`${this.env.CHECKERS_APP_URL}`, {
             method: "POST",
             headers: {
