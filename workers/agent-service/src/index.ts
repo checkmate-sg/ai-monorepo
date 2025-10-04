@@ -268,6 +268,11 @@ export default class extends WorkerEntrypoint<Env> {
         }
       );
 
+      if (!this.env.SEND_NOTIFICATIONS) {
+        this.logger.info({ update }, "Skipping notification for check");
+        return;
+      }
+
       if (result.success && result.changes) {
         if (result.changes.becameHumanAssessed) {
           await this.env.CORE_CHECK_EVENTS_QUEUE.send({
