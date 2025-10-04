@@ -5,6 +5,8 @@ import {
   Check,
   Submission,
   CheckUpdate,
+  ServiceResponse,
+  ErrorResponse,
 } from "@workspace/shared-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 export { CheckerAgent } from "./agent";
@@ -243,6 +245,53 @@ export default class extends WorkerEntrypoint<Env> {
           throw error;
         })
       );
+      return {
+        success: false,
+        error: {
+          message: errorMessage,
+        },
+      };
+    }
+  }
+
+  async updateHumanResponse(
+    checkId: string,
+    humanNote: {
+      en: string | null;
+      cn: string | null;
+      links: string[] | null;
+      updatedBy: string;
+    }
+  ): Promise<ServiceResponse | ErrorResponse> {
+    try {
+      this.logger.info({ checkId, humanNote }, "Updating human response");
+
+      const humanResponse = {
+        en: humanNote.en,
+        cn: humanNote.cn,
+        links: humanNote.links,
+        timestamp: new Date(),
+        updatedBy: humanNote.updatedBy,
+      };
+
+      const result = await this.env.DATABASE_SERVICE.updateCheck(checkId, {
+        humanResponse,
+      });
+
+      if (!result.success) {
+        throw new Error("Failed to update human response");
+      }
+
+      this.logger.info({ checkId }, "Human response updated successfully");
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      this.logger.error({ checkId, error, errorMessage }, "Error updating human response");
+
       return {
         success: false,
         error: {
