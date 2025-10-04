@@ -768,39 +768,41 @@ export class CheckerAgent extends DurableObject<Env> {
     } finally {
       //trigger voting block
       try {
-        await fetch(`${this.env.CHECKERS_APP_URL}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": this.env.CHECKERS_APP_API_KEY,
-          },
-          body: JSON.stringify({
-            id: this.id,
-            machineCategory: "unsure",
-            isMachineCategorised: false,
-            imageUrl: this.imageUrl ?? null,
-            text: this.text ?? null,
-            caption: this.caption ?? null,
-            isControversial: isControversial,
-            communityNoteStatus: generationStatus,
-            communityNote: communityNote,
-            isCommunityNoteUsable:
-              generationStatus === "completed" &&
-              !this.isAccessBlocked &&
-              !this.isVideo,
-            isIrrelevant: false,
-            title: this.title ?? null,
-            slug: slug,
-          }),
-        });
-        this.state.waitUntil(
-          this.env.DATABASE_SERVICE.updateCheck(this.id, {
-            isVoteTriggered: true,
-          }).catch((error) => {
-            this.logger.error("Failed to update check");
-            throw error;
-          })
-        );
+        if (this.env.SEND_NOTIFICATIONS) {
+          await fetch(`${this.env.CHECKERS_APP_URL}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": this.env.CHECKERS_APP_API_KEY,
+            },
+            body: JSON.stringify({
+              id: this.id,
+              machineCategory: "unsure",
+              isMachineCategorised: false,
+              imageUrl: this.imageUrl ?? null,
+              text: this.text ?? null,
+              caption: this.caption ?? null,
+              isControversial: isControversial,
+              communityNoteStatus: generationStatus,
+              communityNote: communityNote,
+              isCommunityNoteUsable:
+                generationStatus === "completed" &&
+                !this.isAccessBlocked &&
+                !this.isVideo,
+              isIrrelevant: false,
+              title: this.title ?? null,
+              slug: slug,
+            }),
+          });
+          this.state.waitUntil(
+            this.env.DATABASE_SERVICE.updateCheck(this.id, {
+              isVoteTriggered: true,
+            }).catch((error) => {
+              this.logger.error("Failed to update check");
+              throw error;
+            })
+          );
+        }
       } catch (error) {
         this.logger.error("Voting failed to trigger");
       }
