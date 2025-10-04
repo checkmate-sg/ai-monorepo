@@ -483,16 +483,18 @@ export class CheckerAgent extends DurableObject<Env> {
         }
 
         try {
-          notificationId =
-            await this.env.NOTIFICATION_SERVICE.sendNewCheckNotification({
-              id: this.id,
-              agentRequest: request,
-            });
-          this.state.waitUntil(
-            this.env.DATABASE_SERVICE.updateCheck(this.id, {
-              notificationId: notificationId,
-            })
-          );
+          if (this.env.SEND_NOTIFICATIONS) {
+            notificationId =
+              await this.env.NOTIFICATION_SERVICE.sendNewCheckNotification({
+                id: this.id,
+                agentRequest: request,
+              });
+            this.state.waitUntil(
+              this.env.DATABASE_SERVICE.updateCheck(this.id, {
+                notificationId: notificationId,
+              })
+            );
+          }
         } catch (error) {
           this.logger.error("Failed to send new check notification");
         }
@@ -679,17 +681,19 @@ export class CheckerAgent extends DurableObject<Env> {
       );
 
       //notify block
-      this.state.waitUntil(
-        this.env.NOTIFICATION_SERVICE.sendCommunityNoteNotification({
-          id: this.id,
-          replyId: notificationId,
-          communityNote: communityNote,
-          isAccessBlocked: this.isAccessBlocked,
-          isVideo: this.isVideo,
-          isControversial: isControversial,
-          isError: false,
-        })
-      );
+      if (this.env.SEND_NOTIFICATIONS) {
+        this.state.waitUntil(
+          this.env.NOTIFICATION_SERVICE.sendCommunityNoteNotification({
+            id: this.id,
+            replyId: notificationId,
+            communityNote: communityNote,
+            isAccessBlocked: this.isAccessBlocked,
+            isVideo: this.isVideo,
+            isControversial: isControversial,
+            isError: false,
+          })
+        );
+      }
 
       trace.update({
         output: agentResponse,
@@ -732,18 +736,19 @@ export class CheckerAgent extends DurableObject<Env> {
       );
 
       //TODO: send notification
-      this.state.waitUntil(
-        this.env.NOTIFICATION_SERVICE.sendCommunityNoteNotification({
-          id: this.id,
-          replyId: notificationId,
-          communityNote: null,
-          isAccessBlocked: this.isAccessBlocked,
-          isVideo: this.isVideo,
-          isControversial: false,
-          isError: true,
-        })
-      );
-
+      if (this.env.SEND_NOTIFICATIONS) {
+        this.state.waitUntil(
+          this.env.NOTIFICATION_SERVICE.sendCommunityNoteNotification({
+            id: this.id,
+            replyId: notificationId,
+            communityNote: null,
+            isAccessBlocked: this.isAccessBlocked,
+            isVideo: this.isVideo,
+            isControversial: false,
+            isError: true,
+          })
+        );
+      }
       const errorReturn = {
         id: this.id || id,
         error: { message: errorMessage },
