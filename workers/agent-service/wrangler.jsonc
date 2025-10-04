@@ -140,7 +140,7 @@
         }
       ],
       "vars": {
-        "SEND_NOTIFICATIONS": false
+        "SEND_NOTIFICATIONS": true
       }
     },
     "staging": {
