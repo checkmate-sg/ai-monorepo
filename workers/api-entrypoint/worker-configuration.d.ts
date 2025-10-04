@@ -9,5 +9,7 @@ interface Env {
     import("./src/durable-objects/consumer").Consumer
   >;
   CONSUMER_KV: KVNamespace;
+  NOTIFICATION_SERVICE: Fetcher;
+  POLL_UPDATE_QUEUE: Queue<unknown>;
   // Service bindings with custom methods
 }

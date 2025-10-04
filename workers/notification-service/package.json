@@ -1,10 +1,10 @@
 {
-  "name": "blacklist-service",
+  "name": "notification-service",
   "version": "0.0.0",
   "private": true,
   "scripts": {
     "deploy": "wrangler deploy",
-    "dev": "wrangler dev  --inspector-port 9238",
+    "dev": "wrangler dev  --inspector-port 9239",
     "start": "wrangler dev",
     "test": "vitest",
     "cf-typegen": "wrangler types"
@@ -15,5 +15,8 @@
     "typescript": "^5.5.2",
     "vitest": "~2.1.9"
   },
-  "dependencies": {}
+  "dependencies": {
+    "grammy": "^1.38.2",
+    "hono": "^4.4.7"
+  }
 }

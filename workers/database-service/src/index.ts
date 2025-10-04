@@ -1,49 +1,40 @@
 /**
- * Database Service Worker
+ * Database Service Worker with Durable Objects for Connection Pooling
  *
  * This worker handles database operations for the Checkmate application.
- * Each method creates a new connection, performs its task, and closes the connection.
+ * Uses Durable Objects to maintain persistent MongoDB connections for improved performance.
  */
 import { MongoClient, ObjectId } from "mongodb";
-
-import { WorkerEntrypoint } from "cloudflare:workers";
+import { DurableObject, WorkerEntrypoint } from "cloudflare:workers";
 import { createLogger } from "@workspace/shared-utils";
 import { Check, Submission } from "@workspace/shared-types";
 
 // Shared logger
 const logger = createLogger("database-service");
 
-// Import types from models
-// Main worker class for health checks
-export default class extends WorkerEntrypoint<Env> {
-  private logger = createLogger("database-service");
+/**
+ * DatabaseDurableObject maintains a persistent MongoDB connection
+ * This significantly improves performance by avoiding connection overhead
+ */
+export class DatabaseDurableObject extends DurableObject<Env> {
+  private client: MongoClient;
+  private logger = createLogger("database-durable-object");
+  private connectPromise: Promise<MongoClient>;
 
-  async fetch(request: Request): Promise<Response> {
-    try {
-      // Simple health check endpoint
-      return new Response(
-        JSON.stringify({ status: "healthy", service: "database-service" }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    } catch (error) {
-      this.logger.error({ error }, "Error handling health check request");
-      return new Response(
-        JSON.stringify({ success: false, error: "Internal server error" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
-    }
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+    this.client = new MongoClient(env.MONGODB_CONNECTION_STRING);
+    // Store the connection promise to await in each method
+    this.connectPromise = this.client.connect();
   }
 
   async insertCheck(
     check: Omit<Check, "_id">,
     customId?: string
   ): Promise<{ success: boolean; id?: string; error?: string }> {
-    const client = new MongoClient(this.env.MONGODB_CONNECTION_STRING);
     try {
-      const db = client.db("checkmate-core");
+      await this.connectPromise;
+      const db = this.client.db("checkmate-core");
       const checksCollection = db.collection("checks");
 
       const objectId = customId ? new ObjectId(customId) : new ObjectId();
@@ -58,19 +49,20 @@ export default class extends WorkerEntrypoint<Env> {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      logger.error({ error, errorMessage, check }, "Failed to insert check");
+      this.logger.error(
+        { error, errorMessage, check },
+        "Failed to insert check"
+      );
       return { success: false, error: errorMessage };
-    } finally {
-      await client.close();
     }
   }
 
   async findCheckById(
     id: string
   ): Promise<{ success: boolean; data?: Check; error?: string }> {
-    const client = new MongoClient(this.env.MONGODB_CONNECTION_STRING);
     try {
-      const db = client.db("checkmate-core");
+      await this.connectPromise;
+      const db = this.client.db("checkmate-core");
       const checksCollection = db.collection("checks");
 
       const check = await checksCollection.findOne({
@@ -95,10 +87,46 @@ export default class extends WorkerEntrypoint<Env> {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      logger.error({ error, id }, "Failed to find check");
+      this.logger.error({ error, id }, "Failed to find check");
       return { success: false, error: errorMessage };
-    } finally {
-      await client.close();
+    }
+  }
+
+  async findCheckByTextHash(
+    textHash: string
+  ): Promise<{ success: boolean; data?: Check; error?: string }> {
+    try {
+      await this.connectPromise;
+      const db = this.client.db("checkmate-core");
+      const checksCollection = db.collection("checks");
+
+      const check = await checksCollection.findOne({
+        textHash: textHash,
+      });
+
+      if (!check) {
+        return {
+          success: false,
+          error: `Check with textHash ${textHash} not found`,
+        };
+      }
+
+      // Convert _id to string for the external interface
+      return {
+        success: true,
+        data: {
+          ...check,
+          _id: check._id.toString(),
+        } as Check,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      this.logger.error(
+        { error, textHash },
+        "Failed to find check by text hash"
+      );
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -106,9 +134,9 @@ export default class extends WorkerEntrypoint<Env> {
     id: string,
     data: Partial<Omit<Check, "_id">>
   ): Promise<{ success: boolean; error?: string }> {
-    const client = new MongoClient(this.env.MONGODB_CONNECTION_STRING);
     try {
-      const db = client.db("checkmate-core");
+      await this.connectPromise;
+      const db = this.client.db("checkmate-core");
       const checksCollection = db.collection("checks");
 
       const result = await checksCollection.updateOne(
@@ -127,17 +155,65 @@ export default class extends WorkerEntrypoint<Env> {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      logger.error({ error, id, data }, "Failed to update check");
+      this.logger.error({ error, id, data }, "Failed to update check");
       return { success: false, error: errorMessage };
-    } finally {
-      await client.close();
+    }
+  }
+
+  async updateCheckWithChanges(
+    id: string,
+    data: Partial<Omit<Check, "_id">> & Record<string, any>
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    changes?: {
+      becameHumanAssessed: boolean;
+      becameDownvoted: boolean;
+    };
+  }> {
+    try {
+      await this.connectPromise;
+      const db = this.client.db("checkmate-core");
+      const checksCollection = db.collection("checks");
+
+      // Get the document before update atomically
+      const result = await checksCollection.findOneAndUpdate(
+        { _id: new ObjectId(id) },
+        { $set: data },
+        { returnDocument: "before" }
+      );
+
+      if (!result) {
+        return {
+          success: false,
+          error: `Check with id ${id} not found`,
+        };
+      }
+
+      const oldDoc = result as any;
+
+      // Calculate what changed
+      const changes = {
+        becameHumanAssessed:
+          !oldDoc.isHumanAssessed && data.isHumanAssessed === true,
+        becameDownvoted:
+          !oldDoc.shortformResponse?.downvoted &&
+          data["shortformResponse.downvoted"] === true,
+      };
+
+      return { success: true, changes };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      this.logger.error({ error, id, data }, "Failed to update check with changes");
+      return { success: false, error: errorMessage };
     }
   }
 
   async deleteCheck(id: string): Promise<{ success: boolean; error?: string }> {
-    const client = new MongoClient(this.env.MONGODB_CONNECTION_STRING);
     try {
-      const db = client.db("checkmate-core");
+      await this.connectPromise;
+      const db = this.client.db("checkmate-core");
       const checksCollection = db.collection("checks");
 
       const result = await checksCollection.deleteOne({
@@ -155,10 +231,8 @@ export default class extends WorkerEntrypoint<Env> {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      logger.error({ error, id }, "Failed to delete check");
+      this.logger.error({ error, id }, "Failed to delete check");
       return { success: false, error: errorMessage };
-    } finally {
-      await client.close();
     }
   }
 
@@ -169,9 +243,9 @@ export default class extends WorkerEntrypoint<Env> {
     checkId?: string;
     error?: string;
   }> {
-    const client = new MongoClient(this.env.MONGODB_CONNECTION_STRING);
     try {
-      const db = client.db("checkmate-core");
+      await this.connectPromise;
+      const db = this.client.db("checkmate-core");
       const submissionsCollection = db.collection("submissions");
 
       const newId = new ObjectId();
@@ -196,19 +270,17 @@ export default class extends WorkerEntrypoint<Env> {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      logger.error({ error, submission }, "Failed to insert submission");
+      this.logger.error({ error, submission }, "Failed to insert submission");
       return { success: false, error: errorMessage };
-    } finally {
-      await client.close();
     }
   }
 
   async findSubmissionById(
     id: string
   ): Promise<{ success: boolean; data?: Submission; error?: string }> {
-    const client = new MongoClient(this.env.MONGODB_CONNECTION_STRING);
     try {
-      const db = client.db("checkmate-core");
+      await this.connectPromise;
+      const db = this.client.db("checkmate-core");
       const submissionsCollection = db.collection("submissions");
 
       const submission = await submissionsCollection.findOne({
@@ -234,10 +306,8 @@ export default class extends WorkerEntrypoint<Env> {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      logger.error({ error, id }, "Failed to find submission");
+      this.logger.error({ error, id }, "Failed to find submission");
       return { success: false, error: errorMessage };
-    } finally {
-      await client.close();
     }
   }
 
@@ -245,9 +315,9 @@ export default class extends WorkerEntrypoint<Env> {
     id: string,
     data: Partial<Omit<Submission, "_id">>
   ): Promise<{ success: boolean; error?: string }> {
-    const client = new MongoClient(this.env.MONGODB_CONNECTION_STRING);
     try {
-      const db = client.db("checkmate-core");
+      await this.connectPromise;
+      const db = this.client.db("checkmate-core");
       const submissionsCollection = db.collection("submissions");
 
       // Handle checkId conversion if it's being updated
@@ -274,19 +344,17 @@ export default class extends WorkerEntrypoint<Env> {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      logger.error({ error, id, data }, "Failed to update submission");
+      this.logger.error({ error, id, data }, "Failed to update submission");
       return { success: false, error: errorMessage };
-    } finally {
-      await client.close();
     }
   }
 
   async deleteSubmission(
     id: string
   ): Promise<{ success: boolean; error?: string }> {
-    const client = new MongoClient(this.env.MONGODB_CONNECTION_STRING);
     try {
-      const db = client.db("checkmate-core");
+      await this.connectPromise;
+      const db = this.client.db("checkmate-core");
       const submissionsCollection = db.collection("submissions");
 
       const result = await submissionsCollection.deleteOne({
@@ -304,20 +372,17 @@ export default class extends WorkerEntrypoint<Env> {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      logger.error({ error, id }, "Failed to delete submission");
+      this.logger.error({ error, id }, "Failed to delete submission");
       return { success: false, error: errorMessage };
-    } finally {
-      await client.close();
     }
   }
 
-  // Add method to find submissions by checkId
   async findSubmissionsByCheckId(
     checkId: string
   ): Promise<{ success: boolean; data?: Submission[]; error?: string }> {
-    const client = new MongoClient(this.env.MONGODB_CONNECTION_STRING);
     try {
-      const db = client.db("checkmate-core");
+      await this.connectPromise;
+      const db = this.client.db("checkmate-core");
       const submissionsCollection = db.collection("submissions");
 
       const submissions = await submissionsCollection
@@ -335,10 +400,11 @@ export default class extends WorkerEntrypoint<Env> {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      logger.error({ error, checkId }, "Failed to find submissions by checkId");
+      this.logger.error(
+        { error, checkId },
+        "Failed to find submissions by checkId"
+      );
       return { success: false, error: errorMessage };
-    } finally {
-      await client.close();
     }
   }
 
@@ -359,8 +425,8 @@ export default class extends WorkerEntrypoint<Env> {
     >;
     error?: string;
   }> {
-    const client = new MongoClient(this.env.MONGODB_CONNECTION_STRING);
     try {
+      await this.connectPromise;
       if (embedding.length !== 384) {
         return {
           success: false,
@@ -368,8 +434,16 @@ export default class extends WorkerEntrypoint<Env> {
         };
       }
 
-      const db = client.db("checkmate-core");
+      const db = this.client.db("checkmate-core");
       const checksCollection = db.collection("checks");
+
+      const filter: Partial<Pick<Check, "isExpired" | "isHumanAssessed">> = {
+        isExpired: false,
+      };
+
+      if (this.env.ENVIRONMENT === "production") {
+        filter.isHumanAssessed = true;
+      }
 
       const pipeline = [
         {
@@ -379,7 +453,7 @@ export default class extends WorkerEntrypoint<Env> {
             path: "embeddings.text",
             numCandidates: limit * 10,
             limit: limit,
-            filter: { isExpired: false },
+            filter: filter,
           },
         },
         {
@@ -409,10 +483,149 @@ export default class extends WorkerEntrypoint<Env> {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      logger.error({ error }, "Failed to perform vector search");
+      this.logger.error({ error }, "Failed to perform vector search");
       return { success: false, error: errorMessage };
-    } finally {
-      await client.close();
     }
+  }
+}
+
+// Main worker class that routes requests through Durable Object
+export default class extends WorkerEntrypoint<Env> {
+  private logger = createLogger("database-service");
+
+  // Get or create a Durable Object instance
+  private getDurableObject() {
+    // Use a consistent ID for the database connection pool
+    const id = this.env.DATABASE_DURABLE_OBJECT.idFromName("mongodb-pool");
+    return this.env.DATABASE_DURABLE_OBJECT.get(id);
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    try {
+      // Simple health check endpoint
+      return new Response(
+        JSON.stringify({ status: "healthy", service: "database-service" }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    } catch (error) {
+      this.logger.error({ error }, "Error handling health check request");
+      return new Response(
+        JSON.stringify({ success: false, error: "Internal server error" }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  }
+
+  // Delegate all database methods to the Durable Object
+  async insertCheck(
+    check: Omit<Check, "_id">,
+    customId?: string
+  ): Promise<{ success: boolean; id?: string; error?: string }> {
+    const durableObject = this.getDurableObject();
+    return durableObject.insertCheck(check, customId);
+  }
+
+  async findCheckById(
+    id: string
+  ): Promise<{ success: boolean; data?: Check; error?: string }> {
+    const durableObject = this.getDurableObject();
+    return durableObject.findCheckById(id);
+  }
+
+  async findCheckByTextHash(
+    textHash: string
+  ): Promise<{ success: boolean; data?: Check; error?: string }> {
+    const durableObject = this.getDurableObject();
+    return durableObject.findCheckByTextHash(textHash);
+  }
+
+  async updateCheck(
+    id: string,
+    data: Partial<Omit<Check, "_id">>
+  ): Promise<{ success: boolean; error?: string }> {
+    const durableObject = this.getDurableObject();
+    return durableObject.updateCheck(id, data);
+  }
+
+  async updateCheckWithChanges(
+    id: string,
+    data: Partial<Omit<Check, "_id">> & Record<string, any>
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    changes?: {
+      becameHumanAssessed: boolean;
+      becameDownvoted: boolean;
+    };
+  }> {
+    const durableObject = this.getDurableObject();
+    return durableObject.updateCheckWithChanges(id, data);
+  }
+
+  async deleteCheck(id: string): Promise<{ success: boolean; error?: string }> {
+    const durableObject = this.getDurableObject();
+    return durableObject.deleteCheck(id);
+  }
+
+  async insertSubmission(submission: Omit<Submission, "_id">): Promise<{
+    success: boolean;
+    id?: string;
+    checkId?: string;
+    error?: string;
+  }> {
+    const durableObject = this.getDurableObject();
+    return durableObject.insertSubmission(submission);
+  }
+
+  async findSubmissionById(
+    id: string
+  ): Promise<{ success: boolean; data?: Submission; error?: string }> {
+    const durableObject = this.getDurableObject();
+    return durableObject.findSubmissionById(id);
+  }
+
+  async updateSubmission(
+    id: string,
+    data: Partial<Omit<Submission, "_id">>
+  ): Promise<{ success: boolean; error?: string }> {
+    const durableObject = this.getDurableObject();
+    return durableObject.updateSubmission(id, data);
+  }
+
+  async deleteSubmission(
+    id: string
+  ): Promise<{ success: boolean; error?: string }> {
+    const durableObject = this.getDurableObject();
+    return durableObject.deleteSubmission(id);
+  }
+
+  async findSubmissionsByCheckId(
+    checkId: string
+  ): Promise<{ success: boolean; data?: Submission[]; error?: string }> {
+    const durableObject = this.getDurableObject();
+    return durableObject.findSubmissionsByCheckId(checkId);
+  }
+
+  async vectorSearch(
+    embedding: number[],
+    limit: number = 5
+  ): Promise<{
+    success: boolean;
+    data?: Array<
+      Pick<
+        Check,
+        "text" | "timestamp" | "shortformResponse" | "crowdsourcedCategory"
+      > & {
+        id: string;
+        score: number;
+      }
+    >;
+    error?: string;
+  }> {
+    const durableObject = this.getDurableObject();
+    return durableObject.vectorSearch(embedding, limit);
   }
 }

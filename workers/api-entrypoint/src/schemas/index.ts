@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Bool, Str } from "chanfana";
+import { Bool, DateTime, Str } from "chanfana";
 
 // Schema for individual API usage statistics
 export const ApiCountSchema = z.object({
@@ -34,3 +34,27 @@ export const SuccessResponseSchema = <T extends z.ZodTypeAny>(
     success: Bool({ description: "Indicates the operation was successful" }),
     result: resultSchema,
   });
+
+export const CheckResultSchema = z.object({
+  report: z.object({
+    en: Str(),
+    cn: Str().nullable(),
+    links: z.array(Str()),
+    timestamp: DateTime(),
+  }),
+  communityNote: z.object({
+    en: Str(),
+    cn: Str(),
+    links: z.array(Str()),
+    downvoted: z.boolean().nullable(),
+    timestamp: DateTime(),
+  }),
+  isControversial: Bool(),
+  isVideo: Bool(),
+  isAccessBlocked: Bool(),
+  title: Str(),
+  slug: Str(),
+  timestamp: DateTime(),
+  isHumanAssessed: Bool(),
+  isVoteTriggered: Bool(),
+});

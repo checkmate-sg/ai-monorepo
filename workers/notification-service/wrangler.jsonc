@@ -4,67 +4,52 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "database-service",
+  "name": "notification-service",
   "main": "src/index.ts",
   "compatibility_date": "2025-02-24",
-  "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
   },
-  /**
-   * Durable Objects binding for MongoDB connection pooling
-   * This allows the worker to maintain persistent database connections
-   */
-  "durable_objects": {
-    "bindings": [
-      {
-        "name": "DATABASE_DURABLE_OBJECT",
-        "class_name": "DatabaseDurableObject"
-      }
-    ]
-  },
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_classes": ["DatabaseDurableObject"]
-    }
-  ],
   /**
    * Dev configuration
    * Configuration for local development environment
    */
   "dev": {
-    "port": 8795
+    "port": 8797
   },
-
+  "services": [
+    { "binding": "DATABASE_SERVICE", "service": "database-service" }
+  ],
   /**
    * Environment-specific configurations
    */
   "env": {
     "staging": {
-      "name": "database-service-staging",
-      "durable_objects": {
-        "bindings": [
-          {
-            "name": "DATABASE_DURABLE_OBJECT",
-            "class_name": "DatabaseDurableObject"
-          }
-        ]
-      }
+      "name": "notification-service-staging",
+      "services": [
+        { "binding": "DATABASE_SERVICE", "service": "database-service-staging" }
+      ],
+      "routes": [
+        {
+          "pattern": "admin-notifications.staging.checkmate.sg",
+          "custom_domain": true
+        }
+      ]
     },
     "production": {
-      "name": "database-service",
-      "durable_objects": {
-        "bindings": [
-          {
-            "name": "DATABASE_DURABLE_OBJECT",
-            "class_name": "DatabaseDurableObject"
-          }
-        ]
-      },
+      "name": "notification-service",
       "tail_consumers": [
         {
           "service": "tail-consumer-service"
+        }
+      ],
+      "services": [
+        { "binding": "DATABASE_SERVICE", "service": "database-service" }
+      ],
+      "routes": [
+        {
+          "pattern": "admin-notifications.checkmate.sg",
+          "custom_domain": true
         }
       ]
     }

@@ -3,6 +3,7 @@ import {
   createLogger,
   getProviderFromModel,
   getSlugFromTitle,
+  hashText,
 } from "@workspace/shared-utils";
 import { Logger } from "pino";
 import type OpenAI from "openai";
@@ -14,6 +15,7 @@ import {
   AgentResult,
   LLMProvider,
   ErrorType,
+  Report,
 } from "@workspace/shared-types";
 import type {
   ChatCompletion,
@@ -384,6 +386,11 @@ export class CheckerAgent extends DurableObject<Env> {
   }
 
   async check(request: AgentRequest, id: string): Promise<AgentResult> {
+    let notificationId: number | null = null;
+    let communityNote: CommunityNote | null = null;
+    let isControversial = false;
+    let slug: string | null = null;
+    let generationStatus: string = "pending";
     const model = request.model || "gpt-4.1-mini"; //default is gpt-4.1-mini
     const provider = getProviderFromModel(model);
     const consumerName = request.consumerName || "unknown consumer";
@@ -391,7 +398,7 @@ export class CheckerAgent extends DurableObject<Env> {
       throw new Error("ID is required");
     }
     this.id = id;
-    this.langfuseTraceId = request.id ?? id;
+    this.langfuseTraceId = id;
     this.logger = this.logger.child({ id, requestId: request.id });
     request.id = id; // to log consistently with mongoDB ID as checkId,
     const trace = this.langfuse.trace({
@@ -419,10 +426,12 @@ export class CheckerAgent extends DurableObject<Env> {
         }
         this.type = "image";
       }
+      const timestamp = new Date();
 
       // Create the check record in MongoDB with the ID passed from the worker
       try {
-        // Create ObjectId from this.id (the ID passed from the worker)
+        // hash the text if it exists
+        const textHash = this.text ? await hashText(this.text) : null;
 
         // Create the record immediately with null embeddings
         const insertResult = await this.env.DATABASE_SERVICE.insertCheck(
@@ -434,28 +443,35 @@ export class CheckerAgent extends DurableObject<Env> {
             embeddings: {
               text: null,
             },
-            textHash: "", // To be calculated later
+            textHash: textHash,
             type: this.type || "text",
             generationStatus: "pending",
             isControversial: false,
             isAccessBlocked: false,
             isVideo: false,
-            timestamp: new Date(),
+            timestamp: timestamp,
             longformResponse: {
               en: null,
               cn: null,
               links: null,
+              timestamp: null,
             },
             shortformResponse: {
               en: null,
               cn: null,
-              downvoted: null,
+              downvoted: false,
               links: null,
+              timestamp: null,
             },
+            humanResponse: null,
             machineCategory: null,
-            crowdsourcedCategory: null,
+            crowdsourcedCategory: "unsure",
             pollId: null,
             isExpired: false,
+            isHumanAssessed: false,
+            isVoteTriggered: false,
+            isApprovedForPublishing: false,
+            approvedBy: null,
           },
           id // Pass the ObjectId to use as the document _id
         );
@@ -464,6 +480,23 @@ export class CheckerAgent extends DurableObject<Env> {
           throw new Error(
             `Failed to create check record: ${insertResult.error}`
           );
+        }
+
+        try {
+          if (this.env.SEND_NOTIFICATIONS) {
+            notificationId =
+              await this.env.NOTIFICATION_SERVICE.sendNewCheckNotification({
+                id: this.id,
+                agentRequest: request,
+              });
+            this.state.waitUntil(
+              this.env.DATABASE_SERVICE.updateCheck(this.id, {
+                notificationId: notificationId,
+              })
+            );
+          }
+        } catch (error) {
+          this.logger.error("Failed to send new check notification");
         }
 
         // Try to embed text as a background operation if applicable
@@ -522,7 +555,7 @@ export class CheckerAgent extends DurableObject<Env> {
       this.isVideo = preprocessingResult.result.isVideo;
       this.title = preprocessingResult.result.title ?? null;
 
-      const slug = this.title ? getSlugFromTitle(this.title, this.id) : null;
+      slug = this.title ? getSlugFromTitle(this.title, this.id) : null;
 
       // Update check with preprocessing results as a background operation
       this.state.waitUntil(
@@ -547,7 +580,7 @@ export class CheckerAgent extends DurableObject<Env> {
       }
       const report = agentLoopResult.report;
       const sources = agentLoopResult.sources;
-      const isControversial = agentLoopResult.is_controversial;
+      isControversial = agentLoopResult.is_controversial;
       // update the necessary fields in the check record
       this.state.waitUntil(
         this.env.DATABASE_SERVICE.updateCheck(this.id, {
@@ -556,6 +589,7 @@ export class CheckerAgent extends DurableObject<Env> {
             en: report,
             cn: null,
             links: sources,
+            timestamp: timestamp,
           },
         }).catch((error) => {
           this.logger.error("Failed to update check");
@@ -584,47 +618,82 @@ export class CheckerAgent extends DurableObject<Env> {
 
       const cnSummary = cnResult.result.translatedText;
 
-      const communityNote: CommunityNote = {
+      communityNote = {
         en: summary,
         cn: cnSummary,
         links: sources,
+        downvoted: false,
+        timestamp: timestamp,
+      };
+
+      const longformReport: Report = {
+        en: report,
+        cn: null,
+        links: sources,
+        timestamp: timestamp,
       };
 
       const agentResponse: AgentResponse = {
         id: this.id,
         success: true,
         result: {
-          report,
+          report: longformReport,
           communityNote,
+          humanNote: null,
           isControversial,
+          text: this.text ?? null,
+          imageUrl: this.imageUrl ?? null,
+          caption: this.caption ?? null,
           isVideo: this.isVideo,
           isAccessBlocked: this.isAccessBlocked,
           title: this.title,
           slug: slug,
+          timestamp: timestamp,
+          isHumanAssessed: false,
+          isVoteTriggered: false,
+          crowdsourcedCategory: null,
         },
       };
 
       // Update check with complete results as a background operation
+      generationStatus = "completed";
       this.state.waitUntil(
         this.env.DATABASE_SERVICE.updateCheck(this.id, {
-          generationStatus: "completed",
+          generationStatus: generationStatus,
           isControversial,
           longformResponse: {
             en: report,
             cn: null, // Could translate the full report if needed
             links: sources,
+            timestamp: timestamp,
           },
           shortformResponse: {
             en: summary,
             cn: cnSummary,
             downvoted: false,
             links: sources,
+            timestamp: timestamp,
           },
         }).catch((error) => {
           this.logger.error("Failed to update check");
           throw error;
         })
       );
+
+      //notify block
+      if (this.env.SEND_NOTIFICATIONS) {
+        this.state.waitUntil(
+          this.env.NOTIFICATION_SERVICE.sendCommunityNoteNotification({
+            id: this.id,
+            replyId: notificationId,
+            communityNote: communityNote,
+            isAccessBlocked: this.isAccessBlocked,
+            isVideo: this.isVideo,
+            isControversial: isControversial,
+            isError: false,
+          })
+        );
+      }
 
       trace.update({
         output: agentResponse,
@@ -655,17 +724,33 @@ export class CheckerAgent extends DurableObject<Env> {
         errorType = "error-other";
       }
 
+      generationStatus = errorType;
       // Update check with error status as a background operation
       this.state.waitUntil(
         this.env.DATABASE_SERVICE.updateCheck(this.id, {
-          generationStatus: errorType,
+          generationStatus: generationStatus,
         }).catch((error) => {
           this.logger.error("Failed to update check");
           throw error;
         })
       );
 
+      //TODO: send notification
+      if (this.env.SEND_NOTIFICATIONS) {
+        this.state.waitUntil(
+          this.env.NOTIFICATION_SERVICE.sendCommunityNoteNotification({
+            id: this.id,
+            replyId: notificationId,
+            communityNote: null,
+            isAccessBlocked: this.isAccessBlocked,
+            isVideo: this.isVideo,
+            isControversial: false,
+            isError: true,
+          })
+        );
+      }
       const errorReturn = {
+        id: this.id || id,
         error: { message: errorMessage },
         success: false as const,
       };
@@ -681,6 +766,44 @@ export class CheckerAgent extends DurableObject<Env> {
       });
       return errorReturn;
     } finally {
+      //trigger voting block
+      try {
+        await fetch(`${this.env.CHECKERS_APP_URL}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": this.env.CHECKERS_APP_API_KEY,
+          },
+          body: JSON.stringify({
+            id: this.id,
+            machineCategory: "unsure",
+            isMachineCategorised: false,
+            imageUrl: this.imageUrl ?? null,
+            text: this.text ?? null,
+            caption: this.caption ?? null,
+            isControversial: isControversial,
+            communityNoteStatus: generationStatus,
+            communityNote: communityNote,
+            isCommunityNoteUsable:
+              generationStatus === "completed" &&
+              !this.isAccessBlocked &&
+              !this.isVideo,
+            isIrrelevant: false,
+            title: this.title ?? null,
+            slug: slug,
+          }),
+        });
+        this.state.waitUntil(
+          this.env.DATABASE_SERVICE.updateCheck(this.id, {
+            isVoteTriggered: true,
+          }).catch((error) => {
+            this.logger.error("Failed to update check");
+            throw error;
+          })
+        );
+      } catch (error) {
+        this.logger.error("Voting failed to trigger");
+      }
       this.state.waitUntil(this.langfuse.flushAsync());
     }
   }

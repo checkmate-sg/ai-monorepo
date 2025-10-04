@@ -29,9 +29,15 @@ interface Env {
   } & ServiceWorkerGlobalScope;
 
   DATABASE_SERVICE: DatabaseServiceMethods & ServiceWorkerGlobalScope;
+  NOTIFICATION_SERVICE: NotificationServiceMethods & ServiceWorkerGlobalScope;
 
   LANGFUSE_PUBLIC_KEY: string;
   LANGFUSE_SECRET_KEY: string;
   LANGFUSE_HOST: string;
   ENVIRONMENT: string;
+
+  CORE_CHECK_EVENTS_QUEUE: Queue<unknown>;
+  CHECKERS_APP_URL: string;
+  CHECKERS_APP_API_KEY: string;
+  SEND_NOTIFICATIONS: boolean;
 }

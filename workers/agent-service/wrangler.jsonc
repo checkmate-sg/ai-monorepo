@@ -33,6 +33,9 @@
   "dev": {
     "port": 8788
   },
+  "vars": {
+    "SEND_NOTIFICATIONS": true
+  },
   /**
    * Smart Placement
    * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
@@ -71,8 +74,25 @@
     { "binding": "SEARCH_SERVICE", "service": "search-service" },
     { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" },
     { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
-    { "binding": "DATABASE_SERVICE", "service": "database-service" }
+    { "binding": "DATABASE_SERVICE", "service": "database-service" },
+    { "binding": "NOTIFICATION_SERVICE", "service": "notification-service" }
   ],
+  "queues": {
+    "producers": [
+      {
+        "queue": "core-check-events-queue",
+        "binding": "CORE_CHECK_EVENTS_QUEUE"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "checkers-poll-update-queue",
+        "max_batch_size": 1,
+        "max_batch_timeout": 1,
+        "max_retries": 0
+      }
+    ]
+  },
 
   /**
    * Environment-specific configurations
@@ -88,6 +108,21 @@
           }
         ]
       },
+      "queues": {
+        "producers": [
+          {
+            "queue": "core-check-events-queue",
+            "binding": "CORE_CHECK_EVENTS_QUEUE"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "checkers-poll-update-queue",
+            "max_batch_size": 1,
+            "max_batch_timeout": 1
+          }
+        ]
+      },
       "services": [
         {
           "binding": "SCREENSHOT_SERVICE",
@@ -96,13 +131,17 @@
         { "binding": "SEARCH_SERVICE", "service": "search-service" },
         { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" },
         { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
-        { "binding": "DATABASE_SERVICE", "service": "database-service" }
+        { "binding": "DATABASE_SERVICE", "service": "database-service" },
+        { "binding": "NOTIFICATION_SERVICE", "service": "notification-service" }
       ],
       "tail_consumers": [
         {
           "service": "tail-consumer-service"
         }
-      ]
+      ],
+      "vars": {
+        "SEND_NOTIFICATIONS": false
+      }
     },
     "staging": {
       "name": "agent-service-staging",
@@ -111,6 +150,21 @@
           {
             "class_name": "CheckerAgent",
             "name": "CHECKER_AGENT"
+          }
+        ]
+      },
+      "queues": {
+        "producers": [
+          {
+            "queue": "core-check-events-queue-staging",
+            "binding": "CORE_CHECK_EVENTS_QUEUE"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "checkers-poll-update-queue-staging",
+            "max_batch_size": 1,
+            "max_batch_timeout": 1
           }
         ]
       },
@@ -128,8 +182,18 @@
           "binding": "EMBEDDER_SERVICE",
           "service": "embedder-service-staging"
         },
-        { "binding": "DATABASE_SERVICE", "service": "database-service-staging" }
-      ]
+        {
+          "binding": "DATABASE_SERVICE",
+          "service": "database-service-staging"
+        },
+        {
+          "binding": "NOTIFICATION_SERVICE",
+          "service": "notification-service-staging"
+        }
+      ],
+      "vars": {
+        "SEND_NOTIFICATIONS": true
+      }
     }
   }
 }

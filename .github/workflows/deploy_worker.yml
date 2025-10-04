@@ -36,7 +36,7 @@ jobs:
         id: changed-workers
         run: |
           # Define all worker directories
-          ALL_WORKER_DIRS='["agent-service", "api-entrypoint", "database-service", "embedder-service", "screenshot-service", "search-service", "urlscan-service", "screenshot-backup-service", "trivialfilter-service", "blacklist-service"]'
+          ALL_WORKER_DIRS='["agent-service", "api-entrypoint", "database-service", "embedder-service", "screenshot-service", "search-service", "urlscan-service", "screenshot-backup-service", "trivialfilter-service", "blacklist-service", "notification-service"]'
 
           # Case 1: Manual trigger with force_deploy=true - deploy all workers
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
@@ -95,6 +95,7 @@ jobs:
           - trivialfilter-service
           - database-service
           - blacklist-service
+          - notification-service
     timeout-minutes: 60 # Set timeout to prevent hung deployments
     steps:
       - uses: actions/checkout@v4.2.2
@@ -115,7 +116,7 @@ jobs:
           fi
 
       - name: Deploy with Wrangler CLI
-        if: "steps.check-changes.outputs.has_changes == 'true'"
+        if: steps.check-changes.outputs.has_changes == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

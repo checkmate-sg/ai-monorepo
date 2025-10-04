@@ -1,5 +1,11 @@
 import { createLogger } from "@workspace/shared-utils";
-import { AgentRequest, AgentResult, Submission } from "@workspace/shared-types";
+import {
+  AgentRequest,
+  AgentResult,
+  Check,
+  Submission,
+  CheckUpdate,
+} from "@workspace/shared-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 export { CheckerAgent } from "./agent";
 import { searchInternal } from "./tools/search-internal";
@@ -60,6 +66,49 @@ export default class extends WorkerEntrypoint<Env> {
     }
   }
 
+  async getCheck(id: string): Promise<AgentResult> {
+    this.logger.info({ id }, "Getting check");
+    const check = (await this.env.DATABASE_SERVICE.findCheckById(id))
+      .data as Check;
+    if (!check) {
+      return {
+        success: false,
+        error: {
+          message: "Check not found",
+        },
+      };
+    } else {
+      this.logger.info({ check }, "Found check");
+      if (!check.longformResponse.timestamp) {
+        check.longformResponse.timestamp = check.timestamp;
+      }
+      if (!check.shortformResponse.timestamp) {
+        check.shortformResponse.timestamp = check.timestamp;
+      }
+      return {
+        success: true,
+        id: check._id,
+        result: {
+          report: check.longformResponse,
+          communityNote: check.shortformResponse,
+          humanNote: check.humanResponse,
+          isControversial: check.isControversial,
+          text: check.text,
+          imageUrl: check.imageUrl,
+          caption: check.caption,
+          isVideo: check.isVideo,
+          isAccessBlocked: check.isAccessBlocked,
+          title: check.title,
+          slug: check.slug,
+          timestamp: check.timestamp,
+          crowdsourcedCategory: check.crowdsourcedCategory,
+          isHumanAssessed: check.isHumanAssessed,
+          isVoteTriggered: check.isVoteTriggered,
+        },
+      };
+    }
+  }
+
   async check(request: AgentRequest): Promise<AgentResult> {
     // Initialize the repository if needed
 
@@ -82,9 +131,16 @@ export default class extends WorkerEntrypoint<Env> {
       };
       //find matching check
       if (request.findSimilar) {
-        const text = submission.text || submission.caption || "";
+        const text = submission.text;
         if (text) {
-          const searchResult = await searchInternal(text, this.env);
+          const searchResult = await searchInternal(
+            text,
+            this.env,
+            null,
+            null,
+            this.logger,
+            true
+          );
 
           if (
             searchResult.success &&
@@ -92,12 +148,38 @@ export default class extends WorkerEntrypoint<Env> {
             searchResult.result.id
           ) {
             checkId = searchResult.result.id;
-            //TODO: get the check from the database and return the necessary data
+            const check = await this.getCheck(checkId);
+            if (check.success) {
+              // Found matching check - insert submission and return existing result
+              submission.checkId = checkId;
+              submission.checkStatus = "completed";
+
+              const insertResult =
+                await this.env.DATABASE_SERVICE.insertSubmission(submission);
+
+              if (!insertResult.success) {
+                throw new Error("Failed to insert submission");
+              }
+
+              this.logger.info(
+                {
+                  checkId,
+                  submissionId: insertResult.id,
+                  similarityScore: searchResult.result.similarityScore,
+                },
+                "Returning existing check result for similar submission"
+              );
+
+              return check;
+            } else {
+              this.logger.error(
+                { check },
+                "Failed to get check from search result"
+              );
+            }
           }
         }
       }
-
-      submission.checkId = checkId;
 
       const result = await this.env.DATABASE_SERVICE.insertSubmission(
         submission
@@ -167,6 +249,39 @@ export default class extends WorkerEntrypoint<Env> {
           message: errorMessage,
         },
       };
+    }
+  }
+
+  async queue(batch: MessageBatch<unknown>): Promise<void> {
+    this.logger.info({ batch }, "Consuming from queue");
+    const messages = batch.messages;
+    for (const message of messages) {
+      const update = message.body as CheckUpdate;
+
+      const result = await this.env.DATABASE_SERVICE.updateCheckWithChanges(
+        update.id,
+        {
+          isHumanAssessed: update.isHumanAssessed ?? false,
+          "shortformResponse.downvoted":
+            update.isCommunityNoteDownvoted ?? false,
+          crowdsourcedCategory: update.crowdsourcedCategory ?? "unsure",
+        }
+      );
+
+      if (result.success && result.changes) {
+        if (result.changes.becameHumanAssessed) {
+          await this.env.CORE_CHECK_EVENTS_QUEUE.send({
+            checkId: update.id,
+            type: "assessed",
+          });
+        }
+        if (result.changes.becameDownvoted) {
+          await this.env.CORE_CHECK_EVENTS_QUEUE.send({
+            checkId: update.id,
+            type: "downvoted",
+          });
+        }
+      }
     }
   }
 }

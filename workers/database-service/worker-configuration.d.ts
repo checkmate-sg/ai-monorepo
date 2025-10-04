@@ -2,4 +2,6 @@
 
 interface Env {
   MONGODB_CONNECTION_STRING: string;
+  ENVIRONMENT: "production" | "staging";
+  DATABASE_DURABLE_OBJECT: DurableObjectNamespace<import("./src/index").DatabaseDurableObject>;
 }
