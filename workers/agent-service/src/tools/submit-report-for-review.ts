@@ -2,7 +2,7 @@ import { Tool } from "./types";
 import type { ReviewResult } from "./types";
 import { createClient } from "@workspace/shared-llm-client";
 import { observeOpenAI } from "langfuse";
-import { withLangfuseSpan } from "./utils";
+import { withLangfuseSpan, withTimeout } from "./utils";
 
 export interface SubmitReportForReviewParams {
   report: string;
@@ -121,16 +121,24 @@ export const submitReportForReviewTool: Tool<
           formatted_sources: formattedSources,
         });
 
-        // Make the API call to review the report
-        const response = await observedClient.chat.completions.create({
-          model: config.model || "o3-mini",
-          reasoning_effort: (config.reasoning_effort || "medium") as
-            | "low"
-            | "medium"
-            | "high",
-          messages: messages as any[],
-          response_format: config.response_format,
-        });
+        context.logger.info("Starting O3 API call with timeout");
+
+        // Make the API call to review the report with timeout
+        const response = await withTimeout(
+          observedClient.chat.completions.create({
+            model: config.model || "o3-mini",
+            reasoning_effort: (config.reasoning_effort || "medium") as
+              | "low"
+              | "medium"
+              | "high",
+            messages: messages as any[],
+            response_format: config.response_format,
+          }),
+          30000, // 30 seconds timeout
+          "O3 API call"
+        );
+
+        context.logger.info("O3 API call completed");
 
         // Parse the result - handle null case
         const content = response.choices[0].message.content || "{}";

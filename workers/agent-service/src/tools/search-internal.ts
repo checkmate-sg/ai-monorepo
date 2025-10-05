@@ -1,6 +1,6 @@
 import { CommunityNote } from "@workspace/shared-types";
 import { Tool, ToolContext } from "./types";
-import { withLangfuseSpan } from "./utils";
+import { withLangfuseSpan, withTimeout } from "./utils";
 import type { ErrorResponse, ServiceResponse } from "@workspace/shared-types";
 import { createLogger, hashText } from "@workspace/shared-utils";
 import { Embedding } from "openai/resources/embeddings";
@@ -301,13 +301,17 @@ export async function searchInternal(
           text1,
           text2,
         }) as any[];
-        const response = await observedClient.chat.completions.create({
-          model: config.model || "gpt-4.1-mini",
-          temperature: config.temperature || 0.0,
-          seed: config.seed || 11,
-          messages: messages as any[],
-          response_format: config.response_format,
-        });
+        const response = await withTimeout(
+          observedClient.chat.completions.create({
+            model: config.model || "gpt-4.1-mini",
+            temperature: config.temperature || 0.0,
+            seed: config.seed || 11,
+            messages: messages as any[],
+            response_format: config.response_format,
+          }),
+          30000, // 30 seconds timeout
+          "Confirm same claim LLM call"
+        );
         const content = response.choices[0].message.content;
         const result = JSON.parse(content || "{}");
 
