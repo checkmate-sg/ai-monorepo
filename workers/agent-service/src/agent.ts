@@ -388,6 +388,7 @@ export class CheckerAgent extends DurableObject<Env> {
 
   async check(request: AgentRequest, id: string): Promise<AgentResult> {
     let notificationId: number | null = null;
+    let communityNoteNotificationId: number | null = null;
     let communityNote: CommunityNote | null = null;
     let isControversial = false;
     let slug: string | null = null;
@@ -697,18 +698,17 @@ export class CheckerAgent extends DurableObject<Env> {
       );
 
       //notify block
-      if (!this.env.IS_ROLLBACK) {
-        this.state.waitUntil(
-          this.env.NOTIFICATION_SERVICE.sendCommunityNoteNotification({
-            id: this.id,
-            replyId: notificationId,
-            communityNote: communityNote,
-            isAccessBlocked: this.isAccessBlocked,
-            isVideo: this.isVideo,
-            isControversial: isControversial,
-            isError: false,
-          })
-        );
+      try {
+        if (!this.env.IS_ROLLBACK) {
+          communityNoteNotificationId =
+            await this.env.NOTIFICATION_SERVICE.sendCommunityNoteNotification({
+              id: this.id,
+              replyId: notificationId,
+              communityNote: communityNote,
+            });
+        }
+      } catch (error) {
+        this.logger.error("Failed to send community note notification");
       }
 
       trace.update({
@@ -808,6 +808,8 @@ export class CheckerAgent extends DurableObject<Env> {
               isIrrelevant: false,
               title: this.title ?? null,
               slug: slug,
+              messageNotificationId: notificationId ?? null,
+              communityNoteNotificationId: communityNoteNotificationId ?? null,
             }),
           });
 
