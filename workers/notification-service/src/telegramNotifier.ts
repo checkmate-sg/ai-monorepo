@@ -79,11 +79,16 @@ export class TelegramNotificationHandler {
           replyMarkup.inline_keyboard.push([approveButton]);
         }
       }
-      await this.bot.api.sendMessage(this.env.ADMIN_CHAT_ID, notificationText, {
-        reply_to_message_id:
-          replyId ?? parseInt(this.env.MESSAGE_FEED_TOPIC_ID),
-        reply_markup: replyMarkup,
-      });
+      const message = await this.bot.api.sendMessage(
+        this.env.ADMIN_CHAT_ID,
+        notificationText,
+        {
+          reply_to_message_id:
+            replyId ?? parseInt(this.env.MESSAGE_FEED_TOPIC_ID),
+          reply_markup: replyMarkup,
+        }
+      );
+      return message.message_id;
     } catch (error) {
       throw new Error("Failed to send community note notification");
     }
