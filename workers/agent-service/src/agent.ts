@@ -5,6 +5,7 @@ import {
   getSlugFromTitle,
   hashText,
 } from "@workspace/shared-utils";
+import { withTimeout } from "./tools/utils";
 import { Logger } from "pino";
 import type OpenAI from "openai";
 import { createClient } from "@workspace/shared-llm-client";
@@ -539,8 +540,10 @@ export class CheckerAgent extends DurableObject<Env> {
         throw error;
       }
 
-      const preprocessingResult = await this.tools.preprocess_inputs.execute(
-        request
+      const preprocessingResult = await withTimeout(
+        this.tools.preprocess_inputs.execute(request),
+        30000, // 2 minutes timeout
+        "Preprocess inputs"
       );
 
       if (!preprocessingResult.success) {
@@ -572,8 +575,12 @@ export class CheckerAgent extends DurableObject<Env> {
       );
 
       const startingContent = preprocessingResult.result.startingContent;
-      // Run the agent loop and return results
-      const agentLoopResult = await this.agentLoop(startingContent);
+      // Run the agent loop and return results with timeout
+      const agentLoopResult = await withTimeout(
+        this.agentLoop(startingContent),
+        120000, // 2 minutes timeout for entire agent loop
+        "Agent loop"
+      );
       if (!agentLoopResult.success || "error" in agentLoopResult) {
         // Don't update status here, just throw the error to be caught in the final catch block
         throw new Error(`Agent loop failed: ${agentLoopResult.error.message}`);
@@ -596,9 +603,13 @@ export class CheckerAgent extends DurableObject<Env> {
           throw error;
         })
       );
-      const summariseResult = await this.tools.summarise_report.execute({
-        report,
-      });
+      const summariseResult = await withTimeout(
+        this.tools.summarise_report.execute({
+          report,
+        }),
+        30000, // 2 minutes timeout
+        "Summarise report"
+      );
       if (!summariseResult.success) {
         // Don't update status here, just throw the error to be caught in the final catch block
         throw new Error(
@@ -607,10 +618,14 @@ export class CheckerAgent extends DurableObject<Env> {
       }
       const summary = summariseResult.result.summary;
 
-      const cnResult = await this.tools.translate_text.execute({
-        text: summary,
-        language: "cn",
-      });
+      const cnResult = await withTimeout(
+        this.tools.translate_text.execute({
+          text: summary,
+          language: "cn",
+        }),
+        30000, // 2 minutes timeout
+        "Translate text"
+      );
       if (!cnResult.success) {
         // Don't update status here, just throw the error to be caught in the final catch block
         throw new Error(`Translate text failed: ${cnResult.error.message}`);
@@ -769,7 +784,7 @@ export class CheckerAgent extends DurableObject<Env> {
       //trigger voting block
       try {
         if (!this.env.IS_ROLLBACK) {
-          await fetch(`${this.env.CHECKERS_APP_URL}`, {
+          const response = await fetch(`${this.env.CHECKERS_APP_URL}`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -794,6 +809,13 @@ export class CheckerAgent extends DurableObject<Env> {
               slug: slug,
             }),
           });
+
+          // Consume the response body to free the connection
+          if (response.ok) {
+            await response.text(); // or response.json() if you need the data
+          } else {
+            response.body?.cancel(); // Free connection on error
+          }
           this.state.waitUntil(
             this.env.DATABASE_SERVICE.updateCheck(this.id, {
               isVoteTriggered: true,

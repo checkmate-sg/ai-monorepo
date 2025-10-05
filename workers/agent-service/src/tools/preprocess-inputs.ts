@@ -1,7 +1,7 @@
 import { Tool, PreprocessResult } from "./types";
 import { createClient } from "@workspace/shared-llm-client";
 import { observeOpenAI } from "langfuse";
-import { withLangfuseSpan, getOpenAIContent } from "./utils";
+import { withLangfuseSpan, getOpenAIContent, withTimeout } from "./utils";
 import { AgentRequest } from "@workspace/shared-types";
 import urlRegexSafe from "url-regex-safe";
 import normalizeUrl from "normalize-url";
@@ -226,13 +226,17 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
         });
 
         // Make the API call to review the report
-        const response = await observedClient.chat.completions.create({
-          model: config.model || "gpt-4o",
-          temperature: config.temperature || 0.0,
-          seed: config.seed || 11,
-          messages: messages as any[],
-          response_format: config.response_format,
-        });
+        const response = await withTimeout(
+          observedClient.chat.completions.create({
+            model: config.model || "gpt-4o",
+            temperature: config.temperature || 0.0,
+            seed: config.seed || 11,
+            messages: messages as any[],
+            response_format: config.response_format,
+          }),
+          30000, // 30 seconds timeout
+          "Preprocess inputs LLM call"
+        );
 
         // Parse the result - handle null case
         const content = response.choices[0].message.content || "{}";
