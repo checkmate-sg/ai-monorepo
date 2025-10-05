@@ -14,6 +14,7 @@ import { ConsumerDelete } from "./endpoints/consumerDelete";
 import { ConsumerUpdateAPIs } from "./endpoints/consumerUpdateAPIs";
 import { GetCheck } from "./endpoints/checkGet";
 import { PatchCheck } from "./endpoints/checkPatch";
+import { PatchCheckHumanNote } from "./endpoints/checkHumanNotePatch";
 export { Consumer } from "./durable-objects/consumer";
 
 // Start a Hono app
@@ -31,6 +32,7 @@ app.use("/getCommunityNote", consumerAuth);
 app.use("/getNeedsChecking", consumerAuth);
 app.use("/upsertBlacklist", consumerAuth);
 app.use("/checks/:id", consumerAuth);
+app.use("/checks/:id/humanNote", consumerAuth);
 
 // Apply adminAuth middleware to admin routes
 app.use("/consumers", adminAuth);
@@ -57,6 +59,9 @@ openapi.get("/checks/:id", GetCheck);
 
 // Update the check details
 openapi.patch("/checks/:id", PatchCheck);
+
+// Update the check human note
+openapi.patch("/checks/:id/humanNote", PatchCheckHumanNote);
 
 // Upsert the phone number blacklist
 openapi.post("/upsertBlacklist", UpsertBlacklist);

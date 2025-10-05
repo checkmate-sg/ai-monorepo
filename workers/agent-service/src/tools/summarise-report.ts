@@ -1,7 +1,7 @@
 import { Tool } from "./types";
 import { createClient } from "@workspace/shared-llm-client";
 import { observeOpenAI } from "langfuse";
-import { withLangfuseSpan } from "./utils";
+import { withLangfuseSpan, withTimeout } from "./utils";
 import { SummariseReportResult } from "./types";
 import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
@@ -148,13 +148,17 @@ export const summariseReportTool: Tool<
         });
 
         // Make the API call to review the report
-        const response = await observedClient.chat.completions.create({
-          model: config.model || "gpt-4o",
-          temperature: config.temperature || 0.0,
-          seed: config.seed || 11,
-          response_format: config.response_format,
-          messages: messages as any[],
-        });
+        const response = await withTimeout(
+          observedClient.chat.completions.create({
+            model: config.model || "gpt-4o",
+            temperature: config.temperature || 0.0,
+            seed: config.seed || 11,
+            response_format: config.response_format,
+            messages: messages as any[],
+          }),
+          30000, // 30 seconds timeout
+          "Summarise report LLM call"
+        );
 
         // Parse the result - handle null case
         const content = response.choices[0].message.content || "{}";

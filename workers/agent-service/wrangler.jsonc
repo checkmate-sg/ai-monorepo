@@ -34,7 +34,7 @@
     "port": 8788
   },
   "vars": {
-    "SEND_NOTIFICATIONS": true
+    "IS_ROLLBACK": false
   },
   /**
    * Smart Placement
@@ -140,7 +140,7 @@
         }
       ],
       "vars": {
-        "SEND_NOTIFICATIONS": false
+        "IS_ROLLBACK": false
       }
     },
     "staging": {
@@ -192,7 +192,7 @@
         }
       ],
       "vars": {
-        "SEND_NOTIFICATIONS": true
+        "IS_ROLLBACK": false
       }
     }
   }

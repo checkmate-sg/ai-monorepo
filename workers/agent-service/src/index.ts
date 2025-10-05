@@ -5,6 +5,8 @@ import {
   Check,
   Submission,
   CheckUpdate,
+  ServiceResponse,
+  ErrorResponse,
 } from "@workspace/shared-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 export { CheckerAgent } from "./agent";
@@ -90,6 +92,7 @@ export default class extends WorkerEntrypoint<Env> {
         id: check._id,
         result: {
           report: check.longformResponse,
+          generationStatus: check.generationStatus,
           communityNote: check.shortformResponse,
           humanNote: check.humanResponse,
           isControversial: check.isControversial,
@@ -152,7 +155,10 @@ export default class extends WorkerEntrypoint<Env> {
             if (check.success) {
               // Found matching check - insert submission and return existing result
               submission.checkId = checkId;
-              submission.checkStatus = "completed";
+              submission.checkStatus = check.result.generationStatus as
+                | "pending"
+                | "completed"
+                | "error";
 
               const insertResult =
                 await this.env.DATABASE_SERVICE.insertSubmission(submission);
@@ -252,6 +258,53 @@ export default class extends WorkerEntrypoint<Env> {
     }
   }
 
+  async updateHumanResponse(
+    checkId: string,
+    humanNote: {
+      en: string | null;
+      cn: string | null;
+      links: string[] | null;
+      updatedBy: string;
+    }
+  ): Promise<ServiceResponse | ErrorResponse> {
+    try {
+      this.logger.info({ checkId, humanNote }, "Updating human response");
+
+      const humanResponse = {
+        en: humanNote.en,
+        cn: humanNote.cn,
+        links: humanNote.links,
+        timestamp: new Date(),
+        updatedBy: humanNote.updatedBy,
+      };
+
+      const result = await this.env.DATABASE_SERVICE.updateCheck(checkId, {
+        humanResponse,
+      });
+
+      if (!result.success) {
+        throw new Error("Failed to update human response");
+      }
+
+      this.logger.info({ checkId }, "Human response updated successfully");
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      this.logger.error({ checkId, error, errorMessage }, "Error updating human response");
+
+      return {
+        success: false,
+        error: {
+          message: errorMessage,
+        },
+      };
+    }
+  }
+
   async queue(batch: MessageBatch<unknown>): Promise<void> {
     this.logger.info({ batch }, "Consuming from queue");
     const messages = batch.messages;
@@ -268,7 +321,7 @@ export default class extends WorkerEntrypoint<Env> {
         }
       );
 
-      if (!this.env.SEND_NOTIFICATIONS) {
+      if (this.env.IS_ROLLBACK) {
         this.logger.info({ update }, "Skipping notification for check");
         return;
       }
