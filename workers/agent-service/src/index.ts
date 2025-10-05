@@ -90,6 +90,7 @@ export default class extends WorkerEntrypoint<Env> {
         id: check._id,
         result: {
           report: check.longformResponse,
+          generationStatus: check.generationStatus,
           communityNote: check.shortformResponse,
           humanNote: check.humanResponse,
           isControversial: check.isControversial,
@@ -152,7 +153,10 @@ export default class extends WorkerEntrypoint<Env> {
             if (check.success) {
               // Found matching check - insert submission and return existing result
               submission.checkId = checkId;
-              submission.checkStatus = "completed";
+              submission.checkStatus = check.result.generationStatus as
+                | "pending"
+                | "completed"
+                | "error";
 
               const insertResult =
                 await this.env.DATABASE_SERVICE.insertSubmission(submission);

@@ -653,6 +653,7 @@ export class CheckerAgent extends DurableObject<Env> {
         success: true,
         result: {
           report: longformReport,
+          generationStatus: generationStatus,
           communityNote,
           humanNote: null,
           isControversial,

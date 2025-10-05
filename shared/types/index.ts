@@ -100,6 +100,7 @@ export interface AgentResponse extends ServiceResponse {
   success: true;
   result: {
     report: Report;
+    generationStatus: string;
     communityNote: CommunityNote;
     humanNote: HumanNote | null;
     isControversial: boolean;
