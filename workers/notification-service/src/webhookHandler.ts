@@ -91,10 +91,6 @@ export function setupTelegramBot(env: Env) {
     }
   });
 
-  bot.on("message:text", async (ctx) => {
-    await ctx.reply("Notification service bot - send notifications via API");
-  });
-
   return bot;
 }
 
