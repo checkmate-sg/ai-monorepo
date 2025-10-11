@@ -1,3 +1,12 @@
 packages:
-  - "workers/*"
-  - "shared/*"
+  - workers/*
+  - shared/*
+  - evals
+ignoredBuiltDependencies:
+  - '@playwright/browser-chromium'
+  - better-sqlite3
+  - esbuild
+  - sharp
+  - workerd
+onlyBuiltDependencies:
+  - better-sqlite3

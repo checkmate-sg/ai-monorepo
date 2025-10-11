@@ -35,7 +35,7 @@ export function setupTelegramBot(env: Env) {
             approvedBy: ctx.from?.id,
           });
 
-          logger.info("Approval request received for message:", messageId);
+          logger.info({ messageId }, "Approval request received for message");
 
           await ctx.answerCallbackQuery({ text: "Published" });
           button = {
@@ -84,7 +84,7 @@ export function setupTelegramBot(env: Env) {
         },
       });
     } catch (error) {
-      logger.error("Error handling callback query:", error);
+      logger.error({ error }, "Error handling callback query:");
       await ctx.answerCallbackQuery({
         text: "An error occurred while processing your request.",
       });
