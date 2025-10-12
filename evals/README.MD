@@ -48,8 +48,7 @@ Wait for all services to start, then run the evals:
 
 ```bash
 # In terminal 2 - run evals
-pnpm eval:local   # For local dev (concurrency: 1)
-pnpm eval:remote  # For remote server (concurrency: 10)
+pnpm eval
 ```
 
 ### From This Directory
@@ -174,6 +173,7 @@ If you see `better-sqlite3` binding errors, the native module wasn't built. Go a
 ### Missing Environment Variables
 
 Ensure `.env` file exists with all required variables:
+
 - `ML_SERVER_API_KEY`
 - `ML_SERVER_URL`
 - `OPENAI_API_KEY`
