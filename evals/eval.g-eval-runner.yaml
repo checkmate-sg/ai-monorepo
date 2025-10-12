@@ -5,7 +5,7 @@
 description: "implements g-eval evaluation method with checkmate"
 
 prompts:
-  - "test"
+  - "[The source text is not provided, but for context, it is a submission to CheckMate, an information verification service in Singapore. It is either a text message, an image (optionally with a caption), or a link.]"
 
 providers:
   - id: file://runner.ts
