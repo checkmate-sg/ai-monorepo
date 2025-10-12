@@ -55,23 +55,46 @@ pnpm eval
 
 ```bash
 # In terminal 2 - run evals
-pnpm eval:local   # For local dev (concurrency: 1)
-pnpm eval:remote  # For remote server (concurrency: 10)
+pnpm eval  # Run evaluations locally (concurrency: 1)
 ```
+
+## Viewing Results
+
+### Web Viewer
+
+Start the interactive web viewer to browse evaluation results:
+
+```bash
+# From monorepo root
+pnpm eval:viewer
+
+# From this directory
+pnpm viewer
+```
+
+This starts a web server at **http://localhost:3000** with:
+
+- **Dropdown selector** - Automatically loads all JSON files from `output/` folder
+- **Metrics dashboard** - Pass rate, test counts, average score, total latency
+- **Expandable test table** - Detailed view of each test:
+  - Test inputs (text, image with preview, caption)
+  - Expert labels (category, flags, pointers)
+  - Provider output (en, cn, links, metadata)
+  - Assertion results (G-Eval scores/reasons, boolean checks)
+- **Delete functionality** - Remove result files directly from the UI
 
 ### Limiting Test Cases
 
 To run faster by testing only the first N cases:
 
 ```bash
-pnpm eval:local --filter-first-n 10   # Run only first 10 tests
-pnpm eval:remote --filter-first-n 5   # Run only first 5 tests
+pnpm eval --filter-first-n 10   # Run only first 10 tests
 ```
 
 You can also filter by pattern:
 
 ```bash
-pnpm eval:local --filter-pattern "scam"  # Only run tests matching "scam"
+pnpm eval --filter-pattern "scam"  # Only run tests matching "scam"
 ```
 
 ## Configuration
@@ -109,8 +132,9 @@ Legacy configuration using promptfoo's built-in HTTP provider (no retry logic)
 Results are saved to:
 
 - Google Sheets (automatically synced) to a new spreadsheet
-- `./output/results.json`
-- `./output/results.csv`
+- `./output/YYYYMMDD-HHMMSS-results.json` (timestamped JSON files)
+
+Use `pnpm eval:viewer` (from root) or `pnpm viewer` (from this directory) to view results in a web interface.
 
 ## How It Works
 

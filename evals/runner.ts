@@ -92,7 +92,7 @@ export default class CustomApiProvider implements ApiProvider {
 
         const enText = json.result.communityNote.en || "";
         const firstChar = enText.trim().substring(0, 2);
-        let broadCategory = "unknown";
+        let broadCategory = "nothing";
         for (const [emoji, category] of Object.entries(emojiMap)) {
           if (firstChar.startsWith(emoji)) {
             broadCategory = category;

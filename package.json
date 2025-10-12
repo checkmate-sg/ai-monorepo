@@ -17,7 +17,8 @@
     "dev:agent-service": "turbo dev --filter=agent-service",
     "dev:api-entrypoint": "turbo dev --filter=api-entrypoint",
     "dev:embedder-service": "turbo dev --filter=embedder-service",
-    "eval": "pnpm --filter evals run eval:local"
+    "eval": "pnpm --filter evals run eval",
+    "eval:viewer": "pnpm --filter evals run viewer"
   },
   "workspaces": [
     "workers/*",

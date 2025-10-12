@@ -11,8 +11,11 @@ The evaluation system tests CheckMate's `/getAgentResult` endpoint against a Goo
 ### Running Evaluations
 
 ```bash
-pnpm eval:local   # Run sequentially (concurrency=1)
-pnpm eval:remote  # Run in parallel (concurrency=10)
+# From evals/ directory
+pnpm eval  # Run evaluations locally (concurrency=1)
+
+# From monorepo root
+pnpm eval  # Run evaluations locally
 ```
 
 Results are timestamped and saved to `output/YYYYMMDD-HHMMSS-results.json`.
@@ -20,7 +23,11 @@ Results are timestamped and saved to `output/YYYYMMDD-HHMMSS-results.json`.
 ### Viewing Results
 
 ```bash
+# From evals/ directory
 pnpm viewer  # Start web viewer at http://localhost:3000
+
+# From monorepo root
+pnpm eval:viewer  # Start web viewer at http://localhost:3000
 ```
 
 The viewer provides:
