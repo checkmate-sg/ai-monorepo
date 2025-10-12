@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "eval:local": "promptfoo eval -c ./eval.g-eval-runner.yaml --env-file .env --no-cache --max-concurrency 1 --output \"output/$(date +%Y%m%d-%H%M%S)-results.json\" \"$@\"",
-    "eval:remote": "promptfoo eval -c ./eval.g-eval-runner.yaml --env-file .env --no-cache --max-concurrency 10 --output \"output/$(date +%Y%m%d-%H%M%S)-results.json\" \"$@\""
+    "eval:remote": "promptfoo eval -c ./eval.g-eval-runner.yaml --env-file .env --no-cache --max-concurrency 10 --output \"output/$(date +%Y%m%d-%H%M%S)-results.json\" \"$@\"",
+    "viewer": "node server.js"
   },
   "devDependencies": {
     "promptfoo": "^0.118.14"
