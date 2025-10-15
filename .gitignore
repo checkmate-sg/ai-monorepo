@@ -9,7 +9,7 @@ dist
 
 # Environment
 .env
-.env.*
+.env
 .dev.vars
 
 # IDE

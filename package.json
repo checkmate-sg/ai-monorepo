@@ -16,11 +16,14 @@
     "dev:trivialfilter-service": "turbo dev --filter=trivialfilter-service",
     "dev:agent-service": "turbo dev --filter=agent-service",
     "dev:api-entrypoint": "turbo dev --filter=api-entrypoint",
-    "dev:embedder-service": "turbo dev --filter=embedder-service"
+    "dev:embedder-service": "turbo dev --filter=embedder-service",
+    "eval": "pnpm --filter evals run eval",
+    "eval:viewer": "pnpm --filter evals run viewer"
   },
   "workspaces": [
     "workers/*",
-    "shared/*"
+    "shared/*",
+    "evals"
   ],
   "keywords": [],
   "author": "",

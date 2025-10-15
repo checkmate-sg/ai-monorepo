@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CheckMate Eval Viewer</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .container { max-width: 1400px; margin: 0 auto; }
+    h1 { margin-bottom: 20px; color: #333; }
+
+    /* File loader */
+    .file-loader {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .file-input { margin-bottom: 15px; }
+    input[type="file"] { padding: 8px; }
+    select {
+      width: 100%;
+      padding: 10px;
+      font-size: 14px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: white;
+    }
+    .delete-btn {
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-left: 10px;
+      font-size: 14px;
+    }
+    .delete-btn:hover { background: #c82333; }
+
+    /* Metrics Dashboard */
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .metric-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .metric-label {
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+    .metric-value {
+      font-size: 28px;
+      font-weight: bold;
+      color: #333;
+    }
+    .metric-value.pass { color: #28a745; }
+    .metric-value.fail { color: #dc3545; }
+
+    /* Test Results Table */
+    .test-table {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .test-row {
+      border-bottom: 1px solid #eee;
+    }
+    .test-header {
+      display: grid;
+      grid-template-columns: 40px 1fr 120px 100px 100px;
+      padding: 15px;
+      cursor: pointer;
+      transition: background 0.2s;
+      align-items: center;
+      gap: 10px;
+    }
+    .test-header:hover { background: #f8f9fa; }
+    .expand-icon {
+      font-size: 20px;
+      transition: transform 0.2s;
+      color: #666;
+    }
+    .expand-icon.open { transform: rotate(90deg); }
+
+    .test-details {
+      padding: 20px;
+      background: #f8f9fa;
+      border-top: 1px solid #eee;
+    }
+
+    .detail-section {
+      margin-bottom: 20px;
+    }
+    .detail-section h4 {
+      font-size: 14px;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      border-bottom: 2px solid #ddd;
+      padding-bottom: 5px;
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 10px;
+      font-size: 14px;
+    }
+    .detail-label {
+      font-weight: 600;
+      color: #555;
+    }
+    .detail-value {
+      color: #333;
+      word-break: break-word;
+    }
+    .detail-value img {
+      max-width: 300px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      margin-top: 5px;
+    }
+
+    /* Assertion Results */
+    .assertions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .assertion {
+      background: white;
+      padding: 15px;
+      border-radius: 6px;
+      border-left: 4px solid #ddd;
+    }
+    .assertion.pass { border-left-color: #28a745; }
+    .assertion.fail { border-left-color: #dc3545; }
+
+    .assertion-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .assertion-type {
+      font-weight: 600;
+      color: #333;
+    }
+    .assertion-score {
+      font-weight: bold;
+    }
+    .assertion-score.pass { color: #28a745; }
+    .assertion-score.fail { color: #dc3545; }
+
+    .assertion-reason {
+      color: #666;
+      font-size: 14px;
+      margin-top: 5px;
+      font-style: italic;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge.pass {
+      background: #d4edda;
+      color: #155724;
+    }
+    .badge.fail {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .no-data {
+      padding: 40px;
+      text-align: center;
+      color: #999;
+      font-size: 18px;
+    }
+
+    .text-content {
+      background: #fff;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #e0e0e0;
+      white-space: pre-wrap;
+      font-size: 13px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .links-list {
+      list-style: none;
+      padding: 0;
+    }
+    .links-list li {
+      margin: 5px 0;
+    }
+    .links-list a {
+      color: #007bff;
+      text-decoration: none;
+      font-size: 13px;
+    }
+    .links-list a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" x-data="evalViewer()">
+    <h1>CheckMate Eval Viewer</h1>
+
+    <!-- File Loader -->
+    <div class="file-loader">
+      <div x-show="loading" style="padding: 20px; text-align: center; color: #666;">
+        Loading files...
+      </div>
+
+      <div x-show="!loading && availableFiles.length > 0">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Select Experiment Run:</label>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <select x-model="selectedFilename" @change="loadSelectedFile()" style="flex: 1;">
+            <option value="">-- Choose a file --</option>
+            <template x-for="file in availableFiles" :key="file.name">
+              <option :value="file.name" x-text="file.name"></option>
+            </template>
+          </select>
+          <button
+            class="delete-btn"
+            @click="deleteCurrentFile()"
+            x-show="selectedRun"
+          >Delete File</button>
+        </div>
+      </div>
+
+      <div x-show="!loading && availableFiles.length === 0" style="padding: 20px; text-align: center; color: #999;">
+        No JSON files found in output/ directory
+      </div>
+    </div>
+
+    <!-- Metrics Dashboard -->
+    <div class="metrics" x-show="selectedRun">
+      <div class="metric-card">
+        <div class="metric-label">Pass Rate</div>
+        <div class="metric-value pass" x-text="metrics.passRate"></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Tests Passed</div>
+        <div class="metric-value pass" x-text="metrics.testPassCount"></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Tests Failed</div>
+        <div class="metric-value fail" x-text="metrics.testFailCount"></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Average Score</div>
+        <div class="metric-value" x-text="metrics.avgScore"></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Total Latency</div>
+        <div class="metric-value" x-text="metrics.totalLatency"></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Total Tests</div>
+        <div class="metric-value" x-text="metrics.totalTests"></div>
+      </div>
+    </div>
+
+    <!-- Test Results Table -->
+    <div class="test-table" x-show="selectedRun">
+      <template x-for="(test, index) in tests" :key="test.id">
+        <div class="test-row">
+          <div class="test-header" @click="toggleTest(index)">
+            <div>
+              <span class="expand-icon" :class="{ 'open': expandedTests[index] }">▶</span>
+            </div>
+            <div style="font-weight: 600; color: #333;">
+              Test #<span x-text="index + 1"></span>
+              <span x-show="test.testCase?.vars?.input_text" style="font-weight: normal; color: #666; margin-left: 10px;" x-text="test.testCase.vars.input_text.substring(0, 50) + '...'"></span>
+            </div>
+            <div>
+              <span class="badge" :class="test.gradingResult.pass ? 'pass' : 'fail'" x-text="test.gradingResult.pass ? 'PASS' : 'FAIL'"></span>
+            </div>
+            <div style="font-weight: 600; color: #333;">
+              Score: <span x-text="test.gradingResult.score.toFixed(2)"></span>
+            </div>
+            <div style="color: #666;">
+              <span x-text="test.latencyMs"></span>ms
+            </div>
+          </div>
+
+          <!-- Expanded Details -->
+          <div class="test-details" x-show="expandedTests[index]">
+            <!-- Input Vars -->
+            <div class="detail-section">
+              <h4>Test Inputs</h4>
+              <div class="detail-grid">
+                <div class="detail-label">Text:</div>
+                <div class="detail-value" x-text="test.testCase?.vars?.input_text || 'N/A'"></div>
+
+                <div class="detail-label">Image URL:</div>
+                <div class="detail-value">
+                  <template x-if="test.testCase?.vars?.input_image_url">
+                    <div>
+                      <a :href="test.testCase.vars.input_image_url" target="_blank" x-text="test.testCase.vars.input_image_url"></a>
+                      <img :src="test.testCase.vars.input_image_url" alt="Input image">
+                    </div>
+                  </template>
+                  <template x-if="!test.testCase?.vars?.input_image_url">
+                    <span>N/A</span>
+                  </template>
+                </div>
+
+                <div class="detail-label">Caption:</div>
+                <div class="detail-value" x-text="test.testCase?.vars?.input_caption || 'N/A'"></div>
+              </div>
+            </div>
+
+            <!-- Expert Labels -->
+            <div class="detail-section">
+              <h4>Expert Labels</h4>
+              <div class="detail-grid">
+                <div class="detail-label">Broad Category:</div>
+                <div class="detail-value" x-text="test.testCase?.vars?.expert_broad_category || 'N/A'"></div>
+
+                <div class="detail-label">Is Access Blocked:</div>
+                <div class="detail-value" x-text="test.testCase?.vars?.expert_is_access_blocked || 'N/A'"></div>
+
+                <div class="detail-label">Is Video:</div>
+                <div class="detail-value" x-text="test.testCase?.vars?.expert_is_video || 'N/A'"></div>
+
+                <div class="detail-label">Is Controversial:</div>
+                <div class="detail-value" x-text="test.testCase?.vars?.expert_is_controversial || 'N/A'"></div>
+
+                <div class="detail-label">Expert Pointers:</div>
+                <div class="detail-value">
+                  <div class="text-content" x-text="test.testCase?.vars?.expert_pointers || 'N/A'"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Provider Output -->
+            <div class="detail-section">
+              <h4>Provider Output</h4>
+              <div class="detail-grid">
+                <div class="detail-label">English (en):</div>
+                <div class="detail-value">
+                  <div class="text-content" x-text="test.response?.output?.en || 'N/A'"></div>
+                </div>
+
+                <div class="detail-label">Chinese (cn):</div>
+                <div class="detail-value">
+                  <div class="text-content" x-text="test.response?.output?.cn || 'N/A'"></div>
+                </div>
+
+                <div class="detail-label">Links:</div>
+                <div class="detail-value">
+                  <template x-if="test.response?.output?.links && test.response.output.links.length > 0">
+                    <ul class="links-list">
+                      <template x-for="link in test.response.output.links" :key="link">
+                        <li><a :href="link" target="_blank" x-text="link"></a></li>
+                      </template>
+                    </ul>
+                  </template>
+                  <template x-if="!test.response?.output?.links || test.response.output.links.length === 0">
+                    <span>N/A</span>
+                  </template>
+                </div>
+
+                <div class="detail-label">Is Controversial:</div>
+                <div class="detail-value" x-text="test.response?.output?.isControversial || 'N/A'"></div>
+
+                <div class="detail-label">Is Video:</div>
+                <div class="detail-value" x-text="test.response?.output?.isVideo || 'N/A'"></div>
+
+                <div class="detail-label">Is Access Blocked:</div>
+                <div class="detail-value" x-text="test.response?.output?.isAccessBlocked || 'N/A'"></div>
+
+                <div class="detail-label">Broad Category:</div>
+                <div class="detail-value" x-text="test.response?.output?.broadCategory || 'N/A'"></div>
+
+                <div class="detail-label">Num Retries:</div>
+                <div class="detail-value" x-text="test.response?.output?.numRetries ?? 'N/A'"></div>
+              </div>
+            </div>
+
+            <!-- Assertion Results -->
+            <div class="detail-section">
+              <h4>Assertion Results</h4>
+              <div class="assertions">
+                <template x-for="assertion in test.gradingResult?.componentResults" :key="assertion">
+                  <div class="assertion" :class="assertion.pass ? 'pass' : 'fail'">
+                    <div class="assertion-header">
+                      <div>
+                        <span class="assertion-type" x-text="assertion.assertion?.type || 'Unknown'"></span>
+                        <span x-show="assertion.assertion?.weight" style="color: #999; margin-left: 10px;">
+                          (weight: <span x-text="assertion.assertion.weight"></span>)
+                        </span>
+                      </div>
+                      <div class="assertion-score" :class="assertion.pass ? 'pass' : 'fail'">
+                        <span x-text="assertion.pass ? 'PASS' : 'FAIL'"></span>
+                        <span x-show="assertion.score !== undefined"> - Score: <span x-text="assertion.score.toFixed(2)"></span></span>
+                      </div>
+                    </div>
+                    <div class="assertion-reason" x-show="assertion.reason" x-text="assertion.reason"></div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+  </div>
+
+  <script>
+    function evalViewer() {
+      return {
+        availableFiles: [],
+        selectedFilename: '',
+        selectedRun: null,
+        tests: [],
+        metrics: {},
+        expandedTests: {},
+        loading: true,
+
+        async init() {
+          await this.fetchAvailableFiles();
+        },
+
+        async fetchAvailableFiles() {
+          this.loading = true;
+          try {
+            const response = await fetch('/api/files');
+            if (!response.ok) throw new Error('Failed to fetch files');
+            this.availableFiles = await response.json();
+
+            // Auto-select first file if available
+            if (this.availableFiles.length > 0) {
+              this.selectedFilename = this.availableFiles[0].name;
+              await this.loadSelectedFile();
+            }
+          } catch (error) {
+            console.error('Error fetching files:', error);
+            alert('Failed to load files. Make sure the server is running.');
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        async loadSelectedFile() {
+          if (!this.selectedFilename) {
+            this.selectedRun = null;
+            this.tests = [];
+            this.metrics = {};
+            return;
+          }
+
+          this.loading = true;
+          try {
+            const response = await fetch(`/api/file/${encodeURIComponent(this.selectedFilename)}`);
+            if (!response.ok) throw new Error('Failed to load file');
+
+            const data = await response.json();
+            this.selectedRun = {
+              filename: this.selectedFilename,
+              data: data
+            };
+            this.tests = data.results?.results || [];
+            this.expandedTests = {};
+            this.calculateMetrics();
+          } catch (error) {
+            console.error('Error loading file:', error);
+            alert(`Failed to load ${this.selectedFilename}: ${error.message}`);
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        calculateMetrics() {
+          const promptMetrics = this.selectedRun.data.results.prompts[0]?.metrics || {};
+          const totalTests = this.tests.length;
+          const passCount = promptMetrics.testPassCount || 0;
+
+          const totalScore = this.tests.reduce((sum, test) => sum + (test.gradingResult?.score || 0), 0);
+          const avgScore = totalTests > 0 ? (totalScore / totalTests).toFixed(2) : '0.00';
+
+          const passRate = totalTests > 0 ? ((passCount / totalTests) * 100).toFixed(1) + '%' : '0%';
+
+          this.metrics = {
+            passRate: passRate,
+            testPassCount: passCount,
+            testFailCount: promptMetrics.testFailCount || 0,
+            avgScore: avgScore,
+            totalLatency: ((promptMetrics.totalLatencyMs || 0) / 1000).toFixed(2) + 's',
+            totalTests: totalTests
+          };
+        },
+
+        toggleTest(index) {
+          this.expandedTests[index] = !this.expandedTests[index];
+        },
+
+        async deleteCurrentFile() {
+          if (!confirm(`Are you sure you want to DELETE "${this.selectedFilename}" from the output/ folder?\n\nThis action cannot be undone!`)) {
+            return;
+          }
+
+          this.loading = true;
+          try {
+            const response = await fetch(`/api/file/${encodeURIComponent(this.selectedFilename)}`, {
+              method: 'DELETE'
+            });
+
+            if (!response.ok) throw new Error('Failed to delete file');
+
+            alert(`Successfully deleted ${this.selectedFilename}`);
+
+            // Refresh file list
+            this.selectedFilename = '';
+            this.selectedRun = null;
+            this.tests = [];
+            this.metrics = {};
+            await this.fetchAvailableFiles();
+          } catch (error) {
+            console.error('Error deleting file:', error);
+            alert(`Failed to delete ${this.selectedFilename}: ${error.message}`);
+          } finally {
+            this.loading = false;
+          }
+        }
+      };
+    }
+  </script>
+</body>
+</html>
