@@ -1,0 +1,109 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+
+# Learn more about building a configuration: https://promptfoo.dev/docs/configuration/guide
+
+description: "implements g-eval evaluation method with checkmate"
+
+prompts:
+  - "test"
+
+providers:
+  - id: http
+    config:
+      url: "{{env.ML_SERVER_URL}}/getAgentResult"
+      method: "POST"
+      headers:
+        "Content-Type": "application/json"
+        # e.g. 'x-api-key': get this from postman
+        "x-api-key": "{{env.ML_SERVER_API_KEY}}"
+      body:
+        text: "{{ input_text | default(null) }}"
+        imageUrl: "{{ input_image_url | default(null) }}"
+        caption: "{{ input_caption | default(null) }}"
+        findSimilar: false
+      transformResponse: |
+        json.result.communityNote.en
+
+tests: "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz6FYef120tIU/edit?usp=sharing"
+
+outputPath:
+  - "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz6FYef120tIU/edit"
+
+defaultTest:
+  threshold: 0.7
+  assert:
+    - type: g-eval
+      weight: 5
+      value: |
+        Evaluate if the response contains these points:
+        ## Expert Pointers ##
+        {{expert_pointers}}
+        ## End of Expert Pointers ##
+        Give a score depending on how many of the expert pointers are contained in the response, but also consider the relative importance of the pointers, which are listed in descending order of importance.
+
+      provider: openai:gpt-4.1
+
+    - type: javascript
+      weight: 1
+      value: |
+        const response = JSON.parse(context.providerResponse.raw);
+        const isAccessBlocked = response.result.isAccessBlocked;
+        const expected = context.vars.expert_is_access_blocked === "TRUE";
+        return {
+          pass: isAccessBlocked === expected,
+          score: isAccessBlocked === expected ? 1 : 0,
+          reason: `isAccessBlocked is ${isAccessBlocked}, expected ${expected}`
+        };
+
+    - type: javascript
+      weight: 1
+      value: |
+        const response = JSON.parse(context.providerResponse.raw);
+        const isControversial = response.result.isControversial;
+        const expected = context.vars.expert_is_controversial === "TRUE";
+        return {
+          pass: isControversial === expected,
+          score: isControversial === expected ? 1 : 0,
+          reason: `isControversial is ${isControversial}, expected ${expected}`
+        };
+
+    - type: javascript
+      weight: 1
+      value: |
+        const response = JSON.parse(context.providerResponse.raw);
+        const isVideo = response.result.isVideo;
+        const expected = context.vars.expert_is_video === "TRUE";
+        return {
+          pass: isVideo === expected,
+          score: isVideo === expected ? 1 : 0,
+          reason: `isVideo is ${isVideo}, expected ${expected}`
+        };
+
+    - type: javascript
+      weight: 5
+      value: |
+        const emojiMap = {
+          '🚨': 'bad', '❌': 'bad',
+          '✅': 'good', '🟢': 'good',
+          '⚠️': 'caution', '❗': 'caution', '❓': 'caution',
+          '🎭': 'satire',
+          '📝': 'nothing'
+        };
+
+        const firstChar = output.trim().substring(0, 2);
+        let outputCategory = 'unknown';
+        for (const [emoji, category] of Object.entries(emojiMap)) {
+          if (firstChar.startsWith(emoji)) {
+            outputCategory = category;
+            break;
+          }
+        }
+
+        const expectedCategory = (context.vars.expert_broad_category || '').toLowerCase().trim();
+        const matches = outputCategory === expectedCategory;
+
+        return {
+          pass: matches,
+          score: matches ? 1 : 0,
+          reason: `Output category is '${outputCategory}', expected '${expectedCategory}'`
+        };

@@ -148,7 +148,8 @@ export async function handleAgentRequest(
         { error: agentResult.error, requestId },
         "Agent check failed"
       );
-      throw new Error("An error occurred while running the agent check");
+      // Return the error response from the agent service with 200 status
+      return c.json(agentResult);
     }
   } catch (error: unknown) {
     const errorMessage =

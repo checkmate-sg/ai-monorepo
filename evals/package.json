@@ -1,0 +1,12 @@
+{
+  "name": "evals",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "eval": "promptfoo eval -c ./eval.g-eval-runner.yaml --env-file .env --no-cache --max-concurrency 1 --output \"output/$(date +%Y%m%d-%H%M%S)-results.json\" \"$@\"",
+    "viewer": "node server.js"
+  },
+  "devDependencies": {
+    "promptfoo": "^0.118.14"
+  }
+}

@@ -3,7 +3,10 @@ import {
   createLogger,
   getProviderFromModel,
   getSlugFromTitle,
+  hashImage,
+  hashImageFromUrl,
   hashText,
+  pdqHashToVector,
 } from "@workspace/shared-utils";
 import { withTimeout } from "./tools/utils";
 import { Logger } from "pino";
@@ -434,6 +437,11 @@ export class CheckerAgent extends DurableObject<Env> {
       try {
         // hash the text if it exists
         const textHash = this.text ? await hashText(this.text) : null;
+        const imageHash = this.imageUrl
+          ? await hashImageFromUrl(this.imageUrl, this.env.IMAGE_HASH_SERVICE)
+          : null;
+        const captionHash = this.caption ? await hashText(this.caption) : null;
+        const pdqVector = imageHash ? pdqHashToVector(imageHash) : null;
 
         // Create the record immediately with null embeddings
         const insertResult = await this.env.DATABASE_SERVICE.insertCheck(
@@ -444,8 +452,12 @@ export class CheckerAgent extends DurableObject<Env> {
             caption: this.caption || null,
             embeddings: {
               text: null,
+              caption: null,
+              pdq: pdqVector,
             },
             textHash: textHash,
+            captionHash: captionHash,
+            imageHash: imageHash,
             type: this.type || "text",
             generationStatus: "pending",
             isControversial: false,
@@ -530,6 +542,35 @@ export class CheckerAgent extends DurableObject<Env> {
             this.logger.error(
               { error, id: this.id },
               "Failed to embed text or update check record"
+            );
+          }
+        }
+        if (this.type === "image" && this.imageUrl && this.caption) {
+          try {
+            const embedderResult = await this.env.EMBEDDER_SERVICE.embed({
+              text: this.caption,
+            });
+
+            if (embedderResult.success) {
+              const captionEmbedding = (embedderResult as any).embedding || [];
+              // Update the record with embeddings - preserve pdq
+              this.state.waitUntil(
+                this.env.DATABASE_SERVICE.updateCheck(this.id, {
+                  "embeddings.caption": captionEmbedding,
+                }).catch((error) => {
+                  this.logger.error("Failed to update check");
+                  throw error;
+                })
+              );
+              this.logger.info(
+                { id: this.id },
+                "Updated check record with caption embeddings"
+              );
+            }
+          } catch (error) {
+            this.logger.error(
+              { error, id: this.id },
+              "Failed to embed caption or update check record"
             );
           }
         }
