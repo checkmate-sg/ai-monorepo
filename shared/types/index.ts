@@ -150,8 +150,12 @@ export interface Check {
   caption: string | null;
   embeddings: {
     text: number[] | null;
+    caption: number[] | null;
+    pdq: number[] | null;
   };
   textHash: string;
+  captionHash: string;
+  imageHash: string;
   type: "text" | "image";
   generationStatus: "pending" | ErrorType | "completed" | "unusable";
   isControversial: boolean;

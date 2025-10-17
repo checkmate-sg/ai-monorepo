@@ -134,55 +134,52 @@ export default class extends WorkerEntrypoint<Env> {
       };
       //find matching check
       if (request.findSimilar) {
-        const text = submission.text;
-        if (text) {
-          const searchResult = await searchInternal(
-            text,
-            this.env,
-            null,
-            null,
-            this.logger,
-            true
-          );
+        const searchResult = await searchInternal(
+          request,
+          this.env,
+          null,
+          null,
+          this.logger,
+          true
+        );
 
-          if (
-            searchResult.success &&
-            searchResult.result?.isMatch &&
-            searchResult.result.id
-          ) {
-            checkId = searchResult.result.id;
-            const check = await this.getCheck(checkId);
-            if (check.success) {
-              // Found matching check - insert submission and return existing result
-              submission.checkId = checkId;
-              submission.checkStatus = check.result.generationStatus as
-                | "pending"
-                | "completed"
-                | "error";
+        if (
+          searchResult.success &&
+          searchResult.result?.isMatch &&
+          searchResult.result.id
+        ) {
+          checkId = searchResult.result.id;
+          const check = await this.getCheck(checkId);
+          if (check.success) {
+            // Found matching check - insert submission and return existing result
+            submission.checkId = checkId;
+            submission.checkStatus = check.result.generationStatus as
+              | "pending"
+              | "completed"
+              | "error";
 
-              const insertResult =
-                await this.env.DATABASE_SERVICE.insertSubmission(submission);
+            const insertResult =
+              await this.env.DATABASE_SERVICE.insertSubmission(submission);
 
-              if (!insertResult.success) {
-                throw new Error("Failed to insert submission");
-              }
-
-              this.logger.info(
-                {
-                  checkId,
-                  submissionId: insertResult.id,
-                  similarityScore: searchResult.result.similarityScore,
-                },
-                "Returning existing check result for similar submission"
-              );
-
-              return check;
-            } else {
-              this.logger.error(
-                { check },
-                "Failed to get check from search result"
-              );
+            if (!insertResult.success) {
+              throw new Error("Failed to insert submission");
             }
+
+            this.logger.info(
+              {
+                checkId,
+                submissionId: insertResult.id,
+                similarityScore: searchResult.result.similarityScore,
+              },
+              "Returning existing check result for similar submission"
+            );
+
+            return check;
+          } else {
+            this.logger.error(
+              { check },
+              "Failed to get check from search result"
+            );
           }
         }
       }
@@ -294,7 +291,10 @@ export default class extends WorkerEntrypoint<Env> {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      this.logger.error({ checkId, error, errorMessage }, "Error updating human response");
+      this.logger.error(
+        { checkId, error, errorMessage },
+        "Error updating human response"
+      );
 
       return {
         success: false,

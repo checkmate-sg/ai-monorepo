@@ -75,7 +75,14 @@
     { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" },
     { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
     { "binding": "DATABASE_SERVICE", "service": "database-service" },
-    { "binding": "NOTIFICATION_SERVICE", "service": "notification-service" }
+    { "binding": "NOTIFICATION_SERVICE", "service": "notification-service" },
+    { "binding": "IMAGE_HASH_SERVICE", "service": "pdq-worker" }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "CHECKMATE_IMAGES_BUCKET",
+      "bucket_name": "checkmate-images"
+    }
   ],
   "queues": {
     "producers": [
@@ -132,7 +139,17 @@
         { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" },
         { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
         { "binding": "DATABASE_SERVICE", "service": "database-service" },
-        { "binding": "NOTIFICATION_SERVICE", "service": "notification-service" }
+        {
+          "binding": "NOTIFICATION_SERVICE",
+          "service": "notification-service"
+        },
+        { "binding": "IMAGE_HASH_SERVICE", "service": "pdq-worker" }
+      ],
+      "r2_buckets": [
+        {
+          "bucket_name": "checkmate-images",
+          "binding": "CHECKMATE_IMAGES_BUCKET"
+        }
       ],
       "tail_consumers": [
         {
@@ -189,6 +206,16 @@
         {
           "binding": "NOTIFICATION_SERVICE",
           "service": "notification-service-staging"
+        },
+        {
+          "binding": "IMAGE_HASH_SERVICE",
+          "service": "pdq-worker-staging"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "bucket_name": "checkmate-images-staging",
+          "binding": "CHECKMATE_IMAGES_BUCKET"
         }
       ],
       "vars": {
