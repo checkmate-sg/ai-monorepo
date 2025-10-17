@@ -130,6 +130,44 @@ export class DatabaseDurableObject extends DurableObject<Env> {
     }
   }
 
+  async findCheckByImageHash(
+    imageHash: string
+  ): Promise<{ success: boolean; data?: Check; error?: string }> {
+    try {
+      await this.connectPromise;
+      const db = this.client.db("checkmate-core");
+      const checksCollection = db.collection("checks");
+
+      const check = await checksCollection.findOne({
+        imageHash: imageHash,
+      });
+
+      if (!check) {
+        return {
+          success: false,
+          error: `Check with imageHash ${imageHash} not found`,
+        };
+      }
+
+      // Convert _id to string for the external interface
+      return {
+        success: true,
+        data: {
+          ...check,
+          _id: check._id.toString(),
+        } as Check,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      this.logger.error(
+        { error, imageHash },
+        "Failed to find check by image hash"
+      );
+      return { success: false, error: errorMessage };
+    }
+  }
+
   async updateCheck(
     id: string,
     data: Partial<Omit<Check, "_id">>
@@ -408,8 +446,8 @@ export class DatabaseDurableObject extends DurableObject<Env> {
     }
   }
 
-  // Vector search for similar checks
-  async vectorSearch(
+  // Vector search for similar checks by text embedding
+  async findSimilarTextEmbedding(
     embedding: number[],
     limit: number = 5
   ): Promise<{
@@ -483,7 +521,198 @@ export class DatabaseDurableObject extends DurableObject<Env> {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      this.logger.error({ error }, "Failed to perform vector search");
+      this.logger.error({ error }, "Failed to perform text embedding vector search");
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  // Vector search for similar checks by caption embedding
+  async findSimilarCaptionEmbedding(
+    embedding: number[],
+    limit: number = 5
+  ): Promise<{
+    success: boolean;
+    data?: Array<
+      Pick<
+        Check,
+        "caption" | "imageUrl" | "imageHash" | "timestamp" | "shortformResponse" | "crowdsourcedCategory"
+      > & {
+        id: string;
+        score: number;
+      }
+    >;
+    error?: string;
+  }> {
+    try {
+      await this.connectPromise;
+      if (embedding.length !== 384) {
+        return {
+          success: false,
+          error: "Embedding must be 384 dimensions",
+        };
+      }
+
+      const db = this.client.db("checkmate-core");
+      const checksCollection = db.collection("checks");
+
+      const filter: Partial<Pick<Check, "isExpired" | "isHumanAssessed">> = {
+        isExpired: false,
+      };
+
+      if (this.env.ENVIRONMENT === "production") {
+        filter.isHumanAssessed = true;
+      }
+
+      const pipeline = [
+        {
+          $vectorSearch: {
+            index: "caption-embedding-index",
+            queryVector: embedding,
+            path: "embeddings.caption",
+            numCandidates: limit * 10,
+            limit: limit,
+            filter: filter,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            caption: 1,
+            imageUrl: 1,
+            imageHash: 1,
+            timestamp: 1,
+            shortformResponse: 1,
+            crowdsourcedCategory: 1,
+            score: { $meta: "vectorSearchScore" },
+          },
+        },
+      ];
+
+      const results = await checksCollection.aggregate(pipeline).toArray();
+
+      const formattedResults = results.map((result) => ({
+        id: result._id.toString(),
+        caption: result.caption || "",
+        imageUrl: result.imageUrl || null,
+        imageHash: result.imageHash || null,
+        timestamp: result.timestamp,
+        shortformResponse: result.shortformResponse || {},
+        crowdsourcedCategory: result.crowdsourcedCategory || null,
+        score: result.score,
+      }));
+
+      return { success: true, data: formattedResults };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      this.logger.error({ error }, "Failed to perform caption embedding vector search");
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  // Vector search for similar images by PDQ hash embedding (256-dim binary vector)
+  async findSimilarImageEmbedding(
+    embedding: number[],
+    limit: number = 5
+  ): Promise<{
+    success: boolean;
+    data?: Array<
+      Pick<
+        Check,
+        "imageUrl" | "caption" | "imageHash" | "timestamp" | "shortformResponse" | "crowdsourcedCategory"
+      > & {
+        id: string;
+        distance: number;
+      }
+    >;
+    error?: string;
+  }> {
+    try {
+      await this.connectPromise;
+      if (embedding.length !== 256) {
+        return {
+          success: false,
+          error: "PDQ embedding must be 256 dimensions",
+        };
+      }
+
+      const db = this.client.db("checkmate-core");
+      const checksCollection = db.collection("checks");
+
+      const filter: Partial<Pick<Check, "isExpired" | "isHumanAssessed">> = {
+        isExpired: false,
+      };
+
+      if (this.env.ENVIRONMENT === "production") {
+        filter.isHumanAssessed = true;
+      }
+
+      const pipeline = [
+        {
+          $vectorSearch: {
+            index: "pdq-embedding-index",
+            queryVector: embedding,
+            path: "embeddings.pdq",
+            numCandidates: limit * 10,
+            limit: limit,
+            filter: filter,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            imageUrl: 1,
+            caption: 1,
+            imageHash: 1,
+            timestamp: 1,
+            shortformResponse: 1,
+            crowdsourcedCategory: 1,
+            distance: { $meta: "vectorSearchScore" },
+          },
+        },
+      ];
+
+      // First, check how many documents have PDQ embeddings
+      const totalWithPDQ = await checksCollection.countDocuments({
+        "embeddings.pdq": { $exists: true, $ne: null },
+      });
+
+      const totalNotExpired = await checksCollection.countDocuments({
+        isExpired: false,
+        "embeddings.pdq": { $exists: true, $ne: null },
+      });
+
+      const results = await checksCollection.aggregate(pipeline).toArray();
+
+      this.logger.info(
+        {
+          requestedLimit: limit,
+          numCandidates: limit * 10,
+          resultsReturned: results.length,
+          totalWithPDQ,
+          totalNotExpired,
+          filter,
+          environment: this.env.ENVIRONMENT,
+        },
+        "PDQ vector search completed"
+      );
+
+      const formattedResults = results.map((result) => ({
+        id: result._id.toString(),
+        imageUrl: result.imageUrl || null,
+        caption: result.caption || null,
+        imageHash: result.imageHash || null,
+        timestamp: result.timestamp,
+        shortformResponse: result.shortformResponse || {},
+        crowdsourcedCategory: result.crowdsourcedCategory || null,
+        distance: result.distance,
+      }));
+
+      return { success: true, data: formattedResults };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      this.logger.error({ error }, "Failed to perform image embedding vector search");
       return { success: false, error: errorMessage };
     }
   }
@@ -540,6 +769,13 @@ export default class extends WorkerEntrypoint<Env> {
   ): Promise<{ success: boolean; data?: Check; error?: string }> {
     const durableObject = this.getDurableObject();
     return durableObject.findCheckByTextHash(textHash);
+  }
+
+  async findCheckByImageHash(
+    imageHash: string
+  ): Promise<{ success: boolean; data?: Check; error?: string }> {
+    const durableObject = this.getDurableObject();
+    return durableObject.findCheckByImageHash(imageHash);
   }
 
   async updateCheck(
@@ -609,7 +845,7 @@ export default class extends WorkerEntrypoint<Env> {
     return durableObject.findSubmissionsByCheckId(checkId);
   }
 
-  async vectorSearch(
+  async findSimilarTextEmbedding(
     embedding: number[],
     limit: number = 5
   ): Promise<{
@@ -626,6 +862,46 @@ export default class extends WorkerEntrypoint<Env> {
     error?: string;
   }> {
     const durableObject = this.getDurableObject();
-    return durableObject.vectorSearch(embedding, limit);
+    return durableObject.findSimilarTextEmbedding(embedding, limit);
+  }
+
+  async findSimilarCaptionEmbedding(
+    embedding: number[],
+    limit: number = 5
+  ): Promise<{
+    success: boolean;
+    data?: Array<
+      Pick<
+        Check,
+        "caption" | "imageUrl" | "imageHash" | "timestamp" | "shortformResponse" | "crowdsourcedCategory"
+      > & {
+        id: string;
+        score: number;
+      }
+    >;
+    error?: string;
+  }> {
+    const durableObject = this.getDurableObject();
+    return durableObject.findSimilarCaptionEmbedding(embedding, limit);
+  }
+
+  async findSimilarImageEmbedding(
+    embedding: number[],
+    limit: number = 5
+  ): Promise<{
+    success: boolean;
+    data?: Array<
+      Pick<
+        Check,
+        "imageUrl" | "caption" | "imageHash" | "timestamp" | "shortformResponse" | "crowdsourcedCategory"
+      > & {
+        id: string;
+        distance: number;
+      }
+    >;
+    error?: string;
+  }> {
+    const durableObject = this.getDurableObject();
+    return durableObject.findSimilarImageEmbedding(embedding, limit);
   }
 }
