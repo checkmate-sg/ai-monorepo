@@ -1,8 +1,14 @@
-import { CommunityNote } from "@workspace/shared-types";
+import { CommunityNote, AgentRequest } from "@workspace/shared-types";
 import { Tool, ToolContext } from "./types";
 import { withLangfuseSpan, withTimeout } from "./utils";
 import type { ErrorResponse, ServiceResponse } from "@workspace/shared-types";
-import { createLogger, hashText } from "@workspace/shared-utils";
+import {
+  createLogger,
+  hashText,
+  hashImage,
+  compareImageHashes,
+  pdqHashToVector,
+} from "@workspace/shared-utils";
 import { Embedding } from "openai/resources/embeddings";
 import { createClient } from "@workspace/shared-llm-client";
 import { Langfuse, observeOpenAI } from "langfuse";
@@ -16,9 +22,11 @@ export interface SearchInternalResponse extends ServiceResponse {
   result: {
     id: string | null;
     similarityScore: number | null;
+    imageHammingDistance: number | null;
     isMatch: boolean;
     reasoning: string | null;
     text: string;
+    matchType: "text" | "image" | "both" | null;
     communityNote: CommunityNote | null;
     crowdsourcedCategory: string | null;
   };
@@ -89,8 +97,15 @@ export const searchInternalTool: Tool<
       context: ToolContext,
       span
     ): Promise<SearchInternalResult> => {
+      // Create a minimal AgentRequest from the tool params
+      const request: AgentRequest = {
+        id: crypto.randomUUID(),
+        text: params.text,
+        // Tool doesn't have image/caption info
+      };
+
       return searchInternal(
-        params.text,
+        request,
         context.env,
         context.langfuse,
         span,
@@ -102,41 +117,114 @@ export const searchInternalTool: Tool<
 };
 
 export async function searchInternal(
-  text: string,
+  request: AgentRequest,
   env: Env,
   langfuse: Langfuse | null,
   span: ReturnType<Langfuse["span"]> | null,
   logger: ReturnType<typeof createLogger>,
   llmCheck: boolean = false
 ): Promise<SearchInternalResult> {
+  const { text, imageUrl, caption } = request;
+
+  // Determine submission type
+  const hasText = !!text;
+  const hasImage = !!imageUrl;
+  const hasCaption = !!caption;
+
+  logger.debug(
+    { hasText, hasImage, hasCaption },
+    "Routing search based on submission type"
+  );
+
+  try {
+    // Route to appropriate handler
+    if (hasText && !hasImage) {
+      return await searchTextSubmission(
+        text,
+        env,
+        langfuse,
+        span,
+        logger,
+        llmCheck
+      );
+    } else if (hasImage && !hasCaption) {
+      return await searchImageOnlySubmission(
+        imageUrl,
+        env,
+        langfuse,
+        span,
+        logger
+      );
+    } else if (hasImage && hasCaption) {
+      return await searchImageWithCaptionSubmission(
+        imageUrl,
+        caption,
+        env,
+        langfuse,
+        span,
+        logger
+      );
+    } else {
+      throw new Error("Invalid submission type");
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      logger.error({ error }, "Error in searchInternal");
+    } else {
+      logger.error({ error }, "Error in searchInternal");
+    }
+    return {
+      success: false,
+      error: {
+        message: "Error in searchInternal",
+        code: "SEARCH_INTERNAL_ERROR",
+        details: error,
+      },
+    };
+  }
+}
+
+// =====================================
+// Handler: Text-only submissions
+// =====================================
+async function searchTextSubmission(
+  text: string,
+  env: Env,
+  langfuse: Langfuse | null,
+  span: ReturnType<Langfuse["span"]> | null,
+  logger: ReturnType<typeof createLogger>,
+  llmCheck: boolean
+): Promise<SearchInternalResult> {
   try {
     // First, try to find exact match by text hash
     logger.debug(
       { text: text.substring(0, 100) },
-      "Starting search - checking for exact hash match first"
+      "Text-only - checking for exact hash match first"
     );
 
     const textHash = await hashText(text);
     const hashResult = await env.DATABASE_SERVICE.findCheckByTextHash(textHash);
-    
+
     if (hashResult.success && hashResult.data) {
       logger.info(
-        { 
+        {
           checkId: hashResult.data._id,
           textHash,
-          method: "hash_lookup" 
+          method: "hash_lookup",
         },
         "Found exact match via text hash"
       );
-      
+
       return {
         success: true,
         result: {
           id: hashResult.data._id,
-          similarityScore: 1.0, // Exact match
+          similarityScore: 1.0,
+          imageHammingDistance: null,
           isMatch: true,
           reasoning: "Exact text match found via hash lookup",
           text,
+          matchType: "text",
           communityNote: hashResult.data.shortformResponse || null,
           crowdsourcedCategory: hashResult.data.crowdsourcedCategory || null,
         },
@@ -170,9 +258,9 @@ export async function searchInternal(
       throw new Error("Error embedding text");
     }
 
-    // Call vectorSearch with the embedding
+    // Call findSimilarTextEmbedding with the embedding
     const startTime = Date.now();
-    const searchResults = await env.DATABASE_SERVICE.vectorSearch(
+    const searchResults = await env.DATABASE_SERVICE.findSimilarTextEmbedding(
       embedding.embedding,
       1
     );
@@ -205,9 +293,11 @@ export async function searchInternal(
         result: {
           id: null,
           similarityScore: null,
+          imageHammingDistance: null,
           isMatch: false,
           reasoning: null,
           text,
+          matchType: null,
           communityNote: null,
           crowdsourcedCategory: null,
         },
@@ -233,6 +323,7 @@ export async function searchInternal(
     const crowdResult = topResult.crowdsourcedCategory;
     const score = topResult.score;
     const isMatch = score > 0.85;
+    const matchType: "text" | "image" | "both" | null = isMatch ? "text" : null;
 
     logger.info(
       {
@@ -354,9 +445,11 @@ export async function searchInternal(
             result: {
               id: topResult.id,
               similarityScore: topResult.score,
+              imageHammingDistance: null,
               isMatch: result.are_variants_of_same_claim,
               reasoning: result.reasoning,
               text,
+              matchType: result.are_variants_of_same_claim ? "text" : null,
               communityNote,
               crowdsourcedCategory: crowdResult,
             },
@@ -404,24 +497,258 @@ export async function searchInternal(
       result: {
         id: topResult.id,
         similarityScore: topResult.score,
+        imageHammingDistance: null,
         isMatch: isMatch,
         reasoning: `Similarity score: ${score} is above the threshold of 0.85.`,
         text,
+        matchType,
         communityNote,
         crowdsourcedCategory: crowdResult,
       },
     };
   } catch (error) {
     if (error instanceof Error) {
-      logger.error("Error in searchInternal:", error.message);
+      logger.error({ error }, "Error in searchTextSubmission");
     } else {
-      logger.error("Error in searchInternal", error);
+      logger.error({ error }, "Error in searchTextSubmission");
     }
     return {
       success: false,
       error: {
-        message: "Error in searchInternal",
-        code: "SEARCH_INTERNAL_ERROR",
+        message: "Error in searchTextSubmission",
+        code: "SEARCH_TEXT_ERROR",
+        details: error,
+      },
+    };
+  }
+}
+
+// =====================================
+// Handler: Image-only submissions
+// =====================================
+async function searchImageOnlySubmission(
+  imageUrl: string,
+  env: Env,
+  langfuse: Langfuse | null,
+  span: ReturnType<Langfuse["span"]> | null,
+  logger: ReturnType<typeof createLogger>
+): Promise<SearchInternalResult> {
+  try {
+    logger.debug({ imageUrl }, "Image-only - generating PDQ hash");
+
+    // Generate PDQ hash
+    const imageData = await fetch(imageUrl).then((r) => r.arrayBuffer());
+    const pdqHash = await hashImage(
+      new Uint8Array(imageData),
+      env.IMAGE_HASH_SERVICE
+    );
+
+    logger.debug({ pdqHash }, "PDQ hash generated, converting to vector");
+
+    // Convert to vector for search
+    const pdqVector = pdqHashToVector(pdqHash);
+
+    // Search for similar images
+    const searchResults = await env.DATABASE_SERVICE.findSimilarImageEmbedding(
+      pdqVector,
+      1
+    );
+
+    if (
+      !searchResults.success ||
+      !searchResults.data ||
+      searchResults.data.length === 0
+    ) {
+      logger.info("No similar images found");
+      return {
+        success: true,
+        result: {
+          id: null,
+          similarityScore: null,
+          imageHammingDistance: null,
+          isMatch: false,
+          reasoning: "No similar images found",
+          text: "",
+          matchType: null,
+          communityNote: null,
+          crowdsourcedCategory: null,
+        },
+      };
+    }
+
+    const topResult = searchResults.data[0];
+
+    // Compute actual hamming distance
+    const hammingDistance = topResult.imageHash
+      ? compareImageHashes(pdqHash, topResult.imageHash)
+      : null;
+
+    const isMatch = hammingDistance !== null && hammingDistance < 31;
+
+    logger.info(
+      {
+        hammingDistance,
+        threshold: 31,
+        isMatch,
+        euclideanDistance: topResult.distance,
+      },
+      "Image similarity evaluated"
+    );
+
+    return {
+      success: true,
+      result: {
+        id: topResult.id,
+        similarityScore: null,
+        imageHammingDistance: hammingDistance,
+        isMatch,
+        reasoning: isMatch
+          ? `Image hamming distance: ${hammingDistance} is below threshold of 31`
+          : `Image hamming distance: ${hammingDistance} exceeds threshold`,
+        text: "",
+        matchType: isMatch ? "image" : null,
+        communityNote: topResult.shortformResponse || null,
+        crowdsourcedCategory: topResult.crowdsourcedCategory || null,
+      },
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      logger.error({ error }, "Error in searchImageOnlySubmission");
+    } else {
+      logger.error({ error }, "Error in searchImageOnlySubmission");
+    }
+    return {
+      success: false,
+      error: {
+        message: "Error in searchImageOnlySubmission",
+        code: "SEARCH_IMAGE_ERROR",
+        details: error,
+      },
+    };
+  }
+}
+
+// =====================================
+// Handler: Image + Caption submissions
+// =====================================
+async function searchImageWithCaptionSubmission(
+  imageUrl: string,
+  caption: string,
+  env: Env,
+  langfuse: Langfuse | null,
+  span: ReturnType<Langfuse["span"]> | null,
+  logger: ReturnType<typeof createLogger>
+): Promise<SearchInternalResult> {
+  try {
+    logger.debug(
+      { imageUrl, caption: caption.substring(0, 100) },
+      "Image+Caption - generating PDQ hash"
+    );
+
+    // Generate PDQ hash
+    const imageData = await fetch(imageUrl).then((r) => r.arrayBuffer());
+    const pdqHash = await hashImage(
+      new Uint8Array(imageData),
+      env.IMAGE_HASH_SERVICE
+    );
+    const pdqVector = pdqHashToVector(pdqHash);
+
+    // Search for similar images (get top 5 candidates)
+    const imageSearchResults =
+      await env.DATABASE_SERVICE.findSimilarImageEmbedding(pdqVector, 5);
+
+    if (
+      !imageSearchResults.success ||
+      !imageSearchResults.data ||
+      imageSearchResults.data.length === 0
+    ) {
+      logger.info("No similar images found");
+      return {
+        success: true,
+        result: {
+          id: null,
+          similarityScore: null,
+          imageHammingDistance: null,
+          isMatch: false,
+          reasoning: "No similar images found",
+          text: caption,
+          matchType: null,
+          communityNote: null,
+          crowdsourcedCategory: null,
+        },
+      };
+    }
+
+    // Check caption hash for each candidate
+    const captionHash = await hashText(caption);
+
+    for (const candidate of imageSearchResults.data) {
+      if (!candidate.imageHash) continue;
+
+      const hammingDistance = compareImageHashes(pdqHash, candidate.imageHash);
+
+      // Image must be similar (hamming distance < 31)
+      if (hammingDistance < 31) {
+        // Check if caption hash matches
+        const candidateCaptionHash = candidate.caption
+          ? await hashText(candidate.caption)
+          : null;
+
+        if (candidateCaptionHash === captionHash) {
+          logger.info(
+            {
+              checkId: candidate.id,
+              hammingDistance,
+              method: "image_caption_hash_match",
+            },
+            "Found match: both image and caption hashes match"
+          );
+
+          return {
+            success: true,
+            result: {
+              id: candidate.id,
+              similarityScore: null,
+              imageHammingDistance: hammingDistance,
+              isMatch: true,
+              reasoning: "Both image and caption hashes match",
+              text: caption,
+              matchType: "both",
+              communityNote: candidate.shortformResponse || null,
+              crowdsourcedCategory: candidate.crowdsourcedCategory || null,
+            },
+          };
+        }
+      }
+    }
+
+    // No match found
+    logger.info("No candidates with matching image and caption");
+    return {
+      success: true,
+      result: {
+        id: null,
+        similarityScore: null,
+        imageHammingDistance: null,
+        isMatch: false,
+        reasoning: "No candidates with both matching image and caption",
+        text: caption,
+        matchType: null,
+        communityNote: null,
+        crowdsourcedCategory: null,
+      },
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      logger.error({ error }, "Error in searchImageWithCaptionSubmission");
+    } else {
+      logger.error({ error }, "Error in searchImageWithCaptionSubmission");
+    }
+    return {
+      success: false,
+      error: {
+        message: "Error in searchImageWithCaptionSubmission",
+        code: "SEARCH_IMAGE_CAPTION_ERROR",
         details: error,
       },
     };
