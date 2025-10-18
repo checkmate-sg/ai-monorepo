@@ -1,0 +1,28 @@
+{
+  "name": "ai-checker-service",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --inspector-port 9237",
+    "start": "wrangler dev",
+    "cf-typegen": "wrangler types"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250321.0",
+    "@types/url-regex-safe": "^1.0.2",
+    "openai": "^4.86.1",
+    "typescript": "^5.5.2"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^2.0.23",
+    "@opentelemetry/api": "^1.9.0",
+    "ai": "^5.0.76",
+    "dotenv": "^17.2.3",
+    "langfuse": "^3.37.1",
+    "normalize-url": "^8.0.1",
+    "opentelemetry-sdk-workers": "^0.6.2",
+    "url-regex-safe": "^4.0.0",
+    "zod": "^3.23.8"
+  }
+}
