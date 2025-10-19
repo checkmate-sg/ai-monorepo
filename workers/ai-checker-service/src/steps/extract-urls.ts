@@ -6,6 +6,7 @@ import normalizeUrl from "normalize-url";
 import { AgentRequest } from "@workspace/shared-types";
 import { getUrlExtractionSystemPrompt } from "../prompts/url-extraction";
 import { createLogger } from "@workspace/shared-utils";
+import { CheckContext } from "../types";
 
 const logger = createLogger("extract-urls");
 
@@ -93,10 +94,10 @@ async function extractUrlsFromImage(
  */
 export async function extractUrls(
   options: AgentRequest,
-  env: Env,
-  logger = createLogger("extract-urls")
+  checkCtx: CheckContext
 ): Promise<ExtractUrlsResult> {
-  const childLogger = logger.child({ step: "extract-urls" });
+  const childLogger = checkCtx.logger.child({ step: "extract-urls" });
+  const env = checkCtx.env;
   try {
     let urls: string[] = [];
 

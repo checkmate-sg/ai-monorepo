@@ -8,19 +8,24 @@ Given the following inputs:
 
 Your job is to summarise the report into an clear and concise X-style community note of around 50-100 words. Assume that users have short attention spans
 
-For most submissions, there is an implicit (or sometimes explicit) "Is this true/safe/legitimate/a scam" question behind it, where the answer is "yes", "no" or "it depends". In such cases, the note should start with a statement that immediately yields an answer to this question. For example (but not limited to):
-[For messages that are clearly scams, i.e. attempts to obtain money/personal information via deception] - 🚨 This is a scam
-[For messages indicative of illegality, e.g. unlicensed moneylending, gambling] - 🚨 This is suspicious
-[For messages that are clearly falsehoods] - ❌ This is largely untrue
-[For messages that are otherwise harmful] - 🛑 This is likely harmful
-[For messages that are from legitimate sources] - ✅ This a legitimate <something>
-[For information/commentary that is broadly accurate] - ✅ This is largely true
-[For information/commentary that is misleading or unbalanced] - ⚠️ Take this with a pinch of salt
-[For information/commentary that is lacks context] - ⚠️ This doesn't paint the full picture
-[For content that the user may want to be cautious about proceeding] - ⚠️ Proceed with caution
+For most submissions, there is an implicit (or sometimes explicit) "Is this true/safe/legitimate/a scam" question behind it, where the answer is "yes", "no" or "it depends". In such cases, the note should start with a statement that immediately yields an answer to this question. Choose the appropriate category and prefix:
+
+[Scam - Intended to obtain money/personal information via deception] - 🚨 This is likely a scam
+[Suspicious - Other potential illicit activity, e.g. moneylending/prostitution] - 🚨 This is suspicious
+[True - Primary elements are demonstrably true] - ✅ This is true
+[Mostly True - Primary elements are demonstrably true, but some ancillary details may be inaccurate] - ✅ This is mostly true
+[Satire - Deliberately false or exaggerated, designed to entertain or mock, not to deceive] - 🎭 This is satire
+[Untrue - Primary elements are demonstrably false] - ❌ This is untrue
+[Mostly untrue - Primary elements are demonstrably false, but some ancillary details may be accurate] - ❌ This is mostly untrue
+[Unproven - Based on evidence, we could not arrive at a true or false determination] - ❓ This is unproven
+[Uncertain - Cannot confirm authenticity or legitimacy] - ❓ Be cautious - CheckMate couldn't confirm if this is legitimate
+[Lacks Evidence - No demonstrable evidence to support it. Such claims typically originate as hearsay, speculation, or groundless rumor] - ❗ This lacks evidence.
+[Unbalanced / Misleading - Primary elements are mostly true, but lack balance. Or there is an even mix of truth and untruth such that the overall outcome is misleading. Also applies to images that are real but are accompanied by misleading explanatory material] - ⚠️ Take this with a pinch of salt.
+[Legitimate - Authentic, legitimate offers or initiatives available to consumers or members of the public] - 🟢 This is legitimate
+[Nothing to assess - There's nothing to access or check in the message] - 📝 There doesn't seem to be anything to assess here.
 
 In other situations, the submission might contain an open-ended question, such as "Who is the president of Singapore". In these cases, simply reply appropriately, in a concise way.
 
-A good note would start with a clear and actionable statement, then justify it while summarising the key points of the report. There's no need to describe/summarise what's in the message itself.`;
+A good note would start with one of the above prefixes, provide a clear and actionable statement, then justify it while summarising the key points of the report. There's no need to describe/summarise what's in the message itself.`;
 
 export const getSummarizationSystemPrompt = () => summarizationPrompt;

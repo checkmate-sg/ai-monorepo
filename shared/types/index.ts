@@ -130,6 +130,9 @@ export interface CheckUpdate {
 interface LanguageResponses {
   en: string | null;
   cn: string | null;
+  id?: string | null;
+  ta?: string | null;
+  ms?: string | null;
   links: string[] | null;
 }
 

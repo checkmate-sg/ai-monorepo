@@ -1,5 +1,5 @@
 import { ErrorResponse } from "@workspace/shared-types";
-import { createLogger, hashUrl } from "@workspace/shared-utils";
+import { createLogger, hashUrl, arrayBufferToBase64 } from "@workspace/shared-utils";
 
 export interface DownloadImageOptions {
   imageUrl: string;
@@ -45,16 +45,9 @@ export async function downloadImage(
       const r2Object = await env.CHECKMATE_IMAGES_BUCKET.get(filename);
       if (r2Object !== null) {
         childLogger.info({ filename }, "Image found in R2 cache");
-        // Convert to base64 and return immediately (process in chunks to avoid stack overflow)
+        // Convert to base64 and return immediately
         const arrayBuffer = await r2Object.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        const chunkSize = 8192;
-        let binary = "";
-        for (let i = 0; i < uint8Array.length; i += chunkSize) {
-          const chunk = uint8Array.subarray(i, i + chunkSize);
-          binary += String.fromCharCode.apply(null, Array.from(chunk));
-        }
-        const base64 = btoa(binary);
+        const base64 = arrayBufferToBase64(arrayBuffer);
         return {
           success: true,
           result: {
@@ -105,15 +98,8 @@ export async function downloadImage(
       arrayBuffer = await r2Object.arrayBuffer();
     }
 
-    // Convert to base64 (process in chunks to avoid stack overflow)
-    const uint8Array = new Uint8Array(arrayBuffer);
-    const chunkSize = 8192;
-    let binary = "";
-    for (let i = 0; i < uint8Array.length; i += chunkSize) {
-      const chunk = uint8Array.subarray(i, i + chunkSize);
-      binary += String.fromCharCode.apply(null, Array.from(chunk));
-    }
-    const base64 = btoa(binary);
+    // Convert to base64
+    const base64 = arrayBufferToBase64(arrayBuffer);
 
     return {
       success: true,

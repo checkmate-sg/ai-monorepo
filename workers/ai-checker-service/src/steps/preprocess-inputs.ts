@@ -9,6 +9,7 @@ import {
   ScreenshotResult,
 } from "@workspace/shared-types";
 import { createLogger } from "@workspace/shared-utils";
+import { CheckContext } from "../types";
 
 export type AgentRequestWithUrls = AgentRequest & {
   extractedUrls?: string[];
@@ -31,11 +32,11 @@ export type PreprocessResult = PreprocessResponse | ErrorResponse;
 
 export async function preprocessInputs(
   options: AgentRequestWithUrls,
-  env: Env,
-  logger = createLogger("preprocess-inputs")
+  checkCtx: CheckContext
 ): Promise<PreprocessResult> {
-  const childLogger = logger.child({ step: "preprocess-inputs" });
-
+  const childLogger = checkCtx.logger.child({ step: "preprocess-inputs" });
+  const env = checkCtx.env;
+  const trace = checkCtx.trace;
   try {
     const google = createGoogleGenerativeAI({
       apiKey: env.GEMINI_API_KEY,
@@ -43,8 +44,8 @@ export async function preprocessInputs(
     const model = google("gemini-2.5-pro");
     const { text, imageUrl, imageBase64, caption, extractedUrls } = options;
 
-    if (!imageBase64 && !imageUrl) {
-      throw new Error("No image buffer or image URL provided");
+    if (!text && !imageBase64 && !imageUrl) {
+      throw new Error("No text, image buffer, or image URL provided");
     }
 
     // Build user content based on input type
@@ -150,13 +151,19 @@ export async function preprocessInputs(
             "A title, less than 8 words, describing the check to be done. E.g. 'Article on budget measures at mofbudget.life' or 'Claim that strawberry quick is circulating'. Do not include names, addresses, or phone numbers."
           ),
       }),
+      experimental_telemetry: {
+        isEnabled: true,
+        functionId: "preprocess-inputs-generation",
+        metadata: {
+          langfuseTraceId: trace?.id,
+          langfuseUpdateParent: false,
+        },
+      },
     });
 
     const canBeAssessed = object.canBeAssessed;
     const isAccessBlocked = object.isAccessBlocked && !canBeAssessed;
     const isVideo = object.isVideo;
-
-    // TODO: Screenshot URLs found in content/image
 
     childLogger.info(
       {
@@ -176,7 +183,12 @@ export async function preprocessInputs(
         ...object,
         isAccessBlocked,
         isVideo,
-        startingContent: userContent,
+        startingContent: [
+          {
+            role: "user",
+            content: userContent,
+          },
+        ],
       },
     };
   } catch (error) {
@@ -184,11 +196,6 @@ export async function preprocessInputs(
       error instanceof Error ? error.message : "Unknown error occurred";
     childLogger.error({ error, errorMessage }, "Error in preprocessInputs");
 
-    return {
-      success: false,
-      error: {
-        message: errorMessage,
-      },
-    };
+    throw new Error(`Error in preprocessInputs: ${errorMessage}`);
   }
 }

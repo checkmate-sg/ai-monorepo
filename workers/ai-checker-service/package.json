@@ -16,12 +16,14 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.23",
+    "@ai-sdk/openai": "^2.0.52",
     "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/sdk-node": "^0.206.0",
     "ai": "^5.0.76",
     "dotenv": "^17.2.3",
     "langfuse": "^3.37.1",
+    "langfuse-vercel": "^3.38.6",
     "normalize-url": "^8.0.1",
-    "opentelemetry-sdk-workers": "^0.6.2",
     "url-regex-safe": "^4.0.0",
     "zod": "^3.23.8"
   }

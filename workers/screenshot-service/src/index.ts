@@ -2,7 +2,7 @@ import * as screenshotone from "screenshotone-api-sdk";
 
 // create API client
 import { WorkerEntrypoint } from "cloudflare:workers";
-import { createLogger, hashUrl } from "@workspace/shared-utils";
+import { createLogger, hashUrl, arrayBufferToBase64 } from "@workspace/shared-utils";
 import { ScreenshotRequest, ScreenshotResult } from "@workspace/shared-types";
 export default class extends WorkerEntrypoint<Env> {
   private logger = createLogger("screenshot-service");
@@ -53,8 +53,8 @@ export default class extends WorkerEntrypoint<Env> {
 
       if (r2Object === null) {
         const client = new screenshotone.Client(
-          this.env.SCREENSHOT_ONE_ACCESS_KEY,
-          this.env.SCREENSHOT_ONE_SECRET_KEY
+          this.env.SS_ONE_ACCESS_KEY,
+          this.env.SS_ONE_SECRET_KEY
         );
 
         // set up options
@@ -87,7 +87,7 @@ export default class extends WorkerEntrypoint<Env> {
       }
 
       // Convert to base64 string
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      const base64 = arrayBufferToBase64(buffer);
 
       return {
         success: true,

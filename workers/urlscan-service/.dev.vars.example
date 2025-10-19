@@ -1,0 +1,11 @@
+# Optional: Add account ID for account-specific scans
+# If not provided, will use public Cloudflare Radar endpoint
+# CLOUDFLARE_ACCOUNT_ID="your-account-id"
+
+# Optional: Add API token with URL Scanner permissions for authenticated scans
+# Get this from Cloudflare Dashboard > My Profile > API Tokens
+# Create token with "URL Scanner Read" and "URL Scanner Write" permissions
+# If not provided, will attempt to use public endpoint without authentication
+# CLOUDFLARE_API_TOKEN="your-api-token"
+
+ENVIRONMENT="development"

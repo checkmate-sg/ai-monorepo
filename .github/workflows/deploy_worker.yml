@@ -36,7 +36,7 @@ jobs:
         id: changed-workers
         run: |
           # Define all worker directories
-          ALL_WORKER_DIRS='["agent-service", "api-entrypoint", "database-service", "embedder-service", "screenshot-service", "search-service", "urlscan-service", "screenshot-backup-service", "trivialfilter-service", "blacklist-service", "notification-service"]'
+          ALL_WORKER_DIRS='["agent-service", "ai-checker-service", "api-entrypoint", "database-service", "embedder-service", "screenshot-service", "search-service", "urlscan-service", "screenshot-backup-service", "trivialfilter-service", "blacklist-service", "notification-service"]'
 
           # Case 1: Manual trigger with force_deploy=true - deploy all workers
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
@@ -86,6 +86,7 @@ jobs:
         # Create a job for each worker service
         worker-dir:
           - agent-service
+          - ai-checker-service
           - api-entrypoint
           - embedder-service
           - screenshot-service

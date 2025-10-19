@@ -10,6 +10,10 @@ import { translateText } from "./steps/translate";
 import { AgentRequest, AgentResult } from "@workspace/shared-types";
 import { extractUrls } from "./steps/extract-urls";
 import { downloadImage } from "./steps/download-image";
+import { NodeSDK } from "@opentelemetry/sdk-node";
+import { LangfuseExporter } from "langfuse-vercel";
+import { Langfuse } from "langfuse";
+import { CheckContext } from "./types";
 
 export default class extends WorkerEntrypoint<Env> {
   private logger = createLogger("ai-checker-service");
@@ -20,27 +24,34 @@ export default class extends WorkerEntrypoint<Env> {
 
     // Test endpoints in development
     if (this.env.ENVIRONMENT === "development") {
+      const checkCtx: CheckContext = {
+        env: this.env,
+        logger: this.logger,
+        trace: null as any,
+        ctx: this.ctx,
+      };
+
       if (url.pathname === "/test/extract-urls" && request.method === "POST") {
         const body = (await request.json()) as AgentRequest;
-        const result = await extractUrls(body, this.env, this.logger);
+        const result = await extractUrls(body, checkCtx);
         return Response.json(result);
       }
 
       if (url.pathname === "/test/preprocess" && request.method === "POST") {
         const body = (await request.json()) as any;
-        const result = await preprocessInputs(body, this.env, this.logger);
+        const result = await preprocessInputs(body, checkCtx);
         return Response.json(result);
       }
 
       if (url.pathname === "/test/summarize" && request.method === "POST") {
         const body = (await request.json()) as any;
-        const result = await summarizeReport(body, this.env, this.logger);
+        const result = await summarizeReport(body, checkCtx);
         return Response.json(result);
       }
 
       if (url.pathname === "/test/translate" && request.method === "POST") {
         const body = (await request.json()) as any;
-        const result = await translateText(body, this.env, this.logger);
+        const result = await translateText(body, checkCtx);
         return Response.json(result);
       }
 
@@ -50,7 +61,7 @@ export default class extends WorkerEntrypoint<Env> {
       ) {
         const body = (await request.json()) as { imageUrl: string };
         const { downloadImage } = await import("./steps/download-image");
-        const result = await downloadImage(body, this.env, this.logger);
+        const result = await downloadImage(body, checkCtx);
         return Response.json(result);
       }
 
@@ -72,9 +83,38 @@ export default class extends WorkerEntrypoint<Env> {
   }
 
   async check(request: AgentRequest): Promise<AgentResult> {
-    // Log request without base64 to avoid cluttering logs
+    // Initialize Langfuse
+    const langfuse = new Langfuse({
+      environment: this.env.ENVIRONMENT,
+      publicKey: this.env.LANGFUSE_PUBLIC_KEY,
+      secretKey: this.env.LANGFUSE_SECRET_KEY,
+      baseUrl: this.env.LANGFUSE_HOST,
+    });
+
+    const sdk = new NodeSDK({
+      traceExporter: new LangfuseExporter({
+        publicKey: this.env.LANGFUSE_PUBLIC_KEY,
+        secretKey: this.env.LANGFUSE_SECRET_KEY,
+        baseUrl: this.env.LANGFUSE_HOST,
+      }),
+    });
+    sdk.start();
+
+    // Create ID if not provided
+    if (!request.id) {
+      request.id = crypto.randomUUID();
+    }
+
+    // Create Langfuse trace
+    const trace = langfuse.trace({
+      name: "ai-checker-service-check",
+      input: request,
+      id: request.id,
+    });
+
+    // Create logger with request context
     const { imageBase64, ...requestWithoutBase64 } = request as any;
-    this.logger = this.logger.child({
+    const logger = this.logger.child({
       request: {
         ...requestWithoutBase64,
         imageBase64: imageBase64
@@ -82,11 +122,11 @@ export default class extends WorkerEntrypoint<Env> {
           : undefined,
       },
     });
-    this.logger.info("Check request received");
+    logger.info("Check request received");
 
     const id = request.id;
     if (!id) {
-      this.logger.error("Missing request id");
+      logger.error("Missing request id");
       return {
         success: false,
         error: {
@@ -95,43 +135,46 @@ export default class extends WorkerEntrypoint<Env> {
       };
     }
 
+    // Create context object
+    const checkCtx: CheckContext = {
+      env: this.env,
+      logger,
+      trace,
+      ctx: this.ctx,
+    };
+
     try {
       // Step 0: Download image
-
       if (request.imageUrl) {
-        this.logger.info("Step 0: Downloading image");
+        checkCtx.logger.info("Step 0: Downloading image");
         const downloadImageResult = await downloadImage(
           {
             imageUrl: request.imageUrl,
             id,
           },
-          this.env,
-          this.logger
+          checkCtx
         );
         if (downloadImageResult.success) {
           request.imageBase64 = downloadImageResult.result.base64;
         }
       }
+
       // Step 1: Extract URLs
-      this.logger.info("Step 1: Extracting URLs");
-      const extractionResult = await extractUrls(
-        request,
-        this.env,
-        this.logger
-      );
+      checkCtx.logger.info("Step 1: Extracting URLs");
+      const extractionResult = await extractUrls(request, checkCtx);
       if (!extractionResult.success) {
-        this.logger.error("Failed to extract URLs");
+        checkCtx.logger.error("Failed to extract URLs");
       }
+
       // Step 2: Preprocess inputs
-      this.logger.info("Step 2: Preprocessing inputs");
+      checkCtx.logger.info("Step 2: Preprocessing inputs");
       const preprocessingRequest = {
         ...request,
         extractedUrls: extractionResult.urls,
       };
       const preprocessingResponse = await preprocessInputs(
         preprocessingRequest,
-        this.env,
-        this.logger
+        checkCtx
       );
       if (!preprocessingResponse.success) {
         this.logger.error("Failed to preprocess inputs");
@@ -152,39 +195,71 @@ export default class extends WorkerEntrypoint<Env> {
 
       // Step 3: Agent loop
       this.logger.info("Step 3: Running agent loop");
+      const agentLoopResult = await runAgentLoop(
+        {
+          startingMessages: preprocessingResult.startingContent,
+          intent: preprocessingResult.intent,
+        },
+        checkCtx
+      );
+
+      this.logger.info({ agentLoopResult }, "Agent loop result");
 
       // Step 4: Summarize report
       this.logger.info("Step 4: Summarizing report");
-      // const summary = await summarizeReport({
-      //   report: agentResult.report,
-      // });
+      const summary = await summarizeReport(
+        {
+          startingMessages: preprocessingResult.startingContent,
+          intent: preprocessingResult.intent,
+          report: agentLoopResult.report,
+        },
+        checkCtx
+      );
 
-      // Step 4: Translate summary
+      this.logger.info({ summary }, "Summary");
+
+      // Step 5: Translate summary into all languages
       this.logger.info("Step 5: Translating summary");
-      // const translation = await translateText({
-      //   text: summary,
-      //   targetLanguage: request.languageHint || "Chinese",
-      // });
+      const [
+        translationChinese,
+        translationMalay,
+        translationIndonesian,
+        translationTamil,
+      ] = await Promise.all([
+        translateText({ text: summary, targetLanguage: "Chinese" }, checkCtx),
+        translateText(
+          { text: summary, targetLanguage: "Bahasa Melayu" },
+          checkCtx
+        ),
+        translateText(
+          { text: summary, targetLanguage: "Bahasa Indonesia" },
+          checkCtx
+        ),
+        translateText({ text: summary, targetLanguage: "Tamil" }, checkCtx),
+      ]);
 
       return {
         success: true,
         id,
         result: {
           report: {
-            en: "",
-            cn: "",
-            links: [],
+            en: agentLoopResult.report,
+            cn: translationChinese,
+            links: agentLoopResult.sources,
             timestamp: new Date(),
           },
           generationStatus: "pending",
           communityNote: {
-            en: "",
-            cn: "",
-            links: [],
+            en: summary,
+            cn: translationChinese,
+            ms: translationMalay,
+            id: translationIndonesian,
+            ta: translationTamil,
+            links: agentLoopResult.sources,
             timestamp: new Date(),
           },
           humanNote: null,
-          isControversial: false,
+          isControversial: agentLoopResult.isControversial,
           text: "text" in request ? request.text ?? null : null,
           imageUrl: "imageUrl" in request ? request.imageUrl ?? null : null,
           caption: "imageUrl" in request ? request.caption ?? null : null,
@@ -210,6 +285,9 @@ export default class extends WorkerEntrypoint<Env> {
           message: errorMessage,
         },
       };
+    } finally {
+      await langfuse.flushAsync();
+      await sdk.shutdown();
     }
   }
 }

@@ -45,4 +45,5 @@ interface Env {
   ENVIRONMENT: string;
   IS_ROLLBACK: boolean;
   GEMINI_API_KEY: string;
+  OPENAI_API_KEY: string;
 }

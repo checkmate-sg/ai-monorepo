@@ -1,39 +1,46 @@
 import { tool } from "ai";
 import { z } from "zod";
+import { CheckContext } from "../types";
 
 interface ToolContext {
   id?: string;
-  searchesRemaining: number;
 }
 
-export const createSearchGoogleTool = (env: Env, context: ToolContext) => {
+export const createSearchGoogleTool = (
+  checkCtx: CheckContext,
+  context: ToolContext
+) => {
   return tool({
-    description: "Search Google for information to help with fact-checking",
-    parameters: z.object({
+    description:
+      "Search Google for information to verify claims, check for scams, or find reliable sources. Returns organic search results from Google.",
+    inputSchema: z.object({
       q: z.string().describe("The search query"),
     }),
-    execute: async ({ q }) => {
-      if (context.searchesRemaining <= 0) {
-        throw new Error("No searches remaining");
-      }
-
+    execute: async ({ q }: { q: string }) => {
+      const childLogger = checkCtx.logger.child({ tool: "search-google" });
+      childLogger.info({ q }, "Searching Google");
       // Call search-service binding
+      const env = checkCtx.env;
       const result = await env.SEARCH_SERVICE.search({
         q,
         id: context.id,
       });
 
+      childLogger.info({ result }, "Google search completed");
+
       if (!result.success) {
-        throw new Error(result.error.message);
+        return {
+          query: q,
+          error: result.error.message,
+          searched: false,
+        };
       }
 
-      // Decrement searches remaining
-      context.searchesRemaining -= 1;
-
       return {
-        results: result.result,
         query: q,
+        results: result.result,
+        searched: true,
       };
     },
-  });
+  } as any);
 };
