@@ -1,5 +1,10 @@
 import { ErrorResponse } from "@workspace/shared-types";
-import { createLogger, hashUrl, arrayBufferToBase64 } from "@workspace/shared-utils";
+import {
+  createLogger,
+  hashUrl,
+  arrayBufferToBase64,
+} from "@workspace/shared-utils";
+import { CheckContext } from "../types";
 
 export interface DownloadImageOptions {
   imageUrl: string;
@@ -25,12 +30,12 @@ export type DownloadImageResult = DownloadImageResponse | ErrorResponse;
  */
 export async function downloadImage(
   options: DownloadImageOptions,
-  env: Env,
+  checkCtx: CheckContext,
   logger = createLogger("download-image")
 ): Promise<DownloadImageResult> {
   const childLogger = logger.child({ step: "download-image" });
   const { imageUrl, id } = options;
-
+  const env = checkCtx.env;
   try {
     let r2Key: string;
 
