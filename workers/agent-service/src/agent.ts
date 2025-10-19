@@ -437,9 +437,22 @@ export class CheckerAgent extends DurableObject<Env> {
       try {
         // hash the text if it exists
         const textHash = this.text ? await hashText(this.text) : null;
-        const imageHash = this.imageUrl
-          ? await hashImageFromUrl(this.imageUrl, this.env.IMAGE_HASH_SERVICE)
-          : null;
+        let imageHash: string | null = null;
+        try {
+          if (this.imageUrl) {
+            imageHash = await hashImageFromUrl(
+              this.imageUrl,
+              this.env.IMAGE_HASH_SERVICE
+            );
+          }
+        } catch (error) {
+          this.logger.error("Failed to hash image");
+          if (this.env.ENVIRONMENT === "development") {
+            logger.warn("Failed to hash image, using null");
+          } else {
+            throw error;
+          }
+        }
         const captionHash = this.caption ? await hashText(this.caption) : null;
         const pdqVector = imageHash ? pdqHashToVector(imageHash) : null;
 
