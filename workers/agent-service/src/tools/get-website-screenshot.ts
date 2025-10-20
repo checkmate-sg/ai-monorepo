@@ -39,7 +39,7 @@ export const websiteScreenshotTool: Tool<ScreenshotParams, ScreenshotResult> = {
       try {
         return await context.env.SCREENSHOT_SERVICE.screenshot({
           url: params.url,
-          id: context.id,
+          id: context.getId(),
         });
       } catch (error) {
         context.logger.error(

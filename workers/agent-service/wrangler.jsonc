@@ -90,14 +90,6 @@
         "queue": "core-check-events-queue",
         "binding": "CORE_CHECK_EVENTS_QUEUE"
       }
-    ],
-    "consumers": [
-      {
-        "queue": "checkers-poll-update-queue",
-        "max_batch_size": 1,
-        "max_batch_timeout": 1,
-        "max_retries": 0
-      }
     ]
   },
 
@@ -120,13 +112,6 @@
           {
             "queue": "core-check-events-queue",
             "binding": "CORE_CHECK_EVENTS_QUEUE"
-          }
-        ],
-        "consumers": [
-          {
-            "queue": "checkers-poll-update-queue",
-            "max_batch_size": 1,
-            "max_batch_timeout": 1
           }
         ]
       },
@@ -175,13 +160,6 @@
           {
             "queue": "core-check-events-queue-staging",
             "binding": "CORE_CHECK_EVENTS_QUEUE"
-          }
-        ],
-        "consumers": [
-          {
-            "queue": "checkers-poll-update-queue-staging",
-            "max_batch_size": 1,
-            "max_batch_timeout": 1
           }
         ]
       },

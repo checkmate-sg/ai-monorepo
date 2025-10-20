@@ -25,7 +25,9 @@
     { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
     { "binding": "AGENT_SERVICE", "service": "agent-service" },
     { "binding": "TRIVIAL_FILTER_SERVICE", "service": "trivialfilter-service" },
-    { "binding": "BLACKLIST_SERVICE", "service": "blacklist-service" }
+    { "binding": "BLACKLIST_SERVICE", "service": "blacklist-service" },
+    { "binding": "AI_CHECKER_SERVICE", "service": "ai-checker-service" },
+    { "binding": "CHECKS_SERVICE", "service": "checks-service" }
   ],
   "queues": {
     "producers": [
@@ -92,6 +94,14 @@
         {
           "binding": "BLACKLIST_SERVICE",
           "service": "blacklist-service-staging"
+        },
+        {
+          "binding": "AI_CHECKER_SERVICE",
+          "service": "ai-checker-service-staging"
+        },
+        {
+          "binding": "CHECKS_SERVICE",
+          "service": "checks-service-staging"
         }
       ],
       "queues": {
@@ -140,6 +150,14 @@
         {
           "binding": "NOTIFICATION_SERVICE",
           "service": "notification-service"
+        },
+        {
+          "binding": "AI_CHECKER_SERVICE",
+          "service": "ai-checker-service"
+        },
+        {
+          "binding": "CHECKS_SERVICE",
+          "service": "checks-service"
         }
       ],
       "tail_consumers": [

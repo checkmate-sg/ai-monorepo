@@ -234,7 +234,7 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
             messages: messages as any[],
             response_format: config.response_format,
           }),
-          30000, // 30 seconds timeout
+          45000, // 45 seconds timeout
           "Preprocess inputs LLM call"
         );
 

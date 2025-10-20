@@ -46,6 +46,7 @@ export interface ScreenshotResponse extends ServiceResponse {
   result: {
     url: string;
     imageUrl: string;
+    base64?: string;
   };
 }
 
@@ -91,6 +92,7 @@ interface ImageAgentRequest extends BaseAgentRequest {
   text?: never;
   imageUrl: string;
   caption?: string;
+  imageBase64?: string;
 }
 
 // Union type to enforce either text OR image+optional caption
@@ -128,6 +130,9 @@ export interface CheckUpdate {
 interface LanguageResponses {
   en: string | null;
   cn: string | null;
+  id?: string | null;
+  ta?: string | null;
+  ms?: string | null;
   links: string[] | null;
 }
 

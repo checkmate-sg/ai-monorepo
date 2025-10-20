@@ -16,6 +16,7 @@ import { GetCheck } from "./endpoints/checkGet";
 import { PatchCheck } from "./endpoints/checkPatch";
 import { PatchCheckHumanNote } from "./endpoints/checkHumanNotePatch";
 export { Consumer } from "./durable-objects/consumer";
+import { AgentCheckV2 } from "./endpoints/agentCheckV2";
 
 // Start a Hono app
 const app = new Hono();
@@ -28,6 +29,7 @@ const openapi = fromHono(app, {
 // Apply middleware to protected routes
 app.use("/getEmbedding", consumerAuth);
 app.use("/getAgentResult", consumerAuth);
+app.use("/getAgentResultV2", consumerAuth);
 app.use("/getCommunityNote", consumerAuth);
 app.use("/getNeedsChecking", consumerAuth);
 app.use("/upsertBlacklist", consumerAuth);
@@ -44,6 +46,9 @@ openapi.post("/getEmbedding", Embed);
 
 // Performs the full agent check
 openapi.post("/getAgentResult", AgentCheck);
+
+// Performs the full agent check
+openapi.post("/getAgentResultV2", AgentCheckV2);
 
 // Same as getAgentResult but does not return the long-form report
 openapi.post("/getCommunityNote", CommunityNote);

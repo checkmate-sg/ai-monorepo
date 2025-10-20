@@ -17,6 +17,19 @@ export async function hashText(text: string): Promise<string> {
 }
 
 /**
+ * Generates a consistent SHA-256 hash for a URL.
+ * Normalizes the URL first to ensure consistent hashing.
+ * Uses the Web Crypto API which is available in Cloudflare Workers.
+ *
+ * @param url - The URL to hash
+ * @returns A hexadecimal string representation of the hash
+ */
+export async function hashUrl(url: string): Promise<string> {
+  const normalizedUrl = new URL(url).toString();
+  return hashText(normalizedUrl);
+}
+
+/**
  * Generates a PDQ perceptual hash for the given image.
  * Uses the PDQ worker service via service binding.
  *
