@@ -34,7 +34,11 @@ When to use each tool:
 - **Screenshot for content analysis**: Use screenshots to capture and analyze webpage content, including text, images, and visual elements
 - **Dive deeper into search results**: After getting search results, consider using the screenshot tool to examine the actual content of relevant URLs. Unless everything you need is contained in the snippet, screenshot the pages to get the full context and details needed for your analysis
 - **Scan URLs for malicious content**: Use the URL malicious content scanner to check URLs for phishing, malware, and security threats. Use only if there is reason to suspect the URL is malicious.
-- **Submit report when ready**: Once you have gathered sufficient evidence and formed a conclusion that addresses the user's intent, use the Review Report tool to submit your final report. The report will be reviewed for quality, and you'll receive feedback. If it doesn't pass review, you can refine your report and resubmit.
+- **Submit report when ready**: Once you have gathered sufficient evidence and formed a conclusion that addresses the user's intent, use the Review Report tool to submit your final report. IMPORTANT: You must provide three separate fields:
+  - "report": Your findings and conclusion (do NOT include sources or isControversial in this text)
+  - "sources": Array of URLs you used as evidence (as a separate field, not in the report text)
+  - "isControversial": Boolean indicating if content is politically/religiously divisive (as a separate field, not in the report text)
+  The report will be reviewed for quality, and you'll receive feedback. If it doesn't pass review, you can refine your report and resubmit.
 
 Be strategic with tool usage - you have limited searches and screenshots.
 
