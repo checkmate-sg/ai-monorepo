@@ -131,21 +131,33 @@ export class DatabaseDurableObject extends DurableObject<Env> {
   }
 
   async findCheckByImageHash(
-    imageHash: string
+    imageHash: string,
+    captionHash?: string | null
   ): Promise<{ success: boolean; data?: Check; error?: string }> {
     try {
       await this.connectPromise;
       const db = this.client.db("checkmate-core");
       const checksCollection = db.collection("checks");
 
-      const check = await checksCollection.findOne({
+      const query: any = {
         imageHash: imageHash,
-      });
+      };
+
+      // If captionHash is provided, match it
+      // If captionHash is explicitly null, match records with no caption
+      // If captionHash is undefined, don't filter by caption at all
+      if (captionHash !== undefined) {
+        query.captionHash = captionHash;
+      }
+
+      const check = await checksCollection.findOne(query);
 
       if (!check) {
         return {
           success: false,
-          error: `Check with imageHash ${imageHash} not found`,
+          error: `Check with imageHash ${imageHash}${
+            captionHash !== undefined ? ` and captionHash ${captionHash}` : ""
+          } not found`,
         };
       }
 
@@ -243,7 +255,10 @@ export class DatabaseDurableObject extends DurableObject<Env> {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      this.logger.error({ error, id, data }, "Failed to update check with changes");
+      this.logger.error(
+        { error, id, data },
+        "Failed to update check with changes"
+      );
       return { success: false, error: errorMessage };
     }
   }
@@ -521,7 +536,10 @@ export class DatabaseDurableObject extends DurableObject<Env> {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      this.logger.error({ error }, "Failed to perform text embedding vector search");
+      this.logger.error(
+        { error },
+        "Failed to perform text embedding vector search"
+      );
       return { success: false, error: errorMessage };
     }
   }
@@ -535,7 +553,12 @@ export class DatabaseDurableObject extends DurableObject<Env> {
     data?: Array<
       Pick<
         Check,
-        "caption" | "imageUrl" | "imageHash" | "timestamp" | "shortformResponse" | "crowdsourcedCategory"
+        | "caption"
+        | "imageUrl"
+        | "imageHash"
+        | "timestamp"
+        | "shortformResponse"
+        | "crowdsourcedCategory"
       > & {
         id: string;
         score: number;
@@ -605,7 +628,10 @@ export class DatabaseDurableObject extends DurableObject<Env> {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      this.logger.error({ error }, "Failed to perform caption embedding vector search");
+      this.logger.error(
+        { error },
+        "Failed to perform caption embedding vector search"
+      );
       return { success: false, error: errorMessage };
     }
   }
@@ -613,13 +639,19 @@ export class DatabaseDurableObject extends DurableObject<Env> {
   // Vector search for similar images by PDQ hash embedding (256-dim binary vector)
   async findSimilarImageEmbedding(
     embedding: number[],
-    limit: number = 5
+    limit: number = 5,
+    hasCaption?: boolean | null
   ): Promise<{
     success: boolean;
     data?: Array<
       Pick<
         Check,
-        "imageUrl" | "caption" | "imageHash" | "timestamp" | "shortformResponse" | "crowdsourcedCategory"
+        | "imageUrl"
+        | "caption"
+        | "imageHash"
+        | "timestamp"
+        | "shortformResponse"
+        | "crowdsourcedCategory"
       > & {
         id: string;
         distance: number;
@@ -639,12 +671,26 @@ export class DatabaseDurableObject extends DurableObject<Env> {
       const db = this.client.db("checkmate-core");
       const checksCollection = db.collection("checks");
 
-      const filter: Partial<Pick<Check, "isExpired" | "isHumanAssessed">> = {
+      const filter: any = {
         isExpired: false,
       };
 
       if (this.env.ENVIRONMENT === "production") {
         filter.isHumanAssessed = true;
+      }
+
+      // Filter by caption presence if specified
+      // hasCaption = true: only return records with a caption
+      // hasCaption = false or null: only return records without a caption
+      // hasCaption = undefined: don't filter by caption
+      if (hasCaption === true) {
+        filter.caption = { $exists: true, $ne: null };
+      } else if (hasCaption === false || hasCaption === null) {
+        filter.$or = [
+          { caption: { $exists: false } },
+          { caption: null },
+          { caption: "" },
+        ];
       }
 
       const pipeline = [
@@ -712,7 +758,10 @@ export class DatabaseDurableObject extends DurableObject<Env> {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      this.logger.error({ error }, "Failed to perform image embedding vector search");
+      this.logger.error(
+        { error },
+        "Failed to perform image embedding vector search"
+      );
       return { success: false, error: errorMessage };
     }
   }
@@ -772,10 +821,11 @@ export default class extends WorkerEntrypoint<Env> {
   }
 
   async findCheckByImageHash(
-    imageHash: string
+    imageHash: string,
+    captionHash?: string | null
   ): Promise<{ success: boolean; data?: Check; error?: string }> {
     const durableObject = this.getDurableObject();
-    return durableObject.findCheckByImageHash(imageHash);
+    return durableObject.findCheckByImageHash(imageHash, captionHash);
   }
 
   async updateCheck(
@@ -873,7 +923,12 @@ export default class extends WorkerEntrypoint<Env> {
     data?: Array<
       Pick<
         Check,
-        "caption" | "imageUrl" | "imageHash" | "timestamp" | "shortformResponse" | "crowdsourcedCategory"
+        | "caption"
+        | "imageUrl"
+        | "imageHash"
+        | "timestamp"
+        | "shortformResponse"
+        | "crowdsourcedCategory"
       > & {
         id: string;
         score: number;
@@ -887,13 +942,19 @@ export default class extends WorkerEntrypoint<Env> {
 
   async findSimilarImageEmbedding(
     embedding: number[],
-    limit: number = 5
+    limit: number = 5,
+    hasCaption?: boolean | null
   ): Promise<{
     success: boolean;
     data?: Array<
       Pick<
         Check,
-        "imageUrl" | "caption" | "imageHash" | "timestamp" | "shortformResponse" | "crowdsourcedCategory"
+        | "imageUrl"
+        | "caption"
+        | "imageHash"
+        | "timestamp"
+        | "shortformResponse"
+        | "crowdsourcedCategory"
       > & {
         id: string;
         distance: number;
@@ -902,6 +963,6 @@ export default class extends WorkerEntrypoint<Env> {
     error?: string;
   }> {
     const durableObject = this.getDurableObject();
-    return durableObject.findSimilarImageEmbedding(embedding, limit);
+    return durableObject.findSimilarImageEmbedding(embedding, limit, hasCaption);
   }
 }

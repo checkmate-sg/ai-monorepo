@@ -155,9 +155,6 @@ export default class extends WorkerEntrypoint<Env> {
       }
 
       const submitData = (await submitResponse.json()) as any;
-
-      console.log(JSON.stringify(submitData, null, 2));
-
       // Extract scan UUID from response
       const scanUuid = submitData.uuid;
       const publicResultUrl = submitData.result;
@@ -210,7 +207,6 @@ export default class extends WorkerEntrypoint<Env> {
         if (!resultResponse.ok) {
           //log error text
           const errorText = await resultResponse.text();
-          console.log(errorText);
           this.logger.warn(
             {
               ...this.logContext,

@@ -52,7 +52,6 @@ function transformScreenshotMessages(messages: ModelMessage[]): ModelMessage[] {
             imageContent: "Screenshot injected as user message below",
           },
         };
-        console.log("Modified tool result content", toolResultContent);
         // Inject a user message with the actual image
         transformed.push({
           role: "user",
@@ -177,14 +176,6 @@ export async function runAgentLoop(
       const activeTools: Array<
         "scan_url" | "search_google" | "review_report" | "url_screenshot"
       > = [];
-
-      if (searchesRemaining === 4 && screenshotsRemaining === 5) {
-        activeTools.push("url_screenshot");
-        return {
-          activeTools,
-          messages: transformedMessages,
-        };
-      }
 
       if (searchesRemaining > 0) {
         activeTools.push("search_google");

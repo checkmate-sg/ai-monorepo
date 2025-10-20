@@ -1,21 +1,21 @@
-import { CommunityNote, AgentRequest } from "@workspace/shared-types";
-import { Tool, ToolContext } from "./types";
-import { withLangfuseSpan, withTimeout } from "./utils";
-import type { ErrorResponse, ServiceResponse } from "@workspace/shared-types";
 import {
-  createLogger,
+  AgentRequest,
+  CommunityNote,
+  ErrorResponse,
+  ServiceResponse,
+} from "@workspace/shared-types";
+import {
   hashText,
   hashImage,
-  compareImageHashes,
   pdqHashToVector,
+  compareImageHashes,
 } from "@workspace/shared-utils";
-import { Embedding } from "openai/resources/embeddings";
-import { createClient } from "@workspace/shared-llm-client";
-import { Langfuse, observeOpenAI } from "langfuse";
-export interface SearchInternalParams {
-  text: string;
-  llmCheck: boolean;
-}
+import { CheckContext } from "../types";
+import { generateObject } from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { z } from "zod";
+import { confirmSameClaimPrompt } from "../prompts/confirm-same-claim";
 
 export interface SearchInternalResponse extends ServiceResponse {
   success: true;
@@ -32,98 +32,13 @@ export interface SearchInternalResponse extends ServiceResponse {
   };
 }
 
-const logger = createLogger("search-internal");
-
 export type SearchInternalResult = SearchInternalResponse | ErrorResponse;
-
-const configObject = {
-  model: "gpt-4.1-mini",
-  temperature: 0,
-  seed: 11,
-  response_format: {
-    type: "json_schema" as const,
-    json_schema: {
-      name: "confirm_same_claim",
-      schema: {
-        type: "object",
-        properties: {
-          reasoning: {
-            type: "string",
-            description:
-              "An explanation of whether the two texts are variants of the same claim for fact-checking purposes.",
-          },
-          are_variants_of_same_claim: {
-            type: "boolean",
-            description:
-              "A flag indicating whether the two texts should be treated as variants of the same claim.",
-          },
-        },
-        required: ["reasoning", "are_variants_of_same_claim"],
-        additionalProperties: false,
-      },
-    },
-  },
-};
-
-export const searchInternalTool: Tool<
-  SearchInternalParams,
-  SearchInternalResult
-> = {
-  definition: {
-    type: "function",
-    function: {
-      name: "search_internal",
-      description:
-        "Searches the internal database for a previous submission most similar to the one provided, and returns that as well as the previous community note that was generated, if any, and an assessment of whether it's relevant.",
-      parameters: {
-        type: "object",
-        properties: {
-          text: {
-            type: "string",
-            description:
-              "The submission text to conduct a similarity search on. If it's an image, you can still describe it/the claims within it, as similar results might still emerge.",
-          },
-        },
-        required: ["text"],
-        additionalProperties: false,
-      },
-      strict: true,
-    },
-  },
-  execute: withLangfuseSpan(
-    "search-internal",
-    async (
-      params: SearchInternalParams,
-      context: ToolContext,
-      span
-    ): Promise<SearchInternalResult> => {
-      // Create a minimal AgentRequest from the tool params
-      const request: AgentRequest = {
-        id: crypto.randomUUID(),
-        text: params.text,
-        // Tool doesn't have image/caption info
-      };
-
-      return searchInternal(
-        request,
-        context.env,
-        context.langfuse,
-        span,
-        context.logger,
-        params.llmCheck
-      );
-    }
-  ),
-};
 
 export async function searchInternal(
   request: AgentRequest,
-  env: Env,
-  langfuse: Langfuse | null,
-  span: ReturnType<Langfuse["span"]> | null,
-  logger: ReturnType<typeof createLogger>,
-  llmCheck: boolean = false
+  checkCtx: CheckContext
 ): Promise<SearchInternalResult> {
+  const logger = checkCtx.logger.child({ tool: "search-internal" });
   const { text, imageUrl, caption } = request;
 
   // Determine submission type
@@ -139,30 +54,14 @@ export async function searchInternal(
   try {
     // Route to appropriate handler
     if (hasText && !hasImage) {
-      return await searchTextSubmission(
-        text,
-        env,
-        langfuse,
-        span,
-        logger,
-        llmCheck
-      );
+      return await searchTextSubmission(text, true, checkCtx);
     } else if (hasImage && !hasCaption) {
-      return await searchImageOnlySubmission(
-        imageUrl,
-        env,
-        langfuse,
-        span,
-        logger
-      );
+      return await searchImageOnlySubmission(imageUrl, checkCtx);
     } else if (hasImage && hasCaption) {
       return await searchImageWithCaptionSubmission(
         imageUrl,
         caption,
-        env,
-        langfuse,
-        span,
-        logger
+        checkCtx
       );
     } else {
       throw new Error("Invalid submission type");
@@ -189,12 +88,11 @@ export async function searchInternal(
 // =====================================
 async function searchTextSubmission(
   text: string,
-  env: Env,
-  langfuse: Langfuse | null,
-  span: ReturnType<Langfuse["span"]> | null,
-  logger: ReturnType<typeof createLogger>,
-  llmCheck: boolean
+  llmCheck: boolean,
+  checkCtx: CheckContext
 ): Promise<SearchInternalResult> {
+  const logger = checkCtx.logger.child({ tool: "search-internal-text" });
+  const env = checkCtx.env;
   try {
     // First, try to find exact match by text hash
     logger.debug(
@@ -236,7 +134,7 @@ async function searchTextSubmission(
       "No exact hash match found, proceeding with vector search"
     );
 
-    let embedding: Embedding;
+    let embedding: any;
     try {
       embedding = await env.EMBEDDER_SERVICE.embed({
         text,
@@ -337,141 +235,86 @@ async function searchTextSubmission(
     );
 
     if (llmCheck && isMatch) {
-      let trace;
-      if (!langfuse) {
-        langfuse = new Langfuse({
-          environment: env.ENVIRONMENT,
-          publicKey: env.LANGFUSE_PUBLIC_KEY,
-          secretKey: env.LANGFUSE_SECRET_KEY,
-          baseUrl: env.LANGFUSE_HOST,
-        });
-        trace = langfuse.trace({
-          name: "confirm-same-claim",
-          input: {
-            text1: topResult.text,
-            text2: text,
-          },
-          id: crypto.randomUUID(),
-        });
-      }
-
       const text1 = topResult.text;
       const text2 = text;
 
       try {
-        const client = await createClient("openai", env);
-        const confirm_same_claim_prompt = await langfuse.getPrompt(
-          "confirm_same_claim",
-          undefined,
-          {
-            label:
-              env.ENVIRONMENT === "production"
-                ? "cf-production"
-                : env.ENVIRONMENT,
-            type: "chat",
-          }
-        );
-        const observedClient = observeOpenAI(client, {
-          clientInitParams: {
-            publicKey: env.LANGFUSE_PUBLIC_KEY,
-            secretKey: env.LANGFUSE_SECRET_KEY,
-            baseUrl: env.LANGFUSE_HOST,
-          },
-          langfusePrompt: confirm_same_claim_prompt,
-          parent: span ? span : trace,
+        const openai = createOpenAI({
+          apiKey: env.OPENAI_API_KEY,
         });
+
+        const google = createGoogleGenerativeAI({
+          apiKey: env.GEMINI_API_KEY,
+        });
+
         logger.info(
           {
-            text1,
-            text2,
+            text1: text1.substring(0, 100),
+            text2: text2.substring(0, 100),
           },
-          "Confirming same claim"
+          "Confirming same claim with LLM"
         );
-        const config = confirm_same_claim_prompt.config as typeof configObject;
-        const messages = confirm_same_claim_prompt.compile({
-          text1,
-          text2,
-        }) as any[];
-        const response = await withTimeout(
-          observedClient.chat.completions.create({
-            model: config.model || "gpt-4.1-mini",
-            temperature: config.temperature || 0.0,
-            seed: config.seed || 11,
-            messages: messages as any[],
-            response_format: config.response_format,
+
+        const { object } = await (generateObject as any)({
+          model: google("gemini-2.5-flash"),
+          schema: z.object({
+            are_variants_of_same_claim: z.boolean(),
+            reasoning: z.string(),
           }),
-          30000, // 30 seconds timeout
-          "Confirm same claim LLM call"
-        );
-        const content = response.choices[0].message.content;
-        const result = JSON.parse(content || "{}");
+          system: confirmSameClaimPrompt,
+          prompt: `# Text 1
+${text1}
+
+# Text 2
+${text2}`,
+          experimental_telemetry: {
+            isEnabled: true,
+            functionId: "confirm-same-claim",
+            metadata: {
+              langfuseTraceId: checkCtx.trace?.id ?? "",
+              langfuseUpdateParent: false,
+            },
+          },
+        });
 
         logger.debug(
           {
-            llmResponse: result,
+            llmResponse: object,
             originalScore: topResult.score,
-            llmDecision: result.are_variants_of_same_claim,
+            llmDecision: object.are_variants_of_same_claim,
           },
           "LLM same claim check completed"
         );
 
-        if (trace) {
-          trace.update({
-            output: result,
-            tags: [
-              env.ENVIRONMENT,
-              "single-call",
-              "confirm-same-claim",
-              "cloudflare-workers",
-            ],
-          });
-        }
+        logger.info(
+          {
+            finalMatch: object.are_variants_of_same_claim,
+            similarityScore: topResult.score,
+            llmReasoning: object.reasoning?.substring(0, 200),
+          },
+          "Final match decision after LLM check"
+        );
 
-        if (result.are_variants_of_same_claim != null) {
-          logger.info(
-            {
-              finalMatch: result.are_variants_of_same_claim,
-              similarityScore: topResult.score,
-              llmReasoning: result.reasoning?.substring(0, 200),
-            },
-            "Final match decision after LLM check"
-          );
-
-          // Flush Langfuse trace before returning
-          await langfuse.flushAsync();
-
-          return {
-            success: true,
-            result: {
-              id: topResult.id,
-              similarityScore: topResult.score,
-              imageHammingDistance: null,
-              isMatch: result.are_variants_of_same_claim,
-              reasoning: result.reasoning,
-              text,
-              matchType: result.are_variants_of_same_claim ? "text" : null,
-              communityNote,
-              crowdsourcedCategory: crowdResult,
-            },
-          };
-        } else {
-          logger.error(
-            { result },
-            "LLM response missing are_variants_of_same_claim field"
-          );
-          throw new Error("No result from confirm same claim prompt");
-        }
+        return {
+          success: true,
+          result: {
+            id: topResult.id,
+            similarityScore: topResult.score,
+            imageHammingDistance: null,
+            isMatch: object.are_variants_of_same_claim,
+            reasoning: object.reasoning,
+            text,
+            matchType: object.are_variants_of_same_claim ? "text" : null,
+            communityNote,
+            crowdsourcedCategory: crowdResult,
+          },
+        };
       } catch (error: unknown) {
         // Log the error with proper type handling
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error occurred";
 
         logger.error({ error, errorMessage }, "Error confirming same claim");
-
-        // Flush Langfuse trace even on error
-        if (langfuse) {
-          await langfuse.flushAsync();
-        }
 
         return {
           success: false,
@@ -528,11 +371,10 @@ async function searchTextSubmission(
 // =====================================
 async function searchImageOnlySubmission(
   imageUrl: string,
-  env: Env,
-  langfuse: Langfuse | null,
-  span: ReturnType<Langfuse["span"]> | null,
-  logger: ReturnType<typeof createLogger>
+  checkCtx: CheckContext
 ): Promise<SearchInternalResult> {
+  const logger = checkCtx.logger.child({ tool: "search-internal-image-only" });
+  const env = checkCtx.env;
   try {
     logger.debug({ imageUrl }, "Image-only - generating PDQ hash");
 
@@ -543,7 +385,7 @@ async function searchImageOnlySubmission(
       env.IMAGE_HASH_SERVICE
     );
 
-    // Check for exact image hash match first (only for image-only, no caption)
+    // Check for exact image hash match first
     const hashResult = await env.DATABASE_SERVICE.findCheckByImageHash(
       pdqHash,
       null
@@ -556,7 +398,7 @@ async function searchImageOnlySubmission(
           pdqHash,
           method: "image_hash_lookup",
         },
-        "Found exact image match via PDQ hash lookup (image-only)"
+        "Found exact image match via PDQ hash lookup"
       );
 
       return {
@@ -670,11 +512,12 @@ async function searchImageOnlySubmission(
 async function searchImageWithCaptionSubmission(
   imageUrl: string,
   caption: string,
-  env: Env,
-  langfuse: Langfuse | null,
-  span: ReturnType<Langfuse["span"]> | null,
-  logger: ReturnType<typeof createLogger>
+  checkCtx: CheckContext
 ): Promise<SearchInternalResult> {
+  const logger = checkCtx.logger.child({
+    tool: "search-internal-image-with-caption",
+  });
+  const env = checkCtx.env;
   try {
     logger.debug(
       { imageUrl, caption: caption.substring(0, 100) },
@@ -687,9 +530,9 @@ async function searchImageWithCaptionSubmission(
       new Uint8Array(imageData),
       env.IMAGE_HASH_SERVICE
     );
+    const captionHash = await hashText(caption);
 
     // Check for exact image hash and caption hash match first
-    const captionHash = await hashText(caption);
     const imageHashResult = await env.DATABASE_SERVICE.findCheckByImageHash(
       pdqHash,
       captionHash
@@ -753,8 +596,6 @@ async function searchImageWithCaptionSubmission(
         },
       };
     }
-
-    // Check caption hash for each candidate
 
     for (const candidate of imageSearchResults.data) {
       if (!candidate.imageHash) continue;

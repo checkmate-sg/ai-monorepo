@@ -95,17 +95,7 @@ ${formattedSources}`,
           },
         });
 
-        const metadata = providerMetadata?.google as
-          | GoogleGenerativeAIProviderMetadata
-          | undefined;
-        const groundingMetadata = metadata?.groundingMetadata;
-        const urlContextMetadata = metadata?.urlContextMetadata;
-        console.log("Grounding metadata", groundingMetadata);
-        console.log("URL context metadata", urlContextMetadata);
-
         childLogger.info({ reviewResponse: text }, "Report review completed");
-
-        console.log("Provider metadata", providerMetadata);
 
         // Parse the JSON response
         let reviewResult: { feedback: string; passedReview: boolean };

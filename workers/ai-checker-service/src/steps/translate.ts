@@ -5,13 +5,13 @@ import { getTranslationSystemPrompt } from "../prompts/translation";
 import { createLogger } from "@workspace/shared-utils";
 import { CheckContext } from "../types";
 
-export interface TranslateOptions {
+export interface TranslateInputs {
   text: string;
   targetLanguage?: string;
 }
 
 export async function translateText(
-  options: TranslateOptions,
+  options: TranslateInputs,
   checkCtx: CheckContext
 ): Promise<string> {
   const { text, targetLanguage = "Chinese" } = options;

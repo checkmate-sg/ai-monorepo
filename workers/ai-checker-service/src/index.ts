@@ -1,4 +1,4 @@
-import { createLogger } from "@workspace/shared-utils";
+import { createLogger, getSlugFromTitle } from "@workspace/shared-utils";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import {
   AgentRequestWithUrls,
@@ -7,13 +7,27 @@ import {
 import { runAgentLoop } from "./steps/agent-loop";
 import { summarizeReport } from "./steps/summarize-report";
 import { translateText } from "./steps/translate";
-import { AgentRequest, AgentResult } from "@workspace/shared-types";
+import {
+  AgentRequest,
+  AgentResponse,
+  AgentResult,
+  CommunityNote,
+  ErrorType,
+  Submission,
+} from "@workspace/shared-types";
 import { extractUrls } from "./steps/extract-urls";
 import { downloadImage } from "./steps/download-image";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { LangfuseExporter } from "langfuse-vercel";
 import { Langfuse } from "langfuse";
 import { CheckContext } from "./types";
+import { findSimilar } from "./steps/find-similar";
+import { getCheck } from "./lib/get-check";
+import { createCheck } from "./lib/create-check";
+import { sendCommunityNoteNotification } from "./lib/send-community-note-notification";
+import { updateCheck } from "./lib/update-check";
+import { triggerVoting } from "./lib/trigger-voting";
+import { id } from "zod/v4/locales";
 
 export default class extends WorkerEntrypoint<Env> {
   private logger = createLogger("ai-checker-service");
@@ -83,6 +97,106 @@ export default class extends WorkerEntrypoint<Env> {
   }
 
   async check(request: AgentRequest): Promise<AgentResult> {
+    let submissionId: string | null = null;
+    let checkId: string | null = null;
+    let notificationId: number | null = null;
+    let communityNoteNotificationId: number | null = null;
+    let communityNote: CommunityNote | null = null;
+    let isControversial = false;
+    let generationStatus: string = "pending";
+    let isAccessBlocked = false;
+    let isVideo = false;
+    let title: string | null = null;
+    let slug: string | null = null;
+
+    const submission: Omit<Submission, "_id"> = {
+      requestId: request.id ?? null,
+      timestamp: new Date(),
+      sourceType:
+        request.consumerName === "checkmate-whatsapp" ? "internal" : "api",
+      consumerName: request.consumerName ?? "unknown",
+      type: request.imageUrl ? "image" : "text",
+      text: request.text ?? null,
+      imageUrl: request.imageUrl ?? null,
+      caption: request.caption ?? null,
+      checkId: null,
+      checkStatus: "pending",
+    };
+
+    // Create logger with request context
+    const { imageBase64, ...requestWithoutBase64 } = request as any;
+    const logger = this.logger.child({
+      request: {
+        ...requestWithoutBase64,
+        imageBase64: imageBase64
+          ? `[base64 ${imageBase64.length} chars]`
+          : undefined,
+      },
+    });
+    logger.info("Check request received");
+    // Create context object
+    const checkCtx: CheckContext = {
+      env: this.env,
+      logger,
+      trace: null as any,
+      ctx: this.ctx,
+    };
+
+    // Check for similar submissions
+    try {
+      if (request.findSimilar) {
+        const findSimilarResult = await findSimilar(request, checkCtx);
+        if (findSimilarResult.success) {
+          if (
+            findSimilarResult.result?.isMatch &&
+            findSimilarResult.result.id
+          ) {
+            checkId = findSimilarResult.result.id;
+            const check = await getCheck(checkId, checkCtx);
+            if (check.success) {
+              submission.checkId = checkId;
+              submission.checkStatus = check.result.generationStatus as
+                | "pending"
+                | "completed"
+                | "error";
+
+              const insertResult =
+                await this.env.DATABASE_SERVICE.insertSubmission(submission);
+
+              if (!insertResult.success) {
+                throw new Error("Failed to insert submission");
+              }
+
+              logger.info(
+                {
+                  checkId,
+                  submissionId: insertResult.id,
+                  similarityScore: findSimilarResult.result.similarityScore,
+                },
+                "Found similar submission, returning existing check result"
+              );
+
+              return check;
+            } else {
+              logger.error(
+                { error: check.error },
+                "Failed to get check from similar submission"
+              );
+            }
+          }
+        }
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Unknown error occurred in ai-checker-service worker";
+      logger.error(
+        { error, errorMessage },
+        "Error checking for similar submissions, proceeding with new check"
+      );
+    }
+
     // Initialize Langfuse
     const langfuse = new Langfuse({
       environment: this.env.ENVIRONMENT,
@@ -100,57 +214,55 @@ export default class extends WorkerEntrypoint<Env> {
     });
     sdk.start();
 
-    // Create ID if not provided
-    if (!request.id) {
-      request.id = crypto.randomUUID();
-    }
-
-    // Create Langfuse trace
-    const trace = langfuse.trace({
-      name: "ai-checker-service-check",
-      input: request,
-      id: request.id,
-    });
-
-    // Create logger with request context
-    const { imageBase64, ...requestWithoutBase64 } = request as any;
-    const logger = this.logger.child({
-      request: {
-        ...requestWithoutBase64,
-        imageBase64: imageBase64
-          ? `[base64 ${imageBase64.length} chars]`
-          : undefined,
-      },
-    });
-    logger.info("Check request received");
-
-    const id = request.id;
-    if (!id) {
-      logger.error("Missing request id");
-      return {
-        success: false,
-        error: {
-          message: "Missing request id",
-        },
-      };
-    }
-
-    // Create context object
-    const checkCtx: CheckContext = {
-      env: this.env,
-      logger,
-      trace,
-      ctx: this.ctx,
-    };
-
     try {
+      const result = await this.env.DATABASE_SERVICE.insertSubmission(
+        submission
+      );
+      if (result.success && result.id) {
+        submissionId = result.id;
+        checkId = result.checkId;
+      } else {
+        throw new Error("Failed to insert submission");
+      }
+      logger.info(
+        { submissionId, checkId },
+        "Submission inserted, proceeding with check"
+      );
+
+      if (!checkId) {
+        throw new Error("Missing check id");
+      }
+
+      //create check
+      const timestamp = new Date();
+      const createCheckResult = await createCheck(
+        request,
+        checkCtx,
+        checkId,
+        timestamp
+      );
+      if (!createCheckResult.success) {
+        throw new Error("Failed to create check");
+      }
+
+      notificationId = createCheckResult.result.notificationId;
+
+      // Create Langfuse trace
+      const trace = langfuse.trace({
+        name: "ai-checker-service-check",
+        input: request,
+        id: checkId,
+      });
+
+      checkCtx.trace = trace;
+
       // Step 0: Download image
       if (request.imageUrl) {
         checkCtx.logger.info("Step 0: Downloading image");
         const downloadImageResult = await downloadImage(
           {
             imageUrl: request.imageUrl,
-            id,
+            id: checkId,
           },
           checkCtx
         );
@@ -177,11 +289,11 @@ export default class extends WorkerEntrypoint<Env> {
         checkCtx
       );
       if (!preprocessingResponse.success) {
-        this.logger.error("Failed to preprocess inputs");
+        logger.error("Failed to preprocess inputs");
       }
-      this.logger.info({ preprocessingResponse }, "Preprocessing response");
+      logger.info({ preprocessingResponse }, "Preprocessing response");
       if (!("result" in preprocessingResponse)) {
-        this.logger.error("No preprocessing result");
+        logger.error("No preprocessing result");
         return {
           success: false,
           error: {
@@ -191,26 +303,69 @@ export default class extends WorkerEntrypoint<Env> {
       }
       const preprocessingResult = preprocessingResponse.result;
 
+      const intent = preprocessingResult.intent;
+      const startingContent = preprocessingResult.startingContent;
+      isAccessBlocked = preprocessingResult.isAccessBlocked;
+      isVideo = preprocessingResult.isVideo;
+      title = preprocessingResult.title;
+      slug = title ? getSlugFromTitle(title, checkId) : null;
+
       this.logger.info({ preprocessingResult }, "Preprocessing result");
+
+      // Update check with preprocessing results as a background operation
+      await updateCheck(
+        checkId,
+        {
+          isAccessBlocked: isAccessBlocked,
+          isVideo: isVideo,
+          machineCategory: null,
+          title: title,
+          slug: slug,
+        },
+        checkCtx,
+        this.ctx.waitUntil.bind(this.ctx)
+      );
 
       // Step 3: Agent loop
       this.logger.info("Step 3: Running agent loop");
       const agentLoopResult = await runAgentLoop(
         {
-          startingMessages: preprocessingResult.startingContent,
-          intent: preprocessingResult.intent,
+          startingMessages: startingContent,
+          intent: intent,
         },
         checkCtx
       );
 
       this.logger.info({ agentLoopResult }, "Agent loop result");
 
+      isControversial = agentLoopResult.isControversial;
+      const report = agentLoopResult.report;
+      const sources = agentLoopResult.sources;
+
+      await updateCheck(
+        checkId,
+        {
+          isControversial,
+          longformResponse: {
+            en: report,
+            cn: null,
+            ms: null,
+            id: null,
+            ta: null,
+            links: sources,
+            timestamp: timestamp,
+          },
+        },
+        checkCtx,
+        this.ctx.waitUntil.bind(this.ctx)
+      );
+
       // Step 4: Summarize report
       this.logger.info("Step 4: Summarizing report");
       const summary = await summarizeReport(
         {
-          startingMessages: preprocessingResult.startingContent,
-          intent: preprocessingResult.intent,
+          startingMessages: startingContent,
+          intent: intent,
           report: agentLoopResult.report,
         },
         checkCtx
@@ -237,27 +392,51 @@ export default class extends WorkerEntrypoint<Env> {
         ),
         translateText({ text: summary, targetLanguage: "Tamil" }, checkCtx),
       ]);
-
-      return {
-        success: true,
-        id,
-        result: {
-          report: {
-            en: agentLoopResult.report,
-            cn: translationChinese,
-            links: agentLoopResult.sources,
-            timestamp: new Date(),
-          },
-          generationStatus: "pending",
-          communityNote: {
+      generationStatus = "completed";
+      // Update check with completion results as a background operation
+      await updateCheck(
+        checkId,
+        {
+          generationStatus: generationStatus,
+          shortformResponse: {
             en: summary,
             cn: translationChinese,
             ms: translationMalay,
             id: translationIndonesian,
             ta: translationTamil,
-            links: agentLoopResult.sources,
-            timestamp: new Date(),
+            downvoted: false,
+            links: sources,
+            timestamp: timestamp,
           },
+        },
+        checkCtx,
+        this.ctx.waitUntil.bind(this.ctx)
+      );
+
+      communityNote = {
+        en: summary,
+        cn: translationChinese,
+        ms: translationMalay,
+        id: translationIndonesian,
+        ta: translationTamil,
+        links: agentLoopResult.sources,
+        timestamp: timestamp,
+      };
+      const agentResponse: AgentResponse = {
+        success: true,
+        id: checkId,
+        result: {
+          report: {
+            en: agentLoopResult.report,
+            cn: null,
+            ms: null,
+            id: null,
+            ta: null,
+            links: agentLoopResult.sources,
+            timestamp: timestamp,
+          },
+          generationStatus: generationStatus,
+          communityNote: communityNote,
           humanNote: null,
           isControversial: agentLoopResult.isControversial,
           text: "text" in request ? request.text ?? null : null,
@@ -273,19 +452,140 @@ export default class extends WorkerEntrypoint<Env> {
           crowdsourcedCategory: null,
         },
       };
+
+      //notify block
+      try {
+        sendCommunityNoteNotification(
+          {
+            id: checkId,
+            replyId: notificationId,
+            communityNote: communityNote,
+          },
+          checkCtx,
+          this.ctx.waitUntil.bind(this.ctx)
+        );
+      } catch (error) {
+        logger.error("Failed to send community note notification");
+      }
+
+      //Update submission with completed status
+      this.ctx.waitUntil(
+        this.env.DATABASE_SERVICE.updateSubmission(submissionId, {
+          checkStatus: "completed",
+        }).catch((error) => {
+          this.logger.error("Failed to update submission");
+          throw error;
+        })
+      );
+
+      trace.update({
+        output: agentResponse,
+        tags: [
+          this.env.ENVIRONMENT,
+          "agent-generation",
+          "cloudflare-workers",
+          request.consumerName ?? "unknown consumer",
+        ],
+      });
+
+      return agentResponse;
     } catch (error) {
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Unknown error occurred in ai-checker-service worker";
-      this.logger.error(errorMessage);
-      return {
-        success: false,
-        error: {
-          message: errorMessage,
+        error instanceof Error ? error.message : "Unknown error occurred";
+      this.logger.error({ error, errorMessage }, "Error in agent check");
+
+      // Determine what type of error occurred based on error message or stack trace
+      let errorType: ErrorType = "error";
+      if (errorMessage.includes("preprocessing")) {
+        errorType = "error-preprocessing";
+      } else if (errorMessage.includes("agent loop")) {
+        errorType = "error-agentLoop";
+      } else if (errorMessage.includes("summarise")) {
+        errorType = "error-summarization";
+      } else if (errorMessage.includes("translate")) {
+        errorType = "error-translation";
+      } else {
+        errorType = "error-other";
+      }
+      generationStatus = errorType;
+      // Update check with error status as a background operation
+      await updateCheck(
+        checkId ?? "",
+        {
+          generationStatus: generationStatus,
         },
+        checkCtx,
+        this.ctx.waitUntil.bind(this.ctx)
+      );
+
+      //Update submission with error status
+      this.ctx.waitUntil(
+        this.env.DATABASE_SERVICE.updateSubmission(submissionId, {
+          checkStatus: "error",
+        }).catch((error) => {
+          this.logger.error("Failed to update submission");
+          throw error;
+        })
+      );
+      //notify block
+      try {
+        sendCommunityNoteNotification(
+          {
+            id: checkId ?? "",
+            replyId: notificationId,
+            communityNote: null,
+            isError: true,
+          },
+          checkCtx,
+          this.ctx.waitUntil.bind(this.ctx)
+        );
+      } catch (error) {
+        logger.error("Failed to send community note notification");
+      }
+      const errorReturn = {
+        id: checkId ?? undefined,
+        error: { message: errorMessage },
+        success: false as const,
       };
+      checkCtx.trace?.update({
+        output: errorReturn,
+        tags: [
+          this.env.ENVIRONMENT,
+          "agent-generation",
+          "cloudflare-workers",
+          "error",
+          request.consumerName ?? "unknown consumer",
+        ],
+      });
+      return errorReturn;
     } finally {
+      // Trigger voting
+      try {
+        if (checkId) {
+          await triggerVoting(
+            {
+              id: checkId,
+              text: request.text ?? null,
+              imageUrl: request.imageUrl ?? null,
+              caption: request.caption ?? null,
+              isAccessBlocked: isAccessBlocked,
+              isVideo: isVideo,
+              isControversial: isControversial,
+              generationStatus: generationStatus,
+              communityNote: communityNote,
+              title: title,
+              slug: slug,
+              notificationId: notificationId,
+              communityNoteNotificationId: communityNoteNotificationId,
+            },
+            checkCtx,
+            this.ctx.waitUntil.bind(this.ctx)
+          );
+        }
+      } catch (error) {
+        this.logger.error({ error }, "Failed to trigger voting");
+      }
+
       await langfuse.flushAsync();
       await sdk.shutdown();
     }

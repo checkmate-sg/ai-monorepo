@@ -12,7 +12,7 @@ export const createScanUrlTool = (
 ) => {
   return tool({
     description:
-      "Scan a URL using Cloudflare Radar to check if it's malicious, contains phishing, or has security risks. Returns verdict with malicious flag, categories, and tags.",
+      "Scan a URL using Cloudflare Radar to check if it's malicious, contains phishing, or has security risks. Returns verdict with malicious flag, categories, and tags. Use only if there is reason to suspect the URL is malicious.",
     inputSchema: z.object({
       url: z.string().url().describe("The URL to scan for malicious content"),
     }),
