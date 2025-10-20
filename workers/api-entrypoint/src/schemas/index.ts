@@ -39,12 +39,18 @@ export const CheckResultSchema = z.object({
   report: z.object({
     en: Str(),
     cn: Str().nullable(),
+    ms: Str().nullable().optional(),
+    id: Str().nullable().optional(),
+    ta: Str().nullable().optional(),
     links: z.array(Str()),
     timestamp: DateTime(),
   }),
   communityNote: z.object({
     en: Str(),
     cn: Str(),
+    ms: Str().nullable().optional(),
+    id: Str().nullable().optional(),
+    ta: Str().nullable().optional(),
     links: z.array(Str()),
     downvoted: z.boolean().nullable(),
     timestamp: DateTime(),

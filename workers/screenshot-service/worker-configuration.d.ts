@@ -6,4 +6,6 @@ interface Env {
     | "https://screenshots.checkmate.sg";
   SCREENSHOT_BUCKET: R2Bucket;
   BROWSER: Fetcher;
+  SS_ONE_ACCESS_KEY: string;
+  SS_ONE_SECRET_KEY: string;
 }

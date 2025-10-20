@@ -1,6 +1,8 @@
-import puppeteer from "@cloudflare/puppeteer";
+import * as screenshotone from "screenshotone-api-sdk";
+
+// create API client
 import { WorkerEntrypoint } from "cloudflare:workers";
-import { createLogger } from "@workspace/shared-utils";
+import { createLogger, hashUrl, arrayBufferToBase64 } from "@workspace/shared-utils";
 import { ScreenshotRequest, ScreenshotResult } from "@workspace/shared-types";
 export default class extends WorkerEntrypoint<Env> {
   private logger = createLogger("screenshot-service");
@@ -42,63 +44,67 @@ export default class extends WorkerEntrypoint<Env> {
       };
     }
 
-    let browser;
     try {
       const urlHash = await hashUrl(url);
       const imageUrl = `${this.env.API_DOMAIN}/${urlHash}`;
       const r2Object = await this.env.SCREENSHOT_BUCKET.get(urlHash);
 
+      let buffer: ArrayBuffer;
+
       if (r2Object === null) {
-        browser = await puppeteer.launch(this.env.BROWSER);
-        const page = await browser.newPage();
+        const client = new screenshotone.Client(
+          this.env.SS_ONE_ACCESS_KEY,
+          this.env.SS_ONE_SECRET_KEY
+        );
 
-        // Set viewport size
-        await page.setViewport({ width: 1280, height: 800 });
+        // set up options
+        const options = screenshotone.TakeOptions.url(url)
+          .format("jpg")
+          .blockAds(true)
+          .blockCookieBanners(true)
+          .blockBannersByHeuristics(false)
+          .blockTrackers(true)
+          .delay(3)
+          .timeout(15)
+          .ignoreHostErrors(true)
+          .responseType("by_format")
+          .fullPage(true)
+          .fullPageScroll(true)
+          .imageQuality(80);
 
-        await page.goto(url, { waitUntil: "networkidle0", timeout: 10000 });
+        const blob = await client.take(options);
+        buffer = await blob.arrayBuffer();
 
-        const imageBuffer = (await page.screenshot({
-          type: "png",
-          fullPage: true,
-        })) as Buffer;
-
-        await this.env.SCREENSHOT_BUCKET.put(urlHash, imageBuffer, {
+        await this.env.SCREENSHOT_BUCKET.put(urlHash, buffer, {
           httpMetadata: {
             contentType: "image/jpeg",
             cacheControl: "public, max-age=86400",
           },
         });
+      } else {
+        // Use cached screenshot
+        buffer = await r2Object.arrayBuffer();
       }
+
+      // Convert to base64 string
+      const base64 = arrayBufferToBase64(buffer);
 
       return {
         success: true,
         result: {
           url: url,
           imageUrl: imageUrl,
+          base64: base64,
         },
         id,
       };
     } catch (error) {
-      this.logger.error(this.logContext, "Error taking screenshot", { error });
+      this.logger.error({ error }, "Error taking screenshot", { error });
       return {
         success: false,
         error: { message: "Error taking screenshot" },
         id,
       };
-    } finally {
-      if (browser) {
-        await browser.close();
-      }
     }
   }
-}
-
-async function hashUrl(url: string): Promise<string> {
-  // Normalize the URL by creating a URL object and getting its string representation
-  const normalizedUrl = new URL(url).toString();
-  const encoder = new TextEncoder();
-  const data = encoder.encode(normalizedUrl);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }

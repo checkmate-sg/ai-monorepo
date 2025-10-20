@@ -543,8 +543,11 @@ async function searchImageOnlySubmission(
       env.IMAGE_HASH_SERVICE
     );
 
-    // Check for exact image hash match first
-    const hashResult = await env.DATABASE_SERVICE.findCheckByImageHash(pdqHash);
+    // Check for exact image hash match first (only for image-only, no caption)
+    const hashResult = await env.DATABASE_SERVICE.findCheckByImageHash(
+      pdqHash,
+      null
+    );
 
     if (hashResult.success && hashResult.data) {
       logger.info(
@@ -553,7 +556,7 @@ async function searchImageOnlySubmission(
           pdqHash,
           method: "image_hash_lookup",
         },
-        "Found exact image match via PDQ hash lookup"
+        "Found exact image match via PDQ hash lookup (image-only)"
       );
 
       return {
@@ -580,10 +583,11 @@ async function searchImageOnlySubmission(
     // Convert to vector for search
     const pdqVector = pdqHashToVector(pdqHash);
 
-    // Search for similar images
+    // Search for similar images (only those without captions)
     const searchResults = await env.DATABASE_SERVICE.findSimilarImageEmbedding(
       pdqVector,
-      1
+      1,
+      false
     );
 
     if (
@@ -684,59 +688,49 @@ async function searchImageWithCaptionSubmission(
       env.IMAGE_HASH_SERVICE
     );
 
-    // Check for exact image hash match first
+    // Check for exact image hash and caption hash match first
+    const captionHash = await hashText(caption);
     const imageHashResult = await env.DATABASE_SERVICE.findCheckByImageHash(
-      pdqHash
+      pdqHash,
+      captionHash
     );
 
     if (imageHashResult.success && imageHashResult.data) {
-      // Found exact image match - now check if caption also matches
-      const captionHash = await hashText(caption);
-      const candidateCaptionHash = imageHashResult.data.caption
-        ? await hashText(imageHashResult.data.caption)
-        : null;
-
-      if (candidateCaptionHash === captionHash) {
-        logger.info(
-          {
-            checkId: imageHashResult.data._id,
-            pdqHash,
-            captionHash,
-            method: "image_caption_exact_hash_match",
-          },
-          "Found exact match via both image and caption hash lookup"
-        );
-
-        return {
-          success: true,
-          result: {
-            id: imageHashResult.data._id,
-            similarityScore: null,
-            imageHammingDistance: 0,
-            isMatch: true,
-            reasoning:
-              "Exact match found via both image PDQ hash and caption hash lookup",
-            text: caption,
-            matchType: "both",
-            communityNote: imageHashResult.data.shortformResponse || null,
-            crowdsourcedCategory:
-              imageHashResult.data.crowdsourcedCategory || null,
-          },
-        };
-      }
-
-      logger.debug(
-        "Exact image hash found but caption doesn't match - proceeding with fuzzy search"
+      logger.info(
+        {
+          checkId: imageHashResult.data._id,
+          pdqHash,
+          captionHash,
+          method: "image_caption_exact_hash_match",
+        },
+        "Found exact match via both image and caption hash lookup"
       );
+
+      return {
+        success: true,
+        result: {
+          id: imageHashResult.data._id,
+          similarityScore: null,
+          imageHammingDistance: 0,
+          isMatch: true,
+          reasoning:
+            "Exact match found via both image PDQ hash and caption hash lookup",
+          text: caption,
+          matchType: "both",
+          communityNote: imageHashResult.data.shortformResponse || null,
+          crowdsourcedCategory:
+            imageHashResult.data.crowdsourcedCategory || null,
+        },
+      };
     }
 
     logger.debug("No exact match found, proceeding with fuzzy image search");
 
     const pdqVector = pdqHashToVector(pdqHash);
 
-    // Search for similar images (get top 5 candidates)
+    // Search for similar images (get top 5 candidates with captions)
     const imageSearchResults =
-      await env.DATABASE_SERVICE.findSimilarImageEmbedding(pdqVector, 5);
+      await env.DATABASE_SERVICE.findSimilarImageEmbedding(pdqVector, 5, true);
 
     if (
       !imageSearchResults.success ||
@@ -761,7 +755,6 @@ async function searchImageWithCaptionSubmission(
     }
 
     // Check caption hash for each candidate
-    const captionHash = await hashText(caption);
 
     for (const candidate of imageSearchResults.data) {
       if (!candidate.imageHash) continue;

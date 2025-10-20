@@ -56,17 +56,26 @@ export async function handlePatchCheckHumanNote(
   const childLogger = loggerInstance.child({ id });
 
   try {
-    childLogger.info({ checkId: id, humanNote: data.body }, "Patching check human note");
+    childLogger.info(
+      { checkId: id, humanNote: data.body },
+      "Patching check human note"
+    );
 
     // Call the agent service to update the human response
-    const result = await c.env.AGENT_SERVICE.updateHumanResponse(id, data.body);
+    const result = await c.env.CHECKS_SERVICE.updateHumanResponse(
+      id,
+      data.body
+    );
 
     if (!result.success) {
       childLogger.error({ result }, "Failed to update human note");
       return c.json(
         {
           success: false,
-          error: "error" in result ? result.error.message : "Failed to update human note",
+          error:
+            "error" in result
+              ? result.error.message
+              : "Failed to update human note",
         },
         500
       );

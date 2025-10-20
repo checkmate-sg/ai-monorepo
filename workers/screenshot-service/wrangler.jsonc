@@ -65,10 +65,6 @@
     }
   ],
 
-  "browser": {
-    "binding": "BROWSER"
-  },
-
   /**
    * Environment-specific configurations
    */
