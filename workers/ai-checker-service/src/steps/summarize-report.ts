@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getSummarizationSystemPrompt } from "../prompts/summarization";
 import { createLogger } from "@workspace/shared-utils";
 import { CheckContext } from "../types";
+import { truncateBase64 } from "../utils/truncate-base64";
 
 const SummarySchema = z.object({
   summary: z
@@ -24,7 +25,7 @@ export async function summarizeReport(
   checkCtx: CheckContext
 ): Promise<string> {
   const childLogger = checkCtx.logger.child({ step: "summarize-report" });
-  childLogger.info({ options }, "Summarizing report");
+  childLogger.info(truncateBase64({ options }), "Summarizing report");
   try {
     const { startingMessages, intent, report } = options;
     const env = checkCtx.env;
