@@ -125,7 +125,7 @@ export async function handleAgentRequest(
     // Add request ID to logger context
     childLogger.info("Processing agent check request");
 
-    const agentResult: AgentResult = await c.env.AGENT_SERVICE.check(
+    const agentResult: AgentResult = await c.env.AI_CHECKER_SERVICE.check(
       agentRequest
     );
     // Return the request ID in the response headers
