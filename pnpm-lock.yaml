@@ -173,6 +173,21 @@ importers:
         specifier: ^5.5.2
         version: 5.9.3
 
+  workers/cloudflarescan-service:
+    devDependencies:
+      '@cloudflare/vitest-pool-workers':
+        specifier: ^0.6.4
+        version: 0.6.16(@cloudflare/workers-types@4.20251011.0)(@vitest/runner@2.1.9)(@vitest/snapshot@2.1.9)(vitest@2.1.9(@types/node@20.8.3)(jsdom@26.1.0))
+      '@cloudflare/workers-types':
+        specifier: ^4.20250321.0
+        version: 4.20251011.0
+      typescript:
+        specifier: ^5.5.2
+        version: 5.9.3
+      vitest:
+        specifier: ~2.1.9
+        version: 2.1.9(@types/node@20.8.3)(jsdom@26.1.0)
+
   workers/database-service:
     dependencies:
       mongodb:
@@ -8726,7 +8741,7 @@ snapshots:
       isstream: 0.1.2
       jsonwebtoken: 9.0.2
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.12.2)
+      retry-axios: 2.6.0(axios@1.12.2(debug@4.4.3))
       tough-cookie: 4.1.4
     transitivePeerDependencies:
       - supports-color
@@ -9858,7 +9873,7 @@ snapshots:
 
   resolve-pkg-maps@1.0.0: {}
 
-  retry-axios@2.6.0(axios@1.12.2):
+  retry-axios@2.6.0(axios@1.12.2(debug@4.4.3)):
     dependencies:
       axios: 1.12.2(debug@4.4.3)
 
