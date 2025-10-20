@@ -4,24 +4,10 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "agent-service",
+  "name": "checks-service",
   "main": "src/index.ts",
   "compatibility_date": "2025-02-24",
   "compatibility_flags": ["nodejs_compat"],
-  "migrations": [
-    {
-      "new_classes": ["CheckerAgent"],
-      "tag": "v1"
-    }
-  ],
-  "durable_objects": {
-    "bindings": [
-      {
-        "class_name": "CheckerAgent",
-        "name": "CHECKER_AGENT"
-      }
-    ]
-  },
   "observability": {
     "enabled": true
   },
@@ -31,10 +17,7 @@
    * Configuration for local development environment
    */
   "dev": {
-    "port": 8788
-  },
-  "vars": {
-    "IS_ROLLBACK": false
+    "port": 8799
   },
   /**
    * Smart Placement
@@ -70,25 +53,22 @@
    * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
    */
   "services": [
-    { "binding": "SCREENSHOT_SERVICE", "service": "screenshot-backup-service" },
-    { "binding": "SEARCH_SERVICE", "service": "search-service" },
-    { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" },
-    { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
     { "binding": "DATABASE_SERVICE", "service": "database-service" },
-    { "binding": "NOTIFICATION_SERVICE", "service": "notification-service" },
-    { "binding": "IMAGE_HASH_SERVICE", "service": "pdq-worker" }
-  ],
-  "r2_buckets": [
-    {
-      "binding": "CHECKMATE_IMAGES_BUCKET",
-      "bucket_name": "checkmate-images"
-    }
+    { "binding": "NOTIFICATION_SERVICE", "service": "notification-service" }
   ],
   "queues": {
     "producers": [
       {
         "queue": "core-check-events-queue",
         "binding": "CORE_CHECK_EVENTS_QUEUE"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "checkers-poll-update-queue",
+        "max_batch_size": 1,
+        "max_batch_timeout": 1,
+        "max_retries": 0
       }
     ]
   },
@@ -98,85 +78,53 @@
    */
   "env": {
     "production": {
-      "name": "agent-service",
-      "durable_objects": {
-        "bindings": [
-          {
-            "class_name": "CheckerAgent",
-            "name": "CHECKER_AGENT"
-          }
-        ]
-      },
+      "name": "checks-service",
       "queues": {
         "producers": [
           {
             "queue": "core-check-events-queue",
             "binding": "CORE_CHECK_EVENTS_QUEUE"
           }
+        ],
+        "consumers": [
+          {
+            "queue": "checkers-poll-update-queue",
+            "max_batch_size": 1,
+            "max_batch_timeout": 1
+          }
         ]
       },
       "services": [
-        {
-          "binding": "SCREENSHOT_SERVICE",
-          "service": "screenshot-backup-service"
-        },
-        { "binding": "SEARCH_SERVICE", "service": "search-service" },
-        { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" },
-        { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
         { "binding": "DATABASE_SERVICE", "service": "database-service" },
         {
           "binding": "NOTIFICATION_SERVICE",
           "service": "notification-service"
-        },
-        { "binding": "IMAGE_HASH_SERVICE", "service": "pdq-worker" }
-      ],
-      "r2_buckets": [
-        {
-          "bucket_name": "checkmate-images",
-          "binding": "CHECKMATE_IMAGES_BUCKET"
         }
       ],
       "tail_consumers": [
         {
           "service": "tail-consumer-service"
         }
-      ],
-      "vars": {
-        "IS_ROLLBACK": false
-      }
+      ]
     },
     "staging": {
-      "name": "agent-service-staging",
-      "durable_objects": {
-        "bindings": [
-          {
-            "class_name": "CheckerAgent",
-            "name": "CHECKER_AGENT"
-          }
-        ]
-      },
+      "name": "checks-service-staging",
       "queues": {
         "producers": [
           {
             "queue": "core-check-events-queue-staging",
             "binding": "CORE_CHECK_EVENTS_QUEUE"
           }
+        ],
+        "consumers": [
+          {
+            "queue": "checkers-poll-update-queue-staging",
+            "max_batch_size": 1,
+            "max_batch_timeout": 1
+          }
         ]
       },
       "services": [
-        {
-          "binding": "SCREENSHOT_SERVICE",
-          "service": "screenshot-backup-service-staging"
-        },
-        {
-          "binding": "SEARCH_SERVICE",
-          "service": "search-service-staging"
-        },
-        { "binding": "URLSCAN_SERVICE", "service": "urlscan-service-staging" },
-        {
-          "binding": "EMBEDDER_SERVICE",
-          "service": "embedder-service-staging"
-        },
         {
           "binding": "DATABASE_SERVICE",
           "service": "database-service-staging"
@@ -184,21 +132,8 @@
         {
           "binding": "NOTIFICATION_SERVICE",
           "service": "notification-service-staging"
-        },
-        {
-          "binding": "IMAGE_HASH_SERVICE",
-          "service": "pdq-worker-staging"
         }
-      ],
-      "r2_buckets": [
-        {
-          "bucket_name": "checkmate-images-staging",
-          "binding": "CHECKMATE_IMAGES_BUCKET"
-        }
-      ],
-      "vars": {
-        "IS_ROLLBACK": false
-      }
+      ]
     }
   }
 }

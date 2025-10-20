@@ -12,5 +12,6 @@ interface Env {
   NOTIFICATION_SERVICE: Fetcher;
   POLL_UPDATE_QUEUE: Queue<unknown>;
   AI_CHECKER_SERVICE: Fetcher;
+  CHECKS_SERVICE: Fetcher;
   // Service bindings with custom methods
 }
