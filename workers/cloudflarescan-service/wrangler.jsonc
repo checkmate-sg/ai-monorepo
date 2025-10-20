@@ -4,7 +4,7 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "urlscan-service",
+  "name": "cloudflarescan-service",
   "main": "src/index.ts",
   "compatibility_date": "2025-02-24",
   "observability": {
@@ -18,18 +18,38 @@
     "port": 8791
   },
 
+  "r2_buckets": [
+    {
+      "binding": "SCREENSHOT_BUCKET",
+      "bucket_name": "screenshots",
+      "preview_bucket_name": "screenshots-staging"
+    }
+  ],
+
   /**
    * Environment-specific configurations
    */
   "env": {
     "staging": {
-      "name": "urlscan-service-staging"
+      "name": "cloudflarescan-service-staging",
+      "r2_buckets": [
+        {
+          "binding": "SCREENSHOT_BUCKET",
+          "bucket_name": "screenshots-staging"
+        }
+      ]
     },
     "production": {
-      "name": "urlscan-service",
+      "name": "cloudflarescan-service",
       "tail_consumers": [
         {
           "service": "tail-consumer-service"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "SCREENSHOT_BUCKET",
+          "bucket_name": "screenshots"
         }
       ]
     }
