@@ -171,7 +171,6 @@ export async function preprocessInputs(
         ...object,
         isAccessBlocked,
         isVideo,
-        startingContent: userContent,
       },
       "Preprocessing result"
     );

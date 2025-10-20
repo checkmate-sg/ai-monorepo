@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { CheckContext } from "../types";
+import { truncateBase64 } from "../utils/truncate-base64";
 
 interface ToolContext {
   id?: string;
@@ -31,7 +32,7 @@ export const createUrlScreenshotTool = (
         id: context.id,
       });
 
-      childLogger.info({ result }, "Screenshot captured");
+      childLogger.info(truncateBase64({ result }), "Screenshot captured");
 
       if (!result.success) {
         return {
