@@ -1,5 +1,6 @@
 import { createLogger, getSlugFromTitle } from "@workspace/shared-utils";
 import { WorkerEntrypoint } from "cloudflare:workers";
+import { truncateBase64 } from "./utils/truncate-base64";
 import {
   AgentRequestWithUrls,
   preprocessInputs,
@@ -291,7 +292,10 @@ export default class extends WorkerEntrypoint<Env> {
       if (!preprocessingResponse.success) {
         logger.error("Failed to preprocess inputs");
       }
-      logger.info({ preprocessingResponse }, "Preprocessing response");
+      logger.info(
+        truncateBase64({ preprocessingResponse }),
+        "Preprocessing response"
+      );
       if (!("result" in preprocessingResponse)) {
         logger.error("No preprocessing result");
         return {
@@ -310,7 +314,10 @@ export default class extends WorkerEntrypoint<Env> {
       title = preprocessingResult.title;
       slug = title ? getSlugFromTitle(title, checkId) : null;
 
-      this.logger.info({ preprocessingResult }, "Preprocessing result");
+      this.logger.info(
+        truncateBase64({ preprocessingResult }),
+        "Preprocessing result"
+      );
 
       // Update check with preprocessing results as a background operation
       await updateCheck(
