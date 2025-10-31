@@ -118,7 +118,7 @@
       "services": [
         {
           "binding": "SCREENSHOT_SERVICE",
-          "service": "screenshot-backup-service"
+          "service": "screenshot-service"
         },
         { "binding": "SEARCH_SERVICE", "service": "search-service" },
         { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" },
@@ -166,7 +166,7 @@
       "services": [
         {
           "binding": "SCREENSHOT_SERVICE",
-          "service": "screenshot-backup-service-staging"
+          "service": "screenshot-service-staging"
         },
         {
           "binding": "SEARCH_SERVICE",

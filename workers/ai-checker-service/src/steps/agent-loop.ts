@@ -8,6 +8,7 @@ import { createReviewReportTool } from "../tools/review-report";
 import { createSearchGoogleTool } from "../tools/search-google";
 import { createLogger } from "@workspace/shared-utils";
 import { CheckContext } from "../types";
+import { truncateBase64 } from "../utils/truncate-base64";
 
 /**
  * Transforms messages to inject screenshot images as user messages
@@ -270,7 +271,7 @@ export async function runAgentLoop(
     messages: startingMessages,
   });
 
-  logger.info({ result }, "Agent loop completed");
+  logger.info(truncateBase64({ result }), "Agent loop completed");
 
   if (!finalReport) {
     throw new Error("Agent did not submit a final report");
