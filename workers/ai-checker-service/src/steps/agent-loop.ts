@@ -1,5 +1,6 @@
 import { Experimental_Agent as Agent, ModelMessage, stepCountIs } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGroq, browserSearch } from "@ai-sdk/groq";
 import { createOpenAI } from "@ai-sdk/openai";
 import { getAgentSystemPrompt } from "../prompts/agent";
 import { createUrlScreenshotTool } from "../tools/url-screenshot";
@@ -136,9 +137,12 @@ export async function runAgentLoop(
     apiKey: env.OPENAI_API_KEY,
   });
 
+  const groq = createGroq({
+    apiKey: env.GROQ_API_KEY,
+  });
   const agent = new Agent({
     // model: google("gemini-2.5-flash"),
-    model: openai("gpt-5-mini"),
+    model: groq("openai/gpt-oss-120b"),
     system: getAgentSystemPrompt({
       datetime: new Date().toISOString(),
       searchesRemaining,

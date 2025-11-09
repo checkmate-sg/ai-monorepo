@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getTranslationSystemPrompt } from "../prompts/translation";
 import { createLogger } from "@workspace/shared-utils";
 import { CheckContext } from "../types";
+import { createGroq } from "@ai-sdk/groq";
 
 export interface TranslateInputs {
   text: string;
@@ -21,8 +22,11 @@ export async function translateText(
     const google = createGoogleGenerativeAI({
       apiKey: env.GEMINI_API_KEY,
     });
+    const groq = createGroq({
+      apiKey: env.GROQ_API_KEY,
+    });
     const { object } = await (generateObject as any)({
-      model: google("gemini-2.5-flash"),
+      model: groq("openai/gpt-oss-120b"),
       system: getTranslationSystemPrompt(targetLanguage),
       messages: [
         {

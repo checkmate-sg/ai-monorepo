@@ -5,6 +5,7 @@ import { getSummarizationSystemPrompt } from "../prompts/summarization";
 import { createLogger } from "@workspace/shared-utils";
 import { CheckContext } from "../types";
 import { truncateBase64 } from "../utils/truncate-base64";
+import { createGroq } from "@ai-sdk/groq";
 
 const SummarySchema = z.object({
   summary: z
@@ -32,6 +33,9 @@ export async function summarizeReport(
     const google = createGoogleGenerativeAI({
       apiKey: env.GEMINI_API_KEY,
     });
+    const groq = createGroq({
+      apiKey: env.GROQ_API_KEY,
+    });
 
     // Extract content parts from startingMessages
     const contentParts = startingMessages.flatMap((msg: any) => {
@@ -44,7 +48,7 @@ export async function summarizeReport(
     });
 
     const { object } = await (generateObject as any)({
-      model: google("gemini-2.5-flash"),
+      model: groq("openai/gpt-oss-120b"),
       system: getSummarizationSystemPrompt(),
       messages: [
         {

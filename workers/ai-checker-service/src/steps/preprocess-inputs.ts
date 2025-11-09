@@ -10,6 +10,7 @@ import {
 } from "@workspace/shared-types";
 import { createLogger } from "@workspace/shared-utils";
 import { CheckContext } from "../types";
+import { createGroq } from "@ai-sdk/groq";
 
 export type AgentRequestWithUrls = AgentRequest & {
   extractedUrls?: string[];
@@ -41,7 +42,10 @@ export async function preprocessInputs(
     const google = createGoogleGenerativeAI({
       apiKey: env.GEMINI_API_KEY,
     });
-    const model = google("gemini-2.5-pro");
+    const groq = createGroq({
+      apiKey: env.GROQ_API_KEY,
+    });
+    const model = groq("openai/gpt-oss-120b");
     const { text, imageUrl, imageBase64, caption, extractedUrls } = options;
 
     if (!text && !imageBase64 && !imageUrl) {

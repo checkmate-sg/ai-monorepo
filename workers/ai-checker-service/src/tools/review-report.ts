@@ -5,6 +5,7 @@ import {
   createGoogleGenerativeAI,
   GoogleGenerativeAIProviderMetadata,
 } from "@ai-sdk/google";
+import { createGroq } from "@ai-sdk/groq";
 import { getReviewerSystemPrompt, reviewerPrompt } from "../prompts/reviewer";
 
 interface ReviewReportToolOptions {
@@ -52,6 +53,9 @@ export const createReviewReportTool = ({
       const google = createGoogleGenerativeAI({
         apiKey: env.GEMINI_API_KEY,
       });
+      const groq = createGroq({
+        apiKey: env.GROQ_API_KEY,
+      });
       childLogger.info(
         { report, sources, isControversial },
         "Reviewing report"
@@ -69,7 +73,7 @@ export const createReviewReportTool = ({
 
         // Call LLM to review the report
         const { text, providerMetadata } = await generateText({
-          model: google("gemini-2.5-pro"),
+          model: groq("groq/compound"),
           system:
             getReviewerSystemPrompt() +
             '\n\nAfter examining all sources, provide your review in this exact JSON format:\n{"feedback": "your feedback here", "passedReview": true or false}',
@@ -81,9 +85,6 @@ ${report}
 
 # Sources Used
 ${formattedSources}`,
-          tools: {
-            url_context: google.tools.urlContext({}),
-          },
           maxRetries: 2,
           experimental_telemetry: {
             isEnabled: true,
