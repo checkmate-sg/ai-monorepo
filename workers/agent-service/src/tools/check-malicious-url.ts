@@ -15,10 +15,8 @@ export const checkMaliciousUrlTool: Tool<
     function: {
       name: "check_malicious_url",
       description:
-        "Runs a check on the provided URL to determine if it is malicious. " +
-        "Returns either 'MALICIOUS', 'SUSPICIOUS' or 'BENIGN', as well as a maliciousness " +
-        "score from 0-1. Note, while a malicious rating should be trusted, a benign rating " +
-        "doesn't imply the absence of malicious behaviour, as there might be false negatives.",
+        "Scan a URL using Cloudflare Radar to check if it's malicious, contains phishing, or has security risks. Returns verdict with malicious flag, categories, and tags. Use only if there is reason to suspect the URL is malicious.",
+
       parameters: {
         type: "object",
         properties: {
