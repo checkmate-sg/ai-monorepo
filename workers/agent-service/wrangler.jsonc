@@ -72,7 +72,7 @@
   "services": [
     { "binding": "SCREENSHOT_SERVICE", "service": "screenshot-backup-service" },
     { "binding": "SEARCH_SERVICE", "service": "search-service" },
-    { "binding": "URLSCAN_SERVICE", "service": "cloudflarescan-service" },
+    { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" },
     { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
     { "binding": "DATABASE_SERVICE", "service": "database-service" },
     { "binding": "NOTIFICATION_SERVICE", "service": "notification-service" },
@@ -121,7 +121,7 @@
           "service": "screenshot-service"
         },
         { "binding": "SEARCH_SERVICE", "service": "search-service" },
-        { "binding": "URLSCAN_SERVICE", "service": "cloudflarescan-service" },
+        { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" },
         { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
         { "binding": "DATABASE_SERVICE", "service": "database-service" },
         {
@@ -174,7 +174,7 @@
         },
         {
           "binding": "URLSCAN_SERVICE",
-          "service": "cloudflarescan-service-staging"
+          "service": "urlscan-service-staging"
         },
         {
           "binding": "EMBEDDER_SERVICE",
