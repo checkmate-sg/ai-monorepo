@@ -17,6 +17,24 @@ export interface NewCheckNotificationParams {
   agentRequest: AgentRequest;
 }
 
+export interface NewlyAssessedNotificationParams {
+  id: string;
+  crowdsourcedCategory: string;
+  replyToMessageId: number;
+}
+
+export interface CategoryChangeNotificationParams {
+  id: string;
+  previousCategory: string | null;
+  currentCategory: string | null;
+  replyToMessageId: number;
+}
+
+export interface CommunityNoteDownvoteNotificationParams {
+  id: string;
+  replyToMessageId: number;
+}
+
 export class TelegramNotificationHandler {
   private bot: Bot;
   private env: Env;
@@ -126,6 +144,83 @@ export class TelegramNotificationHandler {
       return notificationId;
     } catch (error) {
       throw new Error("Failed to send new check notification");
+    }
+  }
+
+  async sendNewlyAssessedNotification(
+    params: NewlyAssessedNotificationParams
+  ): Promise<number> {
+    const { id, crowdsourcedCategory, replyToMessageId } = params;
+    try {
+      if (!this.env.ADMIN_CHAT_ID || !this.env.MESSAGE_FEED_TOPIC_ID) {
+        throw new Error("ADMIN_CHAT_ID or MESSAGE_FEED_TOPIC_ID is not set");
+      }
+
+      const notificationText = `✅ Check Assessed\n\nID: ${id}\nCategory: ${crowdsourcedCategory}`;
+
+      const message = await this.bot.api.sendMessage(
+        this.env.ADMIN_CHAT_ID,
+        notificationText,
+        {
+          reply_to_message_id:
+            replyToMessageId ?? parseInt(this.env.MESSAGE_FEED_TOPIC_ID),
+        }
+      );
+      return message.message_id;
+    } catch (error) {
+      throw new Error("Failed to send newly assessed notification");
+    }
+  }
+
+  async sendCategoryChangeNotification(
+    params: CategoryChangeNotificationParams
+  ): Promise<number> {
+    const { id, previousCategory, currentCategory, replyToMessageId } = params;
+    try {
+      if (!this.env.ADMIN_CHAT_ID || !this.env.MESSAGE_FEED_TOPIC_ID) {
+        throw new Error("ADMIN_CHAT_ID or MESSAGE_FEED_TOPIC_ID is not set");
+      }
+
+      const notificationText = `🔄 Category Changed\n\nID: ${id}\nPrevious: ${
+        previousCategory ?? "none"
+      }\nCurrent: ${currentCategory ?? "none"}`;
+
+      const message = await this.bot.api.sendMessage(
+        this.env.ADMIN_CHAT_ID,
+        notificationText,
+        {
+          reply_to_message_id:
+            replyToMessageId ?? parseInt(this.env.MESSAGE_FEED_TOPIC_ID),
+        }
+      );
+      return message.message_id;
+    } catch (error) {
+      throw new Error("Failed to send category change notification");
+    }
+  }
+
+  async sendCommunityNoteDownvoteNotification(
+    params: CommunityNoteDownvoteNotificationParams
+  ): Promise<number> {
+    const { id, replyToMessageId } = params;
+    try {
+      if (!this.env.ADMIN_CHAT_ID || !this.env.MESSAGE_FEED_TOPIC_ID) {
+        throw new Error("ADMIN_CHAT_ID or MESSAGE_FEED_TOPIC_ID is not set");
+      }
+
+      const notificationText = `👎 Community Note Downvoted\n\nID: ${id}`;
+
+      const message = await this.bot.api.sendMessage(
+        this.env.ADMIN_CHAT_ID,
+        notificationText,
+        {
+          reply_to_message_id:
+            replyToMessageId ?? parseInt(this.env.MESSAGE_FEED_TOPIC_ID),
+        }
+      );
+      return message.message_id;
+    } catch (error) {
+      throw new Error("Failed to send community note downvote notification");
     }
   }
 }

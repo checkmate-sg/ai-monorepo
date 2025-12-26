@@ -219,6 +219,9 @@ export class DatabaseDurableObject extends DurableObject<Env> {
     changes?: {
       becameHumanAssessed: boolean;
       becameDownvoted: boolean;
+      crowdsourcedCategoryChanged: boolean;
+      previousCrowdsourcedCategory?: string | null;
+      currentCrowdsourcedCategory?: string | null;
     };
   }> {
     try {
@@ -241,15 +244,31 @@ export class DatabaseDurableObject extends DurableObject<Env> {
       }
 
       const oldDoc = result as any;
+      const previousCategory = oldDoc.crowdsourcedCategory ?? null;
+      const newCategory = data.crowdsourcedCategory;
+      const crowdsourcedCategoryChanged =
+        newCategory !== undefined && newCategory !== previousCategory;
 
       // Calculate what changed
-      const changes = {
+      const changes: {
+        becameHumanAssessed: boolean;
+        becameDownvoted: boolean;
+        crowdsourcedCategoryChanged: boolean;
+        previousCrowdsourcedCategory?: string | null;
+        currentCrowdsourcedCategory?: string | null;
+      } = {
         becameHumanAssessed:
           !oldDoc.isHumanAssessed && data.isHumanAssessed === true,
         becameDownvoted:
           !oldDoc.shortformResponse?.downvoted &&
           data["shortformResponse.downvoted"] === true,
+        crowdsourcedCategoryChanged,
       };
+
+      if (crowdsourcedCategoryChanged) {
+        changes.previousCrowdsourcedCategory = previousCategory;
+        changes.currentCrowdsourcedCategory = newCategory;
+      }
 
       return { success: true, changes };
     } catch (error) {
@@ -845,6 +864,9 @@ export default class extends WorkerEntrypoint<Env> {
     changes?: {
       becameHumanAssessed: boolean;
       becameDownvoted: boolean;
+      crowdsourcedCategoryChanged: boolean;
+      previousCrowdsourcedCategory?: string | null;
+      currentCrowdsourcedCategory?: string | null;
     };
   }> {
     const durableObject = this.getDurableObject();

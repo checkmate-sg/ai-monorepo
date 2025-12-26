@@ -499,6 +499,8 @@ export class CheckerAgent extends DurableObject<Env> {
             isVoteTriggered: false,
             isApprovedForPublishing: false,
             approvedBy: null,
+            notificationId: null,
+            communityNoteNotificationId: null,
           },
           id // Pass the ObjectId to use as the document _id
         );
@@ -761,6 +763,11 @@ export class CheckerAgent extends DurableObject<Env> {
               communityNote: communityNote,
             });
         }
+        this.state.waitUntil(
+          this.env.DATABASE_SERVICE.updateCheck(this.id, {
+            communityNoteNotificationId: communityNoteNotificationId,
+          })
+        );
       } catch (error) {
         this.logger.error("Failed to send community note notification");
       }
