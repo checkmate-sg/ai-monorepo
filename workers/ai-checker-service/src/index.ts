@@ -14,6 +14,7 @@ import {
   AgentResult,
   CommunityNote,
   ErrorType,
+  Report,
   Submission,
 } from "@workspace/shared-types";
 import { extractUrls } from "./steps/extract-urls";
@@ -103,6 +104,7 @@ export default class extends WorkerEntrypoint<Env> {
     let notificationId: number | null = null;
     let communityNoteNotificationId: number | null = null;
     let communityNote: CommunityNote | null = null;
+    let longformReport: Report | null = null;
     let isControversial = false;
     let generationStatus: string = "pending";
     let isAccessBlocked = false;
@@ -349,6 +351,13 @@ export default class extends WorkerEntrypoint<Env> {
       const report = agentLoopResult.report;
       const sources = agentLoopResult.sources;
 
+      longformReport = {
+        en: report,
+        cn: null,
+        links: sources,
+        timestamp: timestamp,
+      };
+
       await updateCheck(
         checkId,
         {
@@ -575,15 +584,8 @@ export default class extends WorkerEntrypoint<Env> {
               text: request.text ?? null,
               imageUrl: request.imageUrl ?? null,
               caption: request.caption ?? null,
-              isAccessBlocked: isAccessBlocked,
-              isVideo: isVideo,
-              isControversial: isControversial,
-              generationStatus: generationStatus,
+              longformReport: longformReport,
               communityNote: communityNote,
-              title: title,
-              slug: slug,
-              notificationId: notificationId,
-              communityNoteNotificationId: communityNoteNotificationId,
             },
             checkCtx,
             this.ctx.waitUntil.bind(this.ctx)

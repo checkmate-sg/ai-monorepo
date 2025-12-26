@@ -41,4 +41,5 @@ interface Env {
   CHECKERS_APP_API_KEY: string;
   IS_ROLLBACK: boolean;
   IMAGE_HASH_SERVICE: Fetcher;
+  CHECKERS_WEBHOOK_SERVICE: Fetcher;
 }
