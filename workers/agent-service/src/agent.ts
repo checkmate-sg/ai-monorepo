@@ -882,7 +882,14 @@ export class CheckerAgent extends DurableObject<Env> {
           })
         );
       } catch (error) {
-        this.logger.error({ error }, "Voting failed to trigger");
+        this.logger.error(
+          {
+            err: error,
+            errorMessage: error instanceof Error ? error.message : String(error),
+            errorStack: error instanceof Error ? error.stack : undefined,
+          },
+          "Voting failed to trigger"
+        );
       }
       this.state.waitUntil(this.langfuse.flushAsync());
     }
