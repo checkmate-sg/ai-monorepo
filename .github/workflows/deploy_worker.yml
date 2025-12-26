@@ -78,7 +78,7 @@ jobs:
   deploy:
     name: "Deploy worker to ${{  github.ref_name == 'main' && 'production' || github.ref_name }} (${{ matrix.worker-dir }})"
     needs: scan-for-changes
-    if: "${{ needs.scan-for-changes.outputs.worker-dirs != '[]' }}"
+    if: ${{ needs.scan-for-changes.outputs.worker-dirs != '[]' }}
     runs-on: ubuntu-latest
     environment: "${{  github.ref_name == 'main' && 'production' || github.ref_name }}"
     strategy:

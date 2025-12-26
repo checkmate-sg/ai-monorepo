@@ -76,7 +76,11 @@
     { "binding": "EMBEDDER_SERVICE", "service": "embedder-service" },
     { "binding": "DATABASE_SERVICE", "service": "database-service" },
     { "binding": "NOTIFICATION_SERVICE", "service": "notification-service" },
-    { "binding": "IMAGE_HASH_SERVICE", "service": "pdq-worker" }
+    { "binding": "IMAGE_HASH_SERVICE", "service": "pdq-worker" },
+    {
+      "binding": "CHECKERS_WEBHOOK_SERVICE",
+      "service": "checkers-webhook-service"
+    }
   ],
   "r2_buckets": [
     {
@@ -128,7 +132,11 @@
           "binding": "NOTIFICATION_SERVICE",
           "service": "notification-service"
         },
-        { "binding": "IMAGE_HASH_SERVICE", "service": "pdq-worker" }
+        { "binding": "IMAGE_HASH_SERVICE", "service": "pdq-worker" },
+        {
+          "binding": "CHECKERS_WEBHOOK_SERVICE",
+          "service": "checkers-webhook-service"
+        }
       ],
       "r2_buckets": [
         {
@@ -191,6 +199,10 @@
         {
           "binding": "IMAGE_HASH_SERVICE",
           "service": "pdq-worker-staging"
+        },
+        {
+          "binding": "CHECKERS_WEBHOOK_SERVICE",
+          "service": "checkers-webhook-service-staging"
         }
       ],
       "r2_buckets": [
