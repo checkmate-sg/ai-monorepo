@@ -9,7 +9,7 @@ const VIEWER_FILE = path.join(__dirname, 'viewer.html');
 const server = http.createServer((req, res) => {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, DELETE, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -37,6 +37,118 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(jsonFiles));
     });
+    return;
+  }
+
+  // API: Update review metadata for a specific test
+  if (req.url.startsWith('/api/file/') && req.url.endsWith('/review') && req.method === 'POST') {
+    const match = req.url.match(/^\/api\/file\/([^/]+)\/review$/);
+    if (!match) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid review path' }));
+      return;
+    }
+
+    const filename = decodeURIComponent(match[1]);
+    const filepath = path.join(OUTPUT_DIR, filename);
+
+    if (!filepath.startsWith(OUTPUT_DIR)) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Access denied' }));
+      return;
+    }
+
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+    });
+
+    req.on('end', () => {
+      let payload;
+      try {
+        payload = body ? JSON.parse(body) : {};
+      } catch (error) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid JSON payload' }));
+        return;
+      }
+
+      const { originalIndex, testId, review } = payload || {};
+      if (!review || typeof review !== 'object') {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Missing review payload' }));
+        return;
+      }
+
+      if (review.tag && review.tag !== 'correct' && review.tag !== 'wrong') {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid review tag' }));
+        return;
+      }
+
+      fs.readFile(filepath, 'utf8', (readErr, data) => {
+        if (readErr) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'File not found' }));
+          return;
+        }
+
+        let parsed;
+        try {
+          parsed = JSON.parse(data);
+        } catch (parseErr) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Stored file is invalid JSON' }));
+          return;
+        }
+
+        const tests = parsed?.results?.results;
+        if (!Array.isArray(tests)) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Results array not found in file' }));
+          return;
+        }
+
+        let targetIndex = typeof originalIndex === 'number' ? originalIndex : -1;
+        if (targetIndex < 0 || targetIndex >= tests.length) {
+          targetIndex = tests.findIndex(t => t && t.id === testId);
+        }
+
+        if (targetIndex < 0 || targetIndex >= tests.length) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Test case not found' }));
+          return;
+        }
+
+        const targetTest = tests[targetIndex];
+        if (!targetTest.metadata || typeof targetTest.metadata !== 'object') {
+          targetTest.metadata = {};
+        }
+
+        const sanitizedReview = {
+          tag: review.tag ?? null,
+          notes: typeof review.notes === 'string' ? review.notes : ''
+        };
+
+        if (sanitizedReview.tag === null && sanitizedReview.notes.trim() === '') {
+          delete targetTest.metadata.review;
+        } else {
+          targetTest.metadata.review = sanitizedReview;
+        }
+
+        fs.writeFile(filepath, JSON.stringify(parsed, null, 2), 'utf8', (writeErr) => {
+          if (writeErr) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Failed to persist review' }));
+            return;
+          }
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, review: targetTest.metadata.review || null }));
+        });
+      });
+    });
+
     return;
   }
 

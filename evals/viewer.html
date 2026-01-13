@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CheckMate Eval Viewer</title>
+  <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23f45b69'/%3E%3Cpath d='M18 33l10 10 18-22' stroke='%23fff' stroke-width='6' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -13,8 +15,54 @@
       padding: 20px;
       line-height: 1.6;
     }
+    body.dark-mode {
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    body.dark-mode h1 {
+      color: #f8fafc;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .mode-toggle-btn {
+      border: 1px solid #ddd;
+      background: white;
+      color: #333;
+      padding: 8px 16px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .mode-toggle-btn:hover {
+      background: #ebedf0;
+    }
+    body.dark-mode .mode-toggle-btn {
+      background: #1e293b;
+      border-color: #334155;
+      color: #f8fafc;
+    }
+    body.dark-mode .mode-toggle-btn:hover {
+      background: #25344b;
+    }
     .container { max-width: 1400px; margin: 0 auto; }
     h1 { margin-bottom: 20px; color: #333; }
+
+    .text-strong { color: #333; }
+    .text-muted { color: #666; }
+    .text-label { color: #555; }
+    .text-faint { color: #999; }
+    .status-message {
+      padding: 20px;
+      text-align: center;
+    }
 
     /* File loader */
     .file-loader {
@@ -225,15 +273,346 @@
     .links-list a:hover {
       text-decoration: underline;
     }
+    .links-list a {
+      color: #1d6fe8;
+    }
+
+    .controls-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    .filter-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .filter-btn {
+      border: 1px solid #ddd;
+      background: white;
+      padding: 8px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .filter-btn:hover {
+      background: #f1f3f5;
+    }
+    .filter-btn.active {
+      background: #007bff;
+      border-color: #007bff;
+      color: white;
+    }
+    .sort-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    select.sort-select {
+      width: auto;
+      min-width: 180px;
+    }
+
+    .notes-toggle-btn {
+      border: 1px solid #007bff;
+      background: white;
+      color: #007bff;
+      padding: 8px 16px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .notes-toggle-btn:hover {
+      background: #e7f1ff;
+    }
+    .notes-toggle-btn.active {
+      background: #007bff;
+      color: white;
+    }
+    .reviewer-panel {
+      padding: 10px 20px 12px 60px;
+      background: #fafbfc;
+      border-top: 1px solid #f0f0f0;
+    }
+    .reviewer-panel.compact {
+      padding: 8px 20px 10px 60px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .review-eval-trigger {
+      border: 1px dashed #cbd5e1;
+      border-radius: 999px;
+      padding: 8px 18px;
+      background: white;
+      color: #4c6b91;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .review-eval-trigger:hover {
+      background: #f0f4f8;
+      color: #2f4f72;
+    }
+    .review-inline-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 999px;
+      padding: 8px 14px;
+      background: #f9fbff;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .review-inline-row.state-correct {
+      background: #e6f4ea;
+      border-color: #b7dfc5;
+    }
+    .review-inline-row.state-wrong {
+      background: #fdecea;
+      border-color: #f5b5ae;
+    }
+    .review-emoji-group {
+      display: flex;
+      gap: 6px;
+    }
+    .review-emoji-btn {
+      border: none;
+      background: transparent;
+      font-size: 18px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .review-emoji-btn.active {
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.08);
+    }
+    .review-emoji-btn.correct.active {
+      background: rgba(40, 167, 69, 0.2);
+    }
+    .review-emoji-btn.wrong.active {
+      background: rgba(220, 53, 69, 0.2);
+    }
+    .review-note-input {
+      flex: 1;
+      min-width: 200px;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .review-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .review-clear-btn {
+      border: 1px dashed #cbd5e1;
+      background: transparent;
+      border-radius: 999px;
+      padding: 6px 14px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #64748b;
+    }
+    .review-clear-btn:hover {
+      background: white;
+    }
+    .note-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .save-btn {
+      background: #007bff;
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+    .save-btn:hover {
+      background: #0069d9;
+    }
+    .save-btn:disabled {
+      background: #cbd5d8;
+      color: #6b7280;
+      cursor: not-allowed;
+    }
+    .status-text {
+      color: #28a745;
+      font-size: 13px;
+    }
+    .error-text {
+      color: #dc3545;
+      font-size: 13px;
+    }
+
+    body.dark-mode .file-loader,
+    body.dark-mode .metric-card,
+    body.dark-mode .test-table,
+    body.dark-mode .test-details,
+    body.dark-mode .detail-section,
+    body.dark-mode .assertion,
+    body.dark-mode .reviewer-panel,
+    body.dark-mode .review-inline-row,
+    body.dark-mode .text-content,
+    body.dark-mode .note-area {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+    body.dark-mode .test-header {
+      background: #1e2535;
+    }
+    body.dark-mode .test-header:hover {
+      background: #263149;
+    }
+    body.dark-mode .test-details {
+      border-color: #334155;
+    }
+    body.dark-mode .detail-section h4 {
+      border-color: #334155;
+      color: #cbd5f5;
+    }
+    body.dark-mode .text-strong {
+      color: #f8fafc;
+    }
+    body.dark-mode .text-label {
+      color: #dbe7ff;
+    }
+    body.dark-mode .text-muted {
+      color: #cbd5f5;
+    }
+    body.dark-mode .text-faint {
+      color: #a5b4fc;
+    }
+    body.dark-mode .assertion-type {
+      color: #f8fafc;
+    }
+    body.dark-mode .assertion-reason {
+      color: #cbd5f5;
+    }
+    body.dark-mode .assertion.pass { border-left-color: #28a745; }
+    body.dark-mode .assertion.fail { border-left-color: #dc3545; }
+    body.dark-mode .metric-label,
+    body.dark-mode .metric-value,
+    body.dark-mode .detail-label,
+    body.dark-mode .detail-value,
+    body.dark-mode .assertion-type,
+    body.dark-mode .review-preview-notes,
+    body.dark-mode .links-list li,
+    body.dark-mode .links-list a {
+      color: #e2e8f0;
+    }
+    body.dark-mode .status-text {
+      color: #58f29c;
+    }
+    body.dark-mode .error-text {
+      color: #fca5a5;
+    }
+    body.dark-mode .metric-value.pass,
+    body.dark-mode .assertion-score.pass {
+      color: #58f29c;
+    }
+    body.dark-mode .metric-value.fail,
+    body.dark-mode .assertion-score.fail {
+      color: #ff7b7b;
+    }
+    body.dark-mode .test-row {
+      border-bottom: 1px solid #26334a;
+    }
+    body.dark-mode .review-note-input::placeholder,
+    body.dark-mode input::placeholder,
+    body.dark-mode textarea::placeholder {
+      color: #94a3b8;
+    }
+    body.dark-mode .links-list a {
+      color: #bfdbfe;
+    }
+    body.dark-mode .delete-btn,
+    body.dark-mode .filter-btn,
+    body.dark-mode select,
+    body.dark-mode .sort-select,
+    body.dark-mode .review-note-input,
+    body.dark-mode .review-clear-btn {
+      background: #1f2937;
+      color: #e2e8f0;
+      border-color: #3b4255;
+    }
+    body.dark-mode .filter-btn.active {
+      background: #2563eb;
+      border-color: #1d4ed8;
+    }
+    body.dark-mode .notes-toggle-btn {
+      background: #1e293b;
+      border-color: #475569;
+      color: #f8fafc;
+    }
+    body.dark-mode .notes-toggle-btn:hover {
+      background: #25344b;
+    }
+    body.dark-mode .notes-toggle-btn.active {
+      background: #2563eb;
+      border-color: #1d4ed8;
+      color: #f8fafc;
+    }
+    body.dark-mode .save-btn:disabled {
+      background: #475569;
+      color: #94a3b8;
+    }
+    body.dark-mode .save-btn {
+      background: #2563eb;
+    }
+    body.dark-mode .save-btn:hover {
+      background: #1d4ed8;
+    }
+    body.dark-mode .badge.pass {
+      background: #1d3b29;
+      color: #58f29c;
+    }
+    body.dark-mode .badge.fail {
+      background: #3f1e23;
+      color: #ff7b7b;
+    }
+    body.dark-mode .review-inline-row.state-correct {
+      background: #1f3625;
+      border-color: #2f5a3a;
+    }
+    body.dark-mode .review-inline-row.state-wrong {
+      background: #3f1e23;
+      border-color: #6b2731;
+    }
+    body.dark-mode .review-inline-row {
+      background: #1e2535;
+    }
   </style>
 </head>
-<body>
-  <div class="container" x-data="evalViewer()">
-    <h1>CheckMate Eval Viewer</h1>
+<body x-data="evalViewer()" :class="{ 'dark-mode': darkMode }">
+  <div class="container">
+    <div class="top-bar">
+      <h1>CheckMate Eval Viewer</h1>
+      <button
+        class="mode-toggle-btn"
+        @click="toggleDarkMode()"
+        x-text="darkMode ? 'Light Mode' : 'Night Mode'"
+      ></button>
+    </div>
 
     <!-- File Loader -->
     <div class="file-loader">
-      <div x-show="loading" style="padding: 20px; text-align: center; color: #666;">
+      <div x-show="loading" class="status-message text-muted">
         Loading files...
       </div>
 
@@ -254,7 +633,7 @@
         </div>
       </div>
 
-      <div x-show="!loading && availableFiles.length === 0" style="padding: 20px; text-align: center; color: #999;">
+      <div x-show="!loading && availableFiles.length === 0" class="status-message text-faint">
         No JSON files found in output/ directory
       </div>
     </div>
@@ -287,53 +666,152 @@
       </div>
     </div>
 
+    <!-- Controls -->
+    <div class="controls-bar" x-show="selectedRun">
+      <div class="filter-group">
+        <button
+          class="filter-btn"
+          :class="{ 'active': filterStatus === 'all' }"
+          @click="setFilter('all')"
+        >All</button>
+        <button
+          class="filter-btn"
+          :class="{ 'active': filterStatus === 'pass' }"
+          @click="setFilter('pass')"
+        >Pass</button>
+        <button
+          class="filter-btn"
+          :class="{ 'active': filterStatus === 'fail' }"
+          @click="setFilter('fail')"
+        >Fail</button>
+      </div>
+      <div class="sort-group">
+        <label class="text-label" style="font-weight: 600;">Sort by:</label>
+        <select class="sort-select" x-model="sortOption">
+          <option value="original">Original Order</option>
+          <option value="scoreDesc">Score (High -> Low)</option>
+          <option value="scoreAsc">Score (Low -> High)</option>
+          <option value="latencyDesc">Latency (High -> Low)</option>
+          <option value="latencyAsc">Latency (Low -> High)</option>
+        </select>
+      </div>
+      <div>
+        <button
+          class="notes-toggle-btn"
+          :class="{ 'active': inlineReviewVisible }"
+          @click="toggleInlineReview()"
+        >
+          <span x-text="inlineReviewVisible ? 'Hide Reviewer View' : 'Show Reviewer View'"></span>
+        </button>
+      </div>
+    </div>
+
     <!-- Test Results Table -->
     <div class="test-table" x-show="selectedRun">
-      <template x-for="(test, index) in tests" :key="test.id">
+      <template x-for="item in filteredTests()" :key="item.key">
         <div class="test-row">
-          <div class="test-header" @click="toggleTest(index)">
+          <div class="test-header" @click="toggleTest(item.key)">
             <div>
-              <span class="expand-icon" :class="{ 'open': expandedTests[index] }">▶</span>
+              <span class="expand-icon" :class="{ 'open': isExpanded(item.key) }">▶</span>
             </div>
-            <div style="font-weight: 600; color: #333;">
-              Test #<span x-text="index + 1"></span>
-              <span x-show="test.testCase?.vars?.input_text" style="font-weight: normal; color: #666; margin-left: 10px;" x-text="test.testCase.vars.input_text.substring(0, 50) + '...'"></span>
+            <div class="text-strong" style="font-weight: 600;">
+              Test #<span x-text="item.originalIndex + 1"></span>
+              <template x-if="item.test.testCase?.vars?.input_text">
+                <span class="text-muted" style="font-weight: normal; margin-left: 10px;" x-text="truncateInputText(item.test.testCase.vars.input_text)"></span>
+              </template>
             </div>
             <div>
-              <span class="badge" :class="test.gradingResult.pass ? 'pass' : 'fail'" x-text="test.gradingResult.pass ? 'PASS' : 'FAIL'"></span>
+              <span class="badge" :class="item.test.gradingResult.pass ? 'pass' : 'fail'" x-text="item.test.gradingResult.pass ? 'PASS' : 'FAIL'"></span>
             </div>
-            <div style="font-weight: 600; color: #333;">
-              Score: <span x-text="test.gradingResult.score.toFixed(2)"></span>
+            <div class="text-strong" style="font-weight: 600;">
+              Score: <span x-text="formatScore(item.test.gradingResult?.score)"></span>
             </div>
-            <div style="color: #666;">
-              <span x-text="test.latencyMs"></span>ms
+            <div class="text-muted">
+              <span x-text="item.test.latencyMs"></span>ms
             </div>
           </div>
-
+          <div
+            class="reviewer-panel compact"
+            x-show="inlineReviewVisible && !isExpanded(item.key)"
+            @click.stop
+          >
+            <template x-if="!isReviewActive(item.key)">
+              <button
+                type="button"
+                class="review-eval-trigger"
+                @click.stop="activateReview(item.key)"
+              >Review Eval</button>
+            </template>
+            <template x-if="isReviewActive(item.key)">
+              <div class="review-inline-row" :class="reviewInlineClass(reviewDrafts[item.key]?.tag)">
+                <div class="review-emoji-group">
+                  <button
+                    type="button"
+                    class="review-emoji-btn correct"
+                    :class="{ 'active': reviewDrafts[item.key]?.tag === 'correct' }"
+                    @click.stop="setReviewTag(item.key, 'correct')"
+                  >✅</button>
+                  <button
+                    type="button"
+                    class="review-emoji-btn wrong"
+                    :class="{ 'active': reviewDrafts[item.key]?.tag === 'wrong' }"
+                    @click.stop="setReviewTag(item.key, 'wrong')"
+                  >❌</button>
+                </div>
+                <input
+                  type="text"
+                  class="review-note-input"
+                  placeholder="Short reviewer note..."
+                  x-model="reviewDrafts[item.key].notes"
+                  @input="markReviewDirty(item.key)"
+                  @click.stop
+                >
+                <div class="review-actions">
+                  <button
+                    type="button"
+                    class="review-clear-btn"
+                    @click.stop="clearReviewTag(item.key)"
+                  >Clear</button>
+                  <button
+                    class="save-btn"
+                    :disabled="!reviewDrafts[item.key] || reviewDrafts[item.key].saving || !reviewDrafts[item.key].dirty"
+                    @click.stop="saveReview(item)"
+                  >
+                    <span x-show="!reviewDrafts[item.key]?.saving">Save Notes</span>
+                    <span x-show="reviewDrafts[item.key]?.saving">Saving...</span>
+                  </button>
+                </div>
+              </div>
+              <div class="note-actions" style="margin-top: 6px;">
+                <span class="status-text" x-show="reviewDrafts[item.key]?.saved">Saved</span>
+                <span class="error-text" x-show="reviewDrafts[item.key]?.error" x-text="reviewDrafts[item.key].error"></span>
+              </div>
+            </template>
+          </div>
           <!-- Expanded Details -->
-          <div class="test-details" x-show="expandedTests[index]">
+          <div class="test-details" x-show="isExpanded(item.key)">
             <!-- Input Vars -->
             <div class="detail-section">
               <h4>Test Inputs</h4>
               <div class="detail-grid">
                 <div class="detail-label">Text:</div>
-                <div class="detail-value" x-text="test.testCase?.vars?.input_text || 'N/A'"></div>
+                <div class="detail-value" x-text="item.test.testCase?.vars?.input_text || 'N/A'"></div>
 
                 <div class="detail-label">Image URL:</div>
                 <div class="detail-value">
-                  <template x-if="test.testCase?.vars?.input_image_url">
+                  <template x-if="item.test.testCase?.vars?.input_image_url">
                     <div>
-                      <a :href="test.testCase.vars.input_image_url" target="_blank" x-text="test.testCase.vars.input_image_url"></a>
-                      <img :src="test.testCase.vars.input_image_url" alt="Input image">
+                      <a :href="item.test.testCase.vars.input_image_url" target="_blank" x-text="item.test.testCase.vars.input_image_url"></a>
+                      <img :src="item.test.testCase.vars.input_image_url" alt="Input image">
                     </div>
                   </template>
-                  <template x-if="!test.testCase?.vars?.input_image_url">
+                  <template x-if="!item.test.testCase?.vars?.input_image_url">
                     <span>N/A</span>
                   </template>
                 </div>
 
                 <div class="detail-label">Caption:</div>
-                <div class="detail-value" x-text="test.testCase?.vars?.input_caption || 'N/A'"></div>
+                <div class="detail-value" x-text="item.test.testCase?.vars?.input_caption || 'N/A'"></div>
               </div>
             </div>
 
@@ -342,20 +820,20 @@
               <h4>Expert Labels</h4>
               <div class="detail-grid">
                 <div class="detail-label">Broad Category:</div>
-                <div class="detail-value" x-text="test.testCase?.vars?.expert_broad_category || 'N/A'"></div>
+                <div class="detail-value" x-text="item.test.testCase?.vars?.expert_broad_category || 'N/A'"></div>
 
                 <div class="detail-label">Is Access Blocked:</div>
-                <div class="detail-value" x-text="test.testCase?.vars?.expert_is_access_blocked || 'N/A'"></div>
+                <div class="detail-value" x-text="item.test.testCase?.vars?.expert_is_access_blocked || 'N/A'"></div>
 
                 <div class="detail-label">Is Video:</div>
-                <div class="detail-value" x-text="test.testCase?.vars?.expert_is_video || 'N/A'"></div>
+                <div class="detail-value" x-text="item.test.testCase?.vars?.expert_is_video || 'N/A'"></div>
 
                 <div class="detail-label">Is Controversial:</div>
-                <div class="detail-value" x-text="test.testCase?.vars?.expert_is_controversial || 'N/A'"></div>
+                <div class="detail-value" x-text="item.test.testCase?.vars?.expert_is_controversial || 'N/A'"></div>
 
                 <div class="detail-label">Expert Pointers:</div>
                 <div class="detail-value">
-                  <div class="text-content" x-text="test.testCase?.vars?.expert_pointers || 'N/A'"></div>
+                  <div class="text-content" x-text="item.test.testCase?.vars?.expert_pointers || 'N/A'"></div>
                 </div>
               </div>
             </div>
@@ -366,42 +844,42 @@
               <div class="detail-grid">
                 <div class="detail-label">English (en):</div>
                 <div class="detail-value">
-                  <div class="text-content" x-text="test.response?.output?.en || 'N/A'"></div>
+                  <div class="text-content" x-text="item.test.response?.output?.en || 'N/A'"></div>
                 </div>
 
                 <div class="detail-label">Chinese (cn):</div>
                 <div class="detail-value">
-                  <div class="text-content" x-text="test.response?.output?.cn || 'N/A'"></div>
+                  <div class="text-content" x-text="item.test.response?.output?.cn || 'N/A'"></div>
                 </div>
 
                 <div class="detail-label">Links:</div>
                 <div class="detail-value">
-                  <template x-if="test.response?.output?.links && test.response.output.links.length > 0">
+                  <template x-if="item.test.response?.output?.links && item.test.response.output.links.length > 0">
                     <ul class="links-list">
-                      <template x-for="link in test.response.output.links" :key="link">
+                      <template x-for="link in item.test.response.output.links" :key="link">
                         <li><a :href="link" target="_blank" x-text="link"></a></li>
                       </template>
                     </ul>
                   </template>
-                  <template x-if="!test.response?.output?.links || test.response.output.links.length === 0">
+                  <template x-if="!item.test.response?.output?.links || item.test.response.output.links.length === 0">
                     <span>N/A</span>
                   </template>
                 </div>
 
                 <div class="detail-label">Is Controversial:</div>
-                <div class="detail-value" x-text="test.response?.output?.isControversial || 'N/A'"></div>
+                <div class="detail-value" x-text="item.test.response?.output?.isControversial || 'N/A'"></div>
 
                 <div class="detail-label">Is Video:</div>
-                <div class="detail-value" x-text="test.response?.output?.isVideo || 'N/A'"></div>
+                <div class="detail-value" x-text="item.test.response?.output?.isVideo || 'N/A'"></div>
 
                 <div class="detail-label">Is Access Blocked:</div>
-                <div class="detail-value" x-text="test.response?.output?.isAccessBlocked || 'N/A'"></div>
+                <div class="detail-value" x-text="item.test.response?.output?.isAccessBlocked || 'N/A'"></div>
 
                 <div class="detail-label">Broad Category:</div>
-                <div class="detail-value" x-text="test.response?.output?.broadCategory || 'N/A'"></div>
+                <div class="detail-value" x-text="item.test.response?.output?.broadCategory || 'N/A'"></div>
 
                 <div class="detail-label">Num Retries:</div>
-                <div class="detail-value" x-text="test.response?.output?.numRetries ?? 'N/A'"></div>
+                <div class="detail-value" x-text="item.test.response?.output?.numRetries ?? 'N/A'"></div>
               </div>
             </div>
 
@@ -409,12 +887,12 @@
             <div class="detail-section">
               <h4>Assertion Results</h4>
               <div class="assertions">
-                <template x-for="assertion in test.gradingResult?.componentResults" :key="assertion">
+                <template x-for="assertion in item.test.gradingResult?.componentResults" :key="assertion">
                   <div class="assertion" :class="assertion.pass ? 'pass' : 'fail'">
                     <div class="assertion-header">
                       <div>
                         <span class="assertion-type" x-text="assertion.assertion?.type || 'Unknown'"></span>
-                        <span x-show="assertion.assertion?.weight" style="color: #999; margin-left: 10px;">
+                        <span x-show="assertion.assertion?.weight" class="text-faint" style="margin-left: 10px;">
                           (weight: <span x-text="assertion.assertion.weight"></span>)
                         </span>
                       </div>
@@ -428,6 +906,67 @@
                 </template>
               </div>
             </div>
+
+            <div class="detail-section" x-show="inlineReviewVisible">
+              <h4>Review Eval</h4>
+              <div class="reviewer-panel" @click.stop>
+                <template x-if="!isReviewActive(item.key)">
+                  <button
+                    type="button"
+                    class="review-eval-trigger"
+                    @click.stop="activateReview(item.key)"
+                  >Review Eval</button>
+                </template>
+                <template x-if="isReviewActive(item.key)">
+                  <div>
+                    <div class="review-inline-row" :class="reviewInlineClass(reviewDrafts[item.key]?.tag)">
+                      <div class="review-emoji-group">
+                        <button
+                          type="button"
+                          class="review-emoji-btn correct"
+                          :class="{ 'active': reviewDrafts[item.key]?.tag === 'correct' }"
+                          @click.stop="setReviewTag(item.key, 'correct')"
+                        >✅</button>
+                        <button
+                          type="button"
+                          class="review-emoji-btn wrong"
+                          :class="{ 'active': reviewDrafts[item.key]?.tag === 'wrong' }"
+                          @click.stop="setReviewTag(item.key, 'wrong')"
+                        >❌</button>
+                      </div>
+                      <input
+                        type="text"
+                        class="review-note-input"
+                        placeholder="Short reviewer note..."
+                        x-model="reviewDrafts[item.key].notes"
+                        @input="markReviewDirty(item.key)"
+                        @click.stop
+                      >
+                      <div class="review-actions">
+                        <button
+                          type="button"
+                          class="review-clear-btn"
+                          @click.stop="clearReviewTag(item.key)"
+                        >Clear</button>
+                        <button
+                          class="save-btn"
+                          :disabled="!reviewDrafts[item.key] || reviewDrafts[item.key].saving || !reviewDrafts[item.key].dirty"
+                          @click.stop="saveReview(item)"
+                        >
+                          <span x-show="!reviewDrafts[item.key]?.saving">Save Notes</span>
+                          <span x-show="reviewDrafts[item.key]?.saving">Saving...</span>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="note-actions" style="margin-top: 6px;">
+                      <span class="status-text" x-show="reviewDrafts[item.key]?.saved">Saved</span>
+                      <span class="error-text" x-show="reviewDrafts[item.key]?.error" x-text="reviewDrafts[item.key].error"></span>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+
           </div>
         </div>
       </template>
@@ -445,9 +984,42 @@
         metrics: {},
         expandedTests: {},
         loading: true,
+        filterStatus: 'all',
+        sortOption: 'original',
+        reviewDrafts: {},
+        reviewMessageTimers: {},
+        inlineReviewVisible: false,
+        darkMode: false,
 
         async init() {
+          this.loadDarkModePreference();
           await this.fetchAvailableFiles();
+        },
+
+        loadDarkModePreference() {
+          try {
+            const stored = localStorage.getItem('checkmateEvalDarkMode');
+            if (stored !== null) {
+              this.darkMode = stored === 'true';
+            } else {
+              this.darkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            }
+          } catch (_) {
+            this.darkMode = false;
+          }
+        },
+
+        toggleDarkMode() {
+          this.darkMode = !this.darkMode;
+          try {
+            localStorage.setItem('checkmateEvalDarkMode', this.darkMode);
+          } catch (_) { /* ignore */ }
+        },
+
+        reviewInlineClass(tag) {
+          if (tag === 'correct') return 'state-correct';
+          if (tag === 'wrong') return 'state-wrong';
+          return '';
         },
 
         async fetchAvailableFiles() {
@@ -490,6 +1062,11 @@
             };
             this.tests = data.results?.results || [];
             this.expandedTests = {};
+            this.reviewDrafts = {};
+            this.reviewMessageTimers = {};
+            this.filterStatus = 'all';
+            this.sortOption = 'original';
+            this.inlineReviewVisible = false;
             this.calculateMetrics();
           } catch (error) {
             console.error('Error loading file:', error);
@@ -519,8 +1096,212 @@
           };
         },
 
-        toggleTest(index) {
-          this.expandedTests[index] = !this.expandedTests[index];
+        toggleTest(key) {
+          this.expandedTests[key] = !this.expandedTests[key];
+        },
+
+        isExpanded(key) {
+          return !!this.expandedTests[key];
+        },
+
+        setFilter(status) {
+          this.filterStatus = status;
+        },
+
+        filteredTests() {
+          const testsWithMeta = this.tests.map((test, originalIndex) => ({
+            test,
+            originalIndex,
+            key: test.id ?? `${this.selectedFilename || 'run'}-${originalIndex}`
+          }));
+
+          const filtered = testsWithMeta.filter(item => {
+            if (this.filterStatus === 'pass') {
+              return item.test.gradingResult?.pass === true;
+            }
+            if (this.filterStatus === 'fail') {
+              return item.test.gradingResult?.pass === false;
+            }
+            return true;
+          });
+
+          const toNumber = (value, fallback) => (typeof value === 'number' ? value : fallback);
+
+          filtered.sort((a, b) => {
+            switch (this.sortOption) {
+              case 'scoreDesc':
+                return toNumber(b.test.gradingResult?.score, -Infinity) - toNumber(a.test.gradingResult?.score, -Infinity);
+              case 'scoreAsc':
+                return toNumber(a.test.gradingResult?.score, Infinity) - toNumber(b.test.gradingResult?.score, Infinity);
+              case 'latencyDesc':
+                return toNumber(b.test.latencyMs, -Infinity) - toNumber(a.test.latencyMs, -Infinity);
+              case 'latencyAsc':
+                return toNumber(a.test.latencyMs, Infinity) - toNumber(b.test.latencyMs, Infinity);
+              default:
+                return a.originalIndex - b.originalIndex;
+            }
+          });
+
+          filtered.forEach(item => this.ensureReviewDraft(item));
+
+          return filtered;
+        },
+
+        toggleInlineReview() {
+          this.inlineReviewVisible = !this.inlineReviewVisible;
+        },
+
+        ensureReviewDraft(item) {
+          const key = item.key;
+          if (!this.reviewDrafts[key]) {
+            const existing = item.test.metadata?.review || {};
+            const existingNotes = existing.notes ?? '';
+            const hasContent = (existing.tag ?? null) !== null || (typeof existingNotes === 'string' && existingNotes.trim().length > 0);
+            this.reviewDrafts[key] = {
+              tag: existing.tag ?? null,
+              notes: existingNotes,
+              dirty: false,
+              saving: false,
+              saved: false,
+              error: '',
+              active: hasContent
+            };
+          }
+          return this.reviewDrafts[key];
+        },
+
+        activateReview(key) {
+          const draft = this.reviewDrafts[key];
+          if (!draft) return;
+          draft.active = true;
+        },
+
+        isReviewActive(key) {
+          const draft = this.reviewDrafts[key];
+          if (!draft) return false;
+          if (draft.active) return true;
+          if (draft.tag !== null) return true;
+          if (typeof draft.notes === 'string' && draft.notes.trim().length > 0) return true;
+          return false;
+        },
+
+        setReviewTag(key, tag) {
+          const draft = this.reviewDrafts[key];
+          if (!draft) return;
+          if (draft.tag !== tag) {
+            draft.tag = tag;
+            draft.active = true;
+            this.markReviewDirty(key);
+          }
+        },
+
+        clearReviewTag(key) {
+          const draft = this.reviewDrafts[key];
+          if (!draft) return;
+          const hadTag = draft.tag !== null;
+          const hadNotes = draft.notes !== '';
+          draft.tag = null;
+          draft.notes = '';
+          if (hadTag || hadNotes) {
+            this.markReviewDirty(key);
+          }
+        },
+
+        markReviewDirty(key) {
+          const draft = this.reviewDrafts[key];
+          if (!draft) return;
+          draft.active = true;
+          draft.dirty = true;
+          draft.saved = false;
+          draft.error = '';
+        },
+
+        async saveReview(item) {
+          if (!this.selectedFilename) return;
+          const key = item.key;
+          const draft = this.reviewDrafts[key];
+          if (!draft || draft.saving) return;
+
+          draft.saving = true;
+          draft.error = '';
+
+          try {
+            const response = await fetch(`/api/file/${encodeURIComponent(this.selectedFilename)}/review`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                testId: item.test.id,
+                originalIndex: item.originalIndex,
+                review: {
+                  tag: draft.tag,
+                  notes: draft.notes
+                }
+              })
+            });
+
+            if (!response.ok) {
+              let errorMessage = 'Failed to save review';
+              try {
+                const errorData = await response.json();
+                if (errorData?.error) errorMessage = errorData.error;
+              } catch (_) { /* ignore */ }
+              throw new Error(errorMessage);
+            }
+
+            let result = {};
+            try {
+              result = await response.json();
+            } catch (_) { /* ignore */ }
+
+            draft.dirty = false;
+            draft.saved = true;
+            draft.error = '';
+
+            if (!item.test.metadata) item.test.metadata = {};
+            if (Object.prototype.hasOwnProperty.call(result, 'review')) {
+              if (result.review === null) {
+                delete item.test.metadata.review;
+                draft.tag = null;
+                draft.notes = '';
+                draft.active = false;
+              } else {
+                const payload = result.review;
+                item.test.metadata.review = payload;
+                draft.tag = payload.tag ?? null;
+                draft.notes = payload.notes ?? '';
+                const hasNotes = typeof draft.notes === 'string' && draft.notes.trim().length > 0;
+                draft.active = draft.tag !== null || hasNotes;
+              }
+            } else {
+              item.test.metadata.review = {
+                tag: draft.tag,
+                notes: draft.notes
+              };
+              const hasNotes = typeof draft.notes === 'string' && draft.notes.trim().length > 0;
+              draft.active = draft.tag !== null || hasNotes;
+            }
+
+            if (this.reviewMessageTimers[key]) {
+              clearTimeout(this.reviewMessageTimers[key]);
+            }
+            this.reviewMessageTimers[key] = setTimeout(() => {
+              draft.saved = false;
+              delete this.reviewMessageTimers[key];
+            }, 2000);
+          } catch (error) {
+            draft.error = error.message || 'Failed to save review';
+          } finally {
+            draft.saving = false;
+          }
+        },
+
+        truncateInputText(text) {
+          if (!text) return '';
+          return text.length > 50 ? text.substring(0, 50) + '...' : text;
+        },
+
+        formatScore(score) {
+          return typeof score === 'number' ? score.toFixed(2) : 'N/A';
         },
 
         async deleteCurrentFile() {
@@ -543,6 +1324,11 @@
             this.selectedRun = null;
             this.tests = [];
             this.metrics = {};
+            this.filterStatus = 'all';
+            this.sortOption = 'original';
+            this.reviewDrafts = {};
+            this.reviewMessageTimers = {};
+            this.inlineReviewVisible = false;
             await this.fetchAvailableFiles();
           } catch (error) {
             console.error('Error deleting file:', error);
