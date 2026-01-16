@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "wrangler dev -c workers/api-entrypoint/wrangler.jsonc -c workers/checks-service/wrangler.jsonc -c workers/agent-service/wrangler.jsonc -c workers/database-service/wrangler.jsonc -c workers/embedder-service/wrangler.jsonc -c workers/screenshot-backup-service/wrangler.jsonc -c workers/screenshot-service/wrangler.jsonc -c workers/search-service/wrangler.jsonc -c workers/trivialfilter-service/wrangler.jsonc -c workers/urlscan-service/wrangler.jsonc  -c workers/notification-service/wrangler.jsonc -c workers/blacklist-service/wrangler.jsonc -c workers/ai-checker-service/wrangler.jsonc -c workers/cloudflarescan-service/wrangler.jsonc",
-    "dev:turbo": "turbo dev --filter=!./ --concurrency=12",
+    "dev:turbo": "turbo dev --filter=!./ --concurrency=15",
     "build": "turbo build --filter=!./",
     "lint": "turbo lint",
     "dev:search-service": "turbo dev --filter=search-service",
