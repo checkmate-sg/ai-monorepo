@@ -78,7 +78,7 @@ jobs:
 
       - name: Setup .dev.vars file for all workers
         run: |
-          echo '${{ secrets.API_ENTRYPOINT_DEV_VARS }}' | base64 -d > workers\api-entrypoint\.dev.vars
+          echo '${{ secrets.API_ENTRYPOINT_DEV_VARS }}' | base64 -d > workers/api-entrypoint/.dev.vars
 
       - name: Start dev server in background
         run: pnpm dev &
