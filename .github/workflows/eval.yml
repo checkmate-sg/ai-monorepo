@@ -43,7 +43,7 @@ jobs:
           [ -z "${{ secrets.ML_SERVER_API_KEY }}" ] && MISSING="$MISSING ML_SERVER_API_KEY"
           [ -z "${{ secrets.OPENAI_API_KEY }}" ] && MISSING="$MISSING OPENAI_API_KEY"
           [ -z "${{ secrets.EVALS_GOOGLE_SHEET_URL }}" ] && MISSING="$MISSING EVALS_GOOGLE_SHEET_URL"
-          [ -z "${{ secrets.GOOGLE_CREDENTIALS_JSON }}" ] && MISSING="$MISSING GOOGLE_CREDENTIALS_JSON"
+          [ -z "${{ secrets.GOOGLE_CREDENTIALS_JSON_B64 }}" ] && MISSING="$MISSING GOOGLE_CREDENTIALS_JSON_B64"
           
           if [ -n "$MISSING" ]; then
             echo "❌ Missing required secrets:$MISSING"
@@ -64,7 +64,7 @@ jobs:
       - name: Setup Google credentials
         run: |
           mkdir -p evals/credentials
-          echo '${{ secrets.GOOGLE_CREDENTIALS_JSON }}' > evals/credentials/google-credentials.json
+          echo '${{ secrets.GOOGLE_CREDENTIALS_JSON_B64 }}' | base64 -d > evals/credentials/google-credentials.json
 
       - name: Create .env file for evals
         run: |
