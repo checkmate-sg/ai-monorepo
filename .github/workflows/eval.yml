@@ -78,7 +78,15 @@ jobs:
 
       - name: Setup .dev.vars file for all workers
         run: |
+          echo '${{ secrets.AGENT_DEV_VARS }}' | base64 -d > workers/agent-service/.dev.vars
           echo '${{ secrets.API_ENTRYPOINT_DEV_VARS }}' | base64 -d > workers/api-entrypoint/.dev.vars
+          echo '${{ secrets.CLOUDFLARE_SCAN_DEV_VARS }}' | base64 -d > workers/cloudflarescan-service/.dev.vars
+          echo '${{ secrets.DATABASE_DEV_VARS }}' | base64 -d > workers/database-service/.dev.vars
+          echo '${{ secrets.EMBEDDER_DEV_VARS }}' | base64 -d > workers/embedder-service/.dev.vars
+          echo '${{ secrets.SCREENSHOT_DEV_VARS }}' | base64 -d > workers/screenshot-service/.dev.vars
+          echo '${{ secrets.SCREENSHOT_BACKUP_DEV_VARS }}' | base64 -d > workers/screenshot-backup-service/.dev.vars
+          echo '${{ secrets.SEARCH_DEV_VARS }}' | base64 -d > workers/search-service/.dev.vars
+          echo '${{ secrets.URLSCAN_DEV_VARS }}' | base64 -d > workers/urlscan-service/.dev.vars
 
       - name: Start dev server in background
         run: pnpm dev &
