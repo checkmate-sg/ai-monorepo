@@ -1,0 +1,114 @@
+name: Run Evals
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      filter_first_n:
+        description: 'Only run first N test cases (leave empty for all)'
+        required: false
+        type: string
+      filter_pattern:
+        description: 'Filter tests by pattern'
+        required: false
+        type: string
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    environment: eval
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: '10.5.2'
+
+      - name: Verify required secrets
+        run: |
+          MISSING=""
+          
+          [ -z "${{ secrets.ML_SERVER_API_KEY }}" ] && MISSING="$MISSING ML_SERVER_API_KEY"
+          [ -z "${{ secrets.OPENAI_API_KEY }}" ] && MISSING="$MISSING OPENAI_API_KEY"
+          [ -z "${{ secrets.EVALS_GOOGLE_SHEET_URL }}" ] && MISSING="$MISSING EVALS_GOOGLE_SHEET_URL"
+          [ -z "${{ secrets.GOOGLE_CREDENTIALS_JSON }}" ] && MISSING="$MISSING GOOGLE_CREDENTIALS_JSON"
+          
+          if [ -n "$MISSING" ]; then
+            echo "❌ Missing required secrets:$MISSING"
+            echo ""
+            echo "Please add these secrets in:"
+            echo "  Repository → Settings → Environments → eval → Environment secrets"
+            exit 1
+          fi
+          
+          echo "✅ All required secrets are configured"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Approve native builds
+        run: pnpm approve-builds
+
+      - name: Setup Google credentials
+        run: |
+          mkdir -p evals/credentials
+          echo '${{ secrets.GOOGLE_CREDENTIALS_JSON }}' > evals/credentials/google-credentials.json
+
+      - name: Create .env file for evals
+        run: |
+          cat > evals/.env << EOF
+          ML_SERVER_URL=http://localhost:8787
+          ML_SERVER_API_KEY=${{ secrets.ML_SERVER_API_KEY }}
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          EVALS_GOOGLE_SHEET_URL=${{ secrets.EVALS_GOOGLE_SHEET_URL }}
+          GOOGLE_APPLICATION_CREDENTIALS=${{ github.workspace }}/evals/credentials/google-credentials.json
+          EOF
+
+      - name: Start dev server in background
+        run: pnpm dev &
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Wait for server to be ready
+        run: |
+          echo "Waiting for server to start on port 8787..."
+          timeout 120 bash -c 'until curl -s http://localhost:8787/docs > /dev/null 2>&1; do sleep 2; done'
+          echo "✅ Server is ready!"
+
+      - name: Run evaluations
+        run: |
+          EXTRA_ARGS=""
+          if [ -n "${{ github.event.inputs.filter_first_n }}" ]; then
+            EXTRA_ARGS="$EXTRA_ARGS --filter-first-n ${{ github.event.inputs.filter_first_n }}"
+          fi
+          if [ -n "${{ github.event.inputs.filter_pattern }}" ]; then
+            EXTRA_ARGS="$EXTRA_ARGS --filter-pattern ${{ github.event.inputs.filter_pattern }}"
+          fi
+          
+          cd evals
+          npx promptfoo eval -c ./eval.g-eval-runner.yaml --env-file .env --no-cache --max-concurrency 1 --output "output/$(date +%Y%m%d-%H%M%S)-results.json" $EXTRA_ARGS
+        env:
+          ML_SERVER_URL: http://localhost:8787
+          ML_SERVER_API_KEY: ${{ secrets.ML_SERVER_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: Upload eval results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-results
+          path: evals/output/*.json
+          retention-days: 30
+
