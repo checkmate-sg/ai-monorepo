@@ -2,9 +2,9 @@ name: Run Evals
 
 on:
   push:
-    branches: [main, auto-eval]
+    branches: [auto-eval]
   pull_request:
-    branches: [main, auto-eval]
+    branches: [auto-eval]
   workflow_dispatch:
     inputs:
       filter_first_n:
