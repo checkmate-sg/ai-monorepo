@@ -93,6 +93,25 @@
       font-size: 14px;
     }
     .delete-btn:hover { background: #c82333; }
+    .primary-btn {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+    }
+    .primary-btn:hover { background: #1d4ed8; }
+    body.dark-mode .primary-btn {
+      background: #1d4ed8;
+      box-shadow: none;
+    }
+    body.dark-mode .primary-btn:hover {
+      background: #1b3fc4;
+    }
 
     /* Metrics Dashboard */
     .metrics {
@@ -597,6 +616,73 @@
     body.dark-mode .review-inline-row {
       background: #1e2535;
     }
+    /* Export modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 50;
+    }
+    .modal {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      max-width: 460px;
+      width: 100%;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+    .modal h3 {
+      margin-bottom: 12px;
+      color: #111827;
+    }
+    .modal p {
+      color: #4b5563;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    .modal input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .link-chip {
+      display: inline-block;
+      padding: 6px 10px;
+      background: #ecfdf3;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-top: 6px;
+      word-break: break-all;
+    }
+    .error-text.inline {
+      display: block;
+      margin-top: 6px;
+    }
+    body.dark-mode .modal {
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    body.dark-mode .modal p { color: #cbd5e1; }
+    body.dark-mode .modal input[type="text"] {
+      background: #0b1220;
+      border-color: #1f2937;
+      color: #e2e8f0;
+    }
   </style>
 </head>
 <body x-data="evalViewer()" :class="{ 'dark-mode': darkMode }">
@@ -625,6 +711,11 @@
               <option :value="file.name" x-text="file.name"></option>
             </template>
           </select>
+          <button
+            class="primary-btn"
+            x-show="selectedRun"
+            @click="openExportModal()"
+          >Export to Sheet</button>
           <button
             class="delete-btn"
             @click="deleteCurrentFile()"
@@ -972,6 +1063,35 @@
       </template>
     </div>
 
+    <!-- Export Modal -->
+    <div
+      class="modal-backdrop"
+      x-show="exportModalOpen"
+      @click.self="closeExportModal()"
+      x-cloak
+    >
+      <div class="modal" @click.stop>
+        <h3>Export eval set</h3>
+        <p>Enter your name; the sheet will be named using the JSON file plus your name suffix.</p>
+        <input
+          type="text"
+          placeholder="Your name"
+          x-model="exportName"
+        >
+        <span class="error-text inline" x-show="exportError" x-text="exportError"></span>
+        <template x-if="exportLink">
+          <a class="link-chip" :href="exportLink" target="_blank" rel="noopener">Open exported sheet</a>
+        </template>
+        <div class="modal-actions">
+          <button class="delete-btn" @click="closeExportModal()" :disabled="exportWorking">Cancel</button>
+          <button class="primary-btn" @click="exportEvalSet()" :disabled="exportWorking">
+            <span x-show="!exportWorking">Export</span>
+            <span x-show="exportWorking">Exporting...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script>
@@ -990,6 +1110,11 @@
         reviewMessageTimers: {},
         inlineReviewVisible: false,
         darkMode: false,
+        exportModalOpen: false,
+        exportName: '',
+        exportError: '',
+        exportWorking: false,
+        exportLink: '',
 
         async init() {
           this.loadDarkModePreference();
@@ -1067,6 +1192,9 @@
             this.filterStatus = 'all';
             this.sortOption = 'original';
             this.inlineReviewVisible = false;
+            this.exportName = '';
+            this.exportLink = '';
+            this.exportError = '';
             this.calculateMetrics();
           } catch (error) {
             console.error('Error loading file:', error);
@@ -1214,6 +1342,61 @@
           draft.dirty = true;
           draft.saved = false;
           draft.error = '';
+        },
+
+        openExportModal() {
+          if (!this.selectedFilename) return;
+          this.exportModalOpen = true;
+          this.exportName = '';
+          this.exportError = '';
+          this.exportLink = '';
+        },
+
+        closeExportModal() {
+          this.exportModalOpen = false;
+        },
+
+        async exportEvalSet() {
+          if (!this.selectedFilename) {
+            this.exportError = 'Select a file to export.';
+            return;
+          }
+          if (!this.exportName || !this.exportName.trim()) {
+            this.exportError = 'Please enter your name.';
+            return;
+          }
+
+          this.exportWorking = true;
+          this.exportError = '';
+          this.exportLink = '';
+
+          try {
+            const response = await fetch('/api/export', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                filename: this.selectedFilename,
+                exportName: this.exportName.trim()
+              })
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              throw new Error(result?.error || 'Export failed');
+            }
+
+            this.exportLink = result.url || '';
+            this.exportModalOpen = false;
+            if (this.exportLink) {
+              alert(`Export created: ${this.exportLink}`);
+            } else {
+              alert('Export created.');
+            }
+          } catch (error) {
+            this.exportError = error.message || 'Export failed';
+          } finally {
+            this.exportWorking = false;
+          }
         },
 
         async saveReview(item) {
