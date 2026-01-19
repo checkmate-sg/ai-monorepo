@@ -89,6 +89,9 @@ jobs:
           echo '${{ secrets.URLSCAN_DEV_VARS }}' | base64 -d > workers/urlscan-service/.dev.vars
 
       - name: Start dev server in background
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm dev &
 
       - name: Wait for server to be ready
