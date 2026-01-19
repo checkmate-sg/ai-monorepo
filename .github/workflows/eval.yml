@@ -44,6 +44,9 @@ jobs:
           [ -z "${{ secrets.OPENAI_API_KEY }}" ] && MISSING="$MISSING OPENAI_API_KEY"
           [ -z "${{ secrets.EVALS_GOOGLE_SHEET_URL }}" ] && MISSING="$MISSING EVALS_GOOGLE_SHEET_URL"
           [ -z "${{ secrets.GOOGLE_CREDENTIALS_JSON_B64 }}" ] && MISSING="$MISSING GOOGLE_CREDENTIALS_JSON_B64"
+          [ -z "${{ secrets.OPENAI_API_KEY }}" ] && MISSING="$MISSING OPENAI_API_KEY"
+          [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ] && MISSING="$MISSING CLOUDFLARE_API_TOKEN"
+          [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ] && MISSING="$MISSING CLOUDFLARE_ACCOUNT_ID"
           
           if [ -n "$MISSING" ]; then
             echo "❌ Missing required secrets:$MISSING"
