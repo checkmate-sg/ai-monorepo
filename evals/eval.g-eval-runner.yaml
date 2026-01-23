@@ -15,10 +15,10 @@ providers:
       maxRetries: 3
       retryDelay: 1000
 
-tests: "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz6FYef120tIU/edit?usp=sharing"
+tests: "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz6FYef120tIU/edit?gid=1200356343#gid=1200356343"
 
 outputPath:
-  - "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz6FYef120tIU/edit"
+  - "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz6FYef120tIU/edit?gid=2046898546#gid=2046898546"
 
 defaultTest:
   threshold: 0.7
