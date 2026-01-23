@@ -6,15 +6,6 @@ on:
   pull_request:
     branches: [auto-eval]
   workflow_dispatch:
-    inputs:
-      filter_first_n:
-        description: 'Only run first N test cases (leave empty for all)'
-        required: false
-        type: string
-      filter_pattern:
-        description: 'Filter tests by pattern'
-        required: false
-        type: string
 
 jobs:
   eval:
@@ -141,16 +132,8 @@ jobs:
 
       - name: Run evaluations
         run: |
-          EXTRA_ARGS=""
-          if [ -n "${{ github.event.inputs.filter_first_n }}" ]; then
-            EXTRA_ARGS="$EXTRA_ARGS --filter-first-n ${{ github.event.inputs.filter_first_n }}"
-          fi
-          if [ -n "${{ github.event.inputs.filter_pattern }}" ]; then
-            EXTRA_ARGS="$EXTRA_ARGS --filter-pattern ${{ github.event.inputs.filter_pattern }}"
-          fi
-          
           cd evals
-          npx promptfoo eval -c ./eval.g-eval-runner.yaml --env-file .env --no-cache --max-concurrency 1 --output "output/$(date +%Y%m%d-%H%M%S)-results.json" $EXTRA_ARGS
+          npx promptfoo eval -c ./eval.g-eval-runner.yaml --env-file .env --no-cache --max-concurrency 1 --output "output/$(date +%Y%m%d-%H%M%S)-results.json"
         env:
           ML_SERVER_URL: http://localhost:8787
           ML_SERVER_API_KEY: ${{ steps.create-consumer.outputs.api_key }}
