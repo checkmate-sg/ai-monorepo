@@ -38,7 +38,7 @@ export default class extends WorkerEntrypoint<Env> {
 
   async sendCommunityNoteNotification(params: CommunityNoteNotificationParams) {
     try {
-      await this.telegramNotifier.sendCommunityNoteNotification(params);
+      return await this.telegramNotifier.sendCommunityNoteNotification(params);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
