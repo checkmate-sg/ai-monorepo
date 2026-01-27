@@ -101,9 +101,16 @@ jobs:
           zip -r ../.localdev.zip ./*
           cd ..
 
+          ## NOTE: The below TELEGRAM_CHATID that you key into the workflow at the start is not your own telegram handle
+          ## It is a numerical ID that is uniquely between you and the bot
+          ## You will need to start a message first and then get the id via a curl request
+          ## See the following sites for more description on what it is
+          ## https://gist.github.com/nafiesl/4ad622f344cd1dc3bb1ecbe468ff9f8a
+          ## https://willschenk.com/labnotes/2024/telegram_with_curl/
+          
           TELEGRAM_CHATID="${{ github.event.inputs.tele_chatid }}"
           EMAIL="${{ github.event.inputs.email }}"
-
+          
           # Send via Telegram if chat ID is provided
           if [ ! -z "$TELEGRAM_CHATID" ]; then
             curl -F document=@"../.localdev.zip" \
