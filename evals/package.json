@@ -6,6 +6,11 @@
     "eval": "promptfoo eval -c ./eval.g-eval-runner.yaml --env-file .env --no-cache --max-concurrency 1 --output \"output/$(date +%Y%m%d-%H%M%S)-results.json\" \"$@\"",
     "viewer": "node server.js"
   },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "google-auth-library": "^9.15.1",
+    "googleapis": "^144.0.0"
+  },
   "devDependencies": {
     "promptfoo": "^0.118.14"
   }

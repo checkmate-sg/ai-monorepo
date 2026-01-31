@@ -393,6 +393,7 @@ export class CheckerAgent extends DurableObject<Env> {
     let notificationId: number | null = null;
     let communityNoteNotificationId: number | null = null;
     let communityNote: CommunityNote | null = null;
+    let longformReport: Report | null = null;
     let isControversial = false;
     let slug: string | null = null;
     let generationStatus: string = "pending";
@@ -499,6 +500,8 @@ export class CheckerAgent extends DurableObject<Env> {
             isVoteTriggered: false,
             isApprovedForPublishing: false,
             approvedBy: null,
+            notificationId: null,
+            communityNoteNotificationId: null,
           },
           id // Pass the ObjectId to use as the document _id
         );
@@ -696,7 +699,7 @@ export class CheckerAgent extends DurableObject<Env> {
         timestamp: timestamp,
       };
 
-      const longformReport: Report = {
+      longformReport = {
         en: report,
         cn: null,
         links: sources,
@@ -761,6 +764,11 @@ export class CheckerAgent extends DurableObject<Env> {
               communityNote: communityNote,
             });
         }
+        this.state.waitUntil(
+          this.env.DATABASE_SERVICE.updateCheck(this.id, {
+            communityNoteNotificationId: communityNoteNotificationId,
+          })
+        );
       } catch (error) {
         this.logger.error("Failed to send community note notification");
       }
@@ -805,20 +813,18 @@ export class CheckerAgent extends DurableObject<Env> {
         })
       );
 
-      //TODO: send notification
-      if (!this.env.IS_ROLLBACK) {
-        this.state.waitUntil(
-          this.env.NOTIFICATION_SERVICE.sendCommunityNoteNotification({
-            id: this.id,
-            replyId: notificationId,
-            communityNote: null,
-            isAccessBlocked: this.isAccessBlocked,
-            isVideo: this.isVideo,
-            isControversial: false,
-            isError: true,
-          })
-        );
-      }
+      this.state.waitUntil(
+        this.env.NOTIFICATION_SERVICE.sendCommunityNoteNotification({
+          id: this.id,
+          replyId: notificationId,
+          communityNote: null,
+          isAccessBlocked: this.isAccessBlocked,
+          isVideo: this.isVideo,
+          isControversial: false,
+          isError: true,
+        })
+      );
+
       const errorReturn = {
         id: this.id || id,
         error: { message: errorMessage },
@@ -838,52 +844,52 @@ export class CheckerAgent extends DurableObject<Env> {
     } finally {
       //trigger voting block
       try {
-        if (!this.env.IS_ROLLBACK) {
-          const response = await fetch(`${this.env.CHECKERS_APP_URL}`, {
+        const response = await this.env.CHECKERS_WEBHOOK_SERVICE.fetch(
+          new Request("https://internal/polls/webhook", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               "x-api-key": this.env.CHECKERS_APP_API_KEY,
             },
             body: JSON.stringify({
-              id: this.id,
-              machineCategory: "unsure",
-              isMachineCategorised: false,
-              imageUrl: this.imageUrl ?? null,
+              checkId: this.id,
               text: this.text ?? null,
+              imageUrl: this.imageUrl ?? null,
               caption: this.caption ?? null,
-              isControversial: isControversial,
-              communityNoteStatus: generationStatus,
-              communityNote: communityNote,
-              isCommunityNoteUsable:
-                generationStatus === "completed" &&
-                !this.isAccessBlocked &&
-                !this.isVideo,
-              isIrrelevant: false,
-              title: this.title ?? null,
-              slug: slug,
-              messageNotificationId: notificationId ?? null,
-              communityNoteNotificationId: communityNoteNotificationId ?? null,
+              longformResponse: longformReport,
+              shortformResponse: communityNote,
             }),
-          });
+          })
+        );
 
-          // Consume the response body to free the connection
-          if (response.ok) {
-            await response.text(); // or response.json() if you need the data
-          } else {
-            response.body?.cancel(); // Free connection on error
-          }
-          this.state.waitUntil(
-            this.env.DATABASE_SERVICE.updateCheck(this.id, {
-              isVoteTriggered: true,
-            }).catch((error) => {
-              this.logger.error("Failed to update check");
-              throw error;
-            })
+        if (response.status === 409) {
+          const result = await response.json();
+          this.logger.warn(
+            { checkId: this.id, existingPollId: (result as any).id },
+            "Poll already exists for this check"
           );
+        } else if (!response.ok) {
+          const error = await response.json();
+          throw new Error(`Webhook failed: ${JSON.stringify(error)}`);
         }
+
+        this.state.waitUntil(
+          this.env.DATABASE_SERVICE.updateCheck(this.id, {
+            isVoteTriggered: true,
+          }).catch((error) => {
+            this.logger.error("Failed to update check");
+            throw error;
+          })
+        );
       } catch (error) {
-        this.logger.error("Voting failed to trigger");
+        this.logger.error(
+          {
+            err: error,
+            errorMessage: error instanceof Error ? error.message : String(error),
+            errorStack: error instanceof Error ? error.stack : undefined,
+          },
+          "Voting failed to trigger"
+        );
       }
       this.state.waitUntil(this.langfuse.flushAsync());
     }

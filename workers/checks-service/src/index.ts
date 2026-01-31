@@ -129,17 +129,100 @@ export default class extends WorkerEntrypoint<Env> {
       );
 
       if (result.success && result.changes) {
+        const hasNotifiableChanges =
+          result.changes.becameHumanAssessed ||
+          result.changes.becameDownvoted ||
+          result.changes.crowdsourcedCategoryChanged;
+
+        // Fetch check to get notification IDs if we need to send notifications
+        let notificationId: number | null = null;
+        let communityNoteNotificationId: number | null = null;
+
+        if (hasNotifiableChanges) {
+          const checkResult = await this.env.DATABASE_SERVICE.findCheckById(
+            update.id
+          );
+          if (checkResult.success && checkResult.data) {
+            notificationId = checkResult.data.notificationId;
+            communityNoteNotificationId =
+              checkResult.data.communityNoteNotificationId;
+          }
+        }
+
         if (result.changes.becameHumanAssessed) {
           await this.env.CORE_CHECK_EVENTS_QUEUE.send({
             checkId: update.id,
             type: "assessed",
           });
+
+          // Send newly assessed notification
+          if (notificationId) {
+            try {
+              await this.env.NOTIFICATION_SERVICE.sendNewlyAssessedNotification(
+                {
+                  id: update.id,
+                  crowdsourcedCategory: update.crowdsourcedCategory ?? "unsure",
+                  replyToMessageId: notificationId,
+                }
+              );
+            } catch (error) {
+              this.logger.error(
+                { error, checkId: update.id },
+                "Failed to send newly assessed notification"
+              );
+            }
+          }
         }
+
         if (result.changes.becameDownvoted) {
           await this.env.CORE_CHECK_EVENTS_QUEUE.send({
             checkId: update.id,
             type: "downvoted",
           });
+
+          // Send community note downvote notification
+          if (communityNoteNotificationId) {
+            try {
+              await this.env.NOTIFICATION_SERVICE.sendCommunityNoteDownvoteNotification(
+                {
+                  id: update.id,
+                  replyToMessageId: communityNoteNotificationId,
+                }
+              );
+            } catch (error) {
+              this.logger.error(
+                { error, checkId: update.id },
+                "Failed to send community note downvote notification"
+              );
+            }
+          }
+        }
+
+        // Send category change notification (only if not newly assessed, to avoid duplicate info)
+        if (
+          result.changes.crowdsourcedCategoryChanged &&
+          !result.changes.becameHumanAssessed &&
+          update.isHumanAssessed === true
+        ) {
+          if (notificationId) {
+            try {
+              await this.env.NOTIFICATION_SERVICE.sendCategoryChangeNotification(
+                {
+                  id: update.id,
+                  previousCategory:
+                    result.changes.previousCrowdsourcedCategory ?? null,
+                  currentCategory:
+                    result.changes.currentCrowdsourcedCategory ?? null,
+                  replyToMessageId: notificationId,
+                }
+              );
+            } catch (error) {
+              this.logger.error(
+                { error, checkId: update.id },
+                "Failed to send category change notification"
+              );
+            }
+          }
         }
       }
     }

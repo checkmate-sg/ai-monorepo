@@ -176,6 +176,8 @@ export interface Check {
   isVoteTriggered: boolean;
   isApprovedForPublishing: boolean;
   approvedBy: number | null;
+  notificationId: number | null;
+  communityNoteNotificationId: number | null;
 }
 
 export interface Submission {

@@ -15,7 +15,7 @@
    * Configuration for local development environment
    */
   "dev": {
-    "port": 8791
+    "port": 8800
   },
 
   "r2_buckets": [
