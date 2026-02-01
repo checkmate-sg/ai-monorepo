@@ -52,22 +52,29 @@ export async function triggerVoting(
       })
     );
 
+    let pollId: string | null = null;
+
     if (response.status === 409) {
-      const result = await response.json();
+      const result = (await response.json()) as { id?: string };
+      pollId = result.id ?? null;
       logger.warn(
-        { checkId: options.id, existingPollId: (result as any).id },
+        { checkId: options.id, existingPollId: pollId },
         "Poll already exists for this check"
       );
     } else if (!response.ok) {
       const error = await response.json();
       throw new Error(`Webhook failed: ${JSON.stringify(error)}`);
+    } else {
+      const result = (await response.json()) as { id?: string };
+      pollId = result.id ?? null;
     }
 
-    // Update check with isVoteTriggered: true
+    // Update check with isVoteTriggered: true and pollId
     await updateCheck(
       options.id,
       {
         isVoteTriggered: true,
+        pollId,
       },
       checkCtx,
       waitUntil
