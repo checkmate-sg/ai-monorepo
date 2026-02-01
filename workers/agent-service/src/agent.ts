@@ -862,20 +862,27 @@ export class CheckerAgent extends DurableObject<Env> {
           })
         );
 
+        let pollId: string | null = null;
+
         if (response.status === 409) {
-          const result = await response.json();
+          const result = (await response.json()) as { id?: string };
+          pollId = result.id ?? null;
           this.logger.warn(
-            { checkId: this.id, existingPollId: (result as any).id },
+            { checkId: this.id, existingPollId: pollId },
             "Poll already exists for this check"
           );
         } else if (!response.ok) {
           const error = await response.json();
           throw new Error(`Webhook failed: ${JSON.stringify(error)}`);
+        } else {
+          const result = (await response.json()) as { id?: string };
+          pollId = result.id ?? null;
         }
 
         this.state.waitUntil(
           this.env.DATABASE_SERVICE.updateCheck(this.id, {
             isVoteTriggered: true,
+            pollId,
           }).catch((error) => {
             this.logger.error("Failed to update check");
             throw error;
