@@ -113,8 +113,6 @@ export default class extends WorkerEntrypoint<Env> {
   }
 
   async check(request: AgentRequest): Promise<AgentResult> {
-    // Initialize the repository if needed
-
     let submissionId: string | null = null;
     let checkId: string | null = null;
 
