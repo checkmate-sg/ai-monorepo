@@ -426,7 +426,10 @@ export class CheckerAgent extends DurableObject<Env> {
         this.text = request.text;
         this.type = "text";
       } else if (request.imageUrl) {
-        this.imageUrl = request.imageUrl;
+        this.imageUrl =
+          this.env.ENVIRONMENT === "staging" || this.env.ENVIRONMENT === "production"
+            ? await this.env.PRESIGNED_URL_SERVICE.getPresignedUrl(request.imageUrl)
+            : request.imageUrl;
         if (request.caption) {
           this.caption = request.caption;
         }

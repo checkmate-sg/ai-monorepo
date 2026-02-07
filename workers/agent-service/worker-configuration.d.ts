@@ -28,6 +28,11 @@ interface Env {
     embed(params: EmbedRequest): Promise<EmbedResult>;
   } & ServiceWorkerGlobalScope;
 
+  PRESIGNED_URL_SERVICE: {
+    getPresignedUrl(url: string): Promise<string>;
+    generate(objectKey: string): Promise<string>;
+  } & ServiceWorkerGlobalScope;
+
   DATABASE_SERVICE: DatabaseServiceMethods & ServiceWorkerGlobalScope;
   NOTIFICATION_SERVICE: NotificationServiceMethods & ServiceWorkerGlobalScope;
 

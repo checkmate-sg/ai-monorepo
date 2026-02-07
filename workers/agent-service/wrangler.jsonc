@@ -11,19 +11,19 @@
   "migrations": [
     {
       "new_classes": ["CheckerAgent"],
-      "tag": "v1"
-    }
+      "tag": "v1",
+    },
   ],
   "durable_objects": {
     "bindings": [
       {
         "class_name": "CheckerAgent",
-        "name": "CHECKER_AGENT"
-      }
-    ]
+        "name": "CHECKER_AGENT",
+      },
+    ],
   },
   "observability": {
-    "enabled": true
+    "enabled": true,
   },
 
   /**
@@ -31,10 +31,10 @@
    * Configuration for local development environment
    */
   "dev": {
-    "port": 8788
+    "port": 8788,
   },
   "vars": {
-    "IS_ROLLBACK": false
+    "IS_ROLLBACK": false,
   },
   /**
    * Smart Placement
@@ -79,22 +79,26 @@
     { "binding": "IMAGE_HASH_SERVICE", "service": "pdq-worker" },
     {
       "binding": "CHECKERS_WEBHOOK_SERVICE",
-      "service": "checkers-webhook-service"
-    }
+      "service": "checkers-webhook-service",
+    },
+    {
+      "binding": "PRESIGNED_URL_SERVICE",
+      "service": "presigned-url-generator",
+    },
   ],
   "r2_buckets": [
     {
       "binding": "CHECKMATE_IMAGES_BUCKET",
-      "bucket_name": "checkmate-images"
-    }
+      "bucket_name": "checkmate-images",
+    },
   ],
   "queues": {
     "producers": [
       {
         "queue": "core-check-events-queue",
-        "binding": "CORE_CHECK_EVENTS_QUEUE"
-      }
-    ]
+        "binding": "CORE_CHECK_EVENTS_QUEUE",
+      },
+    ],
   },
 
   /**
@@ -107,22 +111,22 @@
         "bindings": [
           {
             "class_name": "CheckerAgent",
-            "name": "CHECKER_AGENT"
-          }
-        ]
+            "name": "CHECKER_AGENT",
+          },
+        ],
       },
       "queues": {
         "producers": [
           {
             "queue": "core-check-events-queue",
-            "binding": "CORE_CHECK_EVENTS_QUEUE"
-          }
-        ]
+            "binding": "CORE_CHECK_EVENTS_QUEUE",
+          },
+        ],
       },
       "services": [
         {
           "binding": "SCREENSHOT_SERVICE",
-          "service": "screenshot-service"
+          "service": "screenshot-service",
         },
         { "binding": "SEARCH_SERVICE", "service": "search-service" },
         { "binding": "URLSCAN_SERVICE", "service": "urlscan-service" },
@@ -130,28 +134,32 @@
         { "binding": "DATABASE_SERVICE", "service": "database-service" },
         {
           "binding": "NOTIFICATION_SERVICE",
-          "service": "notification-service"
+          "service": "notification-service",
         },
         { "binding": "IMAGE_HASH_SERVICE", "service": "pdq-worker" },
         {
           "binding": "CHECKERS_WEBHOOK_SERVICE",
-          "service": "checkers-webhook-service"
-        }
+          "service": "checkers-webhook-service",
+        },
+        {
+          "binding": "PRESIGNED_URL_SERVICE",
+          "service": "presigned-url-generator",
+        },
       ],
       "r2_buckets": [
         {
           "bucket_name": "checkmate-images",
-          "binding": "CHECKMATE_IMAGES_BUCKET"
-        }
+          "binding": "CHECKMATE_IMAGES_BUCKET",
+        },
       ],
       "tail_consumers": [
         {
-          "service": "tail-consumer-service"
-        }
+          "service": "tail-consumer-service",
+        },
       ],
       "vars": {
-        "IS_ROLLBACK": false
-      }
+        "IS_ROLLBACK": false,
+      },
     },
     "staging": {
       "name": "agent-service-staging",
@@ -159,61 +167,65 @@
         "bindings": [
           {
             "class_name": "CheckerAgent",
-            "name": "CHECKER_AGENT"
-          }
-        ]
+            "name": "CHECKER_AGENT",
+          },
+        ],
       },
       "queues": {
         "producers": [
           {
             "queue": "core-check-events-queue-staging",
-            "binding": "CORE_CHECK_EVENTS_QUEUE"
-          }
-        ]
+            "binding": "CORE_CHECK_EVENTS_QUEUE",
+          },
+        ],
       },
       "services": [
         {
           "binding": "SCREENSHOT_SERVICE",
-          "service": "screenshot-service-staging"
+          "service": "screenshot-service-staging",
         },
         {
           "binding": "SEARCH_SERVICE",
-          "service": "search-service-staging"
+          "service": "search-service-staging",
         },
         {
           "binding": "URLSCAN_SERVICE",
-          "service": "urlscan-service-staging"
+          "service": "urlscan-service-staging",
         },
         {
           "binding": "EMBEDDER_SERVICE",
-          "service": "embedder-service-staging"
+          "service": "embedder-service-staging",
         },
         {
           "binding": "DATABASE_SERVICE",
-          "service": "database-service-staging"
+          "service": "database-service-staging",
         },
         {
           "binding": "NOTIFICATION_SERVICE",
-          "service": "notification-service-staging"
+          "service": "notification-service-staging",
         },
         {
           "binding": "IMAGE_HASH_SERVICE",
-          "service": "pdq-worker-staging"
+          "service": "pdq-worker-staging",
         },
         {
           "binding": "CHECKERS_WEBHOOK_SERVICE",
-          "service": "checkers-webhook-service-staging"
-        }
+          "service": "checkers-webhook-service-staging",
+        },
+        {
+          "binding": "PRESIGNED_URL_SERVICE",
+          "service": "presigned-url-generator-staging",
+        },
       ],
       "r2_buckets": [
         {
           "bucket_name": "checkmate-images-staging",
-          "binding": "CHECKMATE_IMAGES_BUCKET"
-        }
+          "binding": "CHECKMATE_IMAGES_BUCKET",
+        },
       ],
       "vars": {
-        "IS_ROLLBACK": false
-      }
-    }
-  }
+        "IS_ROLLBACK": false,
+      },
+    },
+  },
 }
