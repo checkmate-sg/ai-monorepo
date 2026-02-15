@@ -58,6 +58,7 @@ export class CheckerAgent extends DurableObject<Env> {
   private isAccessBlocked?: boolean;
   private isVideo?: boolean;
   private imageUrl?: string;
+  private r2ObjectKey: string | null = null;
   private caption?: string;
   private text?: string;
   private totalTime?: number;
@@ -426,10 +427,13 @@ export class CheckerAgent extends DurableObject<Env> {
         this.text = request.text;
         this.type = "text";
       } else if (request.imageUrl) {
-        this.imageUrl =
-          this.env.ENVIRONMENT === "staging" || this.env.ENVIRONMENT === "production"
-            ? await this.env.PRESIGNED_URL_SERVICE.getPresignedUrl(request.imageUrl)
-            : request.imageUrl;
+        if (this.env.ENVIRONMENT === "staging" || this.env.ENVIRONMENT === "production") {
+          const presignedUrl = await this.env.PRESIGNED_URL_SERVICE.getPresignedUrl(request.imageUrl);
+          this.imageUrl = presignedUrl;
+          this.r2ObjectKey = new URL(presignedUrl).pathname.slice(1);
+        } else {
+          this.imageUrl = request.imageUrl;
+        }
         if (request.caption) {
           this.caption = request.caption;
         }
@@ -466,6 +470,7 @@ export class CheckerAgent extends DurableObject<Env> {
             text: this.text || null,
             title: this.title || null,
             imageUrl: this.imageUrl || null,
+            r2ObjectKey: this.r2ObjectKey,
             caption: this.caption || null,
             embeddings: {
               text: null,
