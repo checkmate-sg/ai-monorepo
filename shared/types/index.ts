@@ -152,6 +152,7 @@ export interface Check {
   timestamp: Date;
   isExpired: boolean;
   imageUrl: string | null;
+  r2ObjectKey: string | null;
   caption: string | null;
   embeddings: {
     text: number[] | null;
