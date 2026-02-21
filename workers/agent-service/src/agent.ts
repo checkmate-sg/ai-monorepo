@@ -141,7 +141,7 @@ export class CheckerAgent extends DurableObject<Env> {
               ? "cf-production"
               : this.env.ENVIRONMENT, //TODO: revert after google version deprecated
           type: "text",
-        }
+        },
       );
     } catch (error) {
       this.logger.error(error, "Failed to initialize prompt");
@@ -158,7 +158,7 @@ export class CheckerAgent extends DurableObject<Env> {
         toolParams,
         toolCallId: toolCall.id,
       },
-      `Calling tool ${toolName}`
+      `Calling tool ${toolName}`,
     );
 
     try {
@@ -254,7 +254,7 @@ export class CheckerAgent extends DurableObject<Env> {
           toolName,
           error: error instanceof Error ? error.message : String(error),
         },
-        `Error calling tool ${toolName}`
+        `Error calling tool ${toolName}`,
       );
 
       return [
@@ -338,7 +338,7 @@ export class CheckerAgent extends DurableObject<Env> {
         if (completion.choices[0].message.tool_calls) {
           toolCalls = completion.choices[0].message.tool_calls;
           const toolCallResults = await Promise.all(
-            toolCalls.map((toolCall) => this.callTool(toolCall))
+            toolCalls.map((toolCall) => this.callTool(toolCall)),
           );
           // Sort and flatten the results before adding to messages
           const sortedResults = this.sortToolCallResults(toolCallResults);
@@ -398,9 +398,11 @@ export class CheckerAgent extends DurableObject<Env> {
     let isControversial = false;
     let slug: string | null = null;
     let generationStatus: string = "pending";
+    let checkInserted = false;
     const model = request.model || "gpt-4.1-mini"; //default is gpt-4.1-mini
     const provider = getProviderFromModel(model);
     const consumerName = request.consumerName || "unknown consumer";
+    const triggerPoll = request.consumerName === "checkmate-whatsapp";
     if (!id) {
       throw new Error("ID is required");
     }
@@ -427,8 +429,14 @@ export class CheckerAgent extends DurableObject<Env> {
         this.text = request.text;
         this.type = "text";
       } else if (request.imageUrl) {
-        if (this.env.ENVIRONMENT === "staging" || this.env.ENVIRONMENT === "production") {
-          const presignedUrl = await this.env.PRESIGNED_URL_SERVICE.getPresignedUrl(request.imageUrl);
+        if (
+          this.env.ENVIRONMENT === "staging" ||
+          this.env.ENVIRONMENT === "production"
+        ) {
+          const presignedUrl =
+            await this.env.PRESIGNED_URL_SERVICE.getPresignedUrl(
+              request.imageUrl,
+            );
           this.imageUrl = presignedUrl;
           this.r2ObjectKey = new URL(presignedUrl).pathname.slice(1);
         } else {
@@ -450,7 +458,7 @@ export class CheckerAgent extends DurableObject<Env> {
           if (this.imageUrl) {
             imageHash = await hashImageFromUrl(
               this.imageUrl,
-              this.env.IMAGE_HASH_SERVICE
+              this.env.IMAGE_HASH_SERVICE,
             );
           }
         } catch (error) {
@@ -511,14 +519,15 @@ export class CheckerAgent extends DurableObject<Env> {
             notificationId: null,
             communityNoteNotificationId: null,
           },
-          id // Pass the ObjectId to use as the document _id
+          id, // Pass the ObjectId to use as the document _id
         );
 
         if (!insertResult.success) {
           throw new Error(
-            `Failed to create check record: ${insertResult.error}`
+            `Failed to create check record: ${insertResult.error}`,
           );
         }
+        checkInserted = true;
 
         try {
           if (!this.env.IS_ROLLBACK) {
@@ -530,7 +539,7 @@ export class CheckerAgent extends DurableObject<Env> {
             this.state.waitUntil(
               this.env.DATABASE_SERVICE.updateCheck(this.id, {
                 notificationId: notificationId,
-              })
+              }),
             );
           }
         } catch (error) {
@@ -555,17 +564,17 @@ export class CheckerAgent extends DurableObject<Env> {
                 }).catch((error) => {
                   this.logger.error("Failed to update check");
                   throw error;
-                })
+                }),
               );
               this.logger.info(
                 { id: this.id },
-                "Updated check record with embeddings"
+                "Updated check record with embeddings",
               );
             }
           } catch (error) {
             this.logger.error(
               { error, id: this.id },
-              "Failed to embed text or update check record"
+              "Failed to embed text or update check record",
             );
           }
         }
@@ -584,24 +593,24 @@ export class CheckerAgent extends DurableObject<Env> {
                 }).catch((error) => {
                   this.logger.error("Failed to update check");
                   throw error;
-                })
+                }),
               );
               this.logger.info(
                 { id: this.id },
-                "Updated check record with caption embeddings"
+                "Updated check record with caption embeddings",
               );
             }
           } catch (error) {
             this.logger.error(
               { error, id: this.id },
-              "Failed to embed caption or update check record"
+              "Failed to embed caption or update check record",
             );
           }
         }
       } catch (error) {
         this.logger.error(
           { error, id: this.id },
-          "Failed to create check record or convert ID to ObjectId"
+          "Failed to create check record or convert ID to ObjectId",
         );
         throw error;
       }
@@ -609,13 +618,13 @@ export class CheckerAgent extends DurableObject<Env> {
       const preprocessingResult = await withTimeout(
         this.tools.preprocess_inputs.execute(request),
         30000, // 2 minutes timeout
-        "Preprocess inputs"
+        "Preprocess inputs",
       );
 
       if (!preprocessingResult.success) {
         // Don't update status here, just throw the error to be caught in the final catch block
         throw new Error(
-          `Preprocessing failed: ${preprocessingResult.error.message}`
+          `Preprocessing failed: ${preprocessingResult.error.message}`,
         );
       }
 
@@ -637,7 +646,7 @@ export class CheckerAgent extends DurableObject<Env> {
         }).catch((error) => {
           this.logger.error("Failed to update check");
           throw error;
-        })
+        }),
       );
 
       const startingContent = preprocessingResult.result.startingContent;
@@ -645,7 +654,7 @@ export class CheckerAgent extends DurableObject<Env> {
       const agentLoopResult = await withTimeout(
         this.agentLoop(startingContent),
         120000, // 2 minutes timeout for entire agent loop
-        "Agent loop"
+        "Agent loop",
       );
       if (!agentLoopResult.success || "error" in agentLoopResult) {
         // Don't update status here, just throw the error to be caught in the final catch block
@@ -667,19 +676,19 @@ export class CheckerAgent extends DurableObject<Env> {
         }).catch((error) => {
           this.logger.error("Failed to update check");
           throw error;
-        })
+        }),
       );
       const summariseResult = await withTimeout(
         this.tools.summarise_report.execute({
           report,
         }),
         30000, // 2 minutes timeout
-        "Summarise report"
+        "Summarise report",
       );
       if (!summariseResult.success) {
         // Don't update status here, just throw the error to be caught in the final catch block
         throw new Error(
-          `Summarise report failed: ${summariseResult.error.message}`
+          `Summarise report failed: ${summariseResult.error.message}`,
         );
       }
       const summary = summariseResult.result.summary;
@@ -690,7 +699,7 @@ export class CheckerAgent extends DurableObject<Env> {
           language: "cn",
         }),
         30000, // 2 minutes timeout
-        "Translate text"
+        "Translate text",
       );
       if (!cnResult.success) {
         // Don't update status here, just throw the error to be caught in the final catch block
@@ -759,7 +768,7 @@ export class CheckerAgent extends DurableObject<Env> {
         }).catch((error) => {
           this.logger.error("Failed to update check");
           throw error;
-        })
+        }),
       );
 
       //notify block
@@ -775,7 +784,7 @@ export class CheckerAgent extends DurableObject<Env> {
         this.state.waitUntil(
           this.env.DATABASE_SERVICE.updateCheck(this.id, {
             communityNoteNotificationId: communityNoteNotificationId,
-          })
+          }),
         );
       } catch (error) {
         this.logger.error("Failed to send community note notification");
@@ -818,7 +827,7 @@ export class CheckerAgent extends DurableObject<Env> {
         }).catch((error) => {
           this.logger.error("Failed to update check");
           throw error;
-        })
+        }),
       );
 
       this.state.waitUntil(
@@ -830,7 +839,7 @@ export class CheckerAgent extends DurableObject<Env> {
           isVideo: this.isVideo,
           isControversial: false,
           isError: true,
-        })
+        }),
       );
 
       const errorReturn = {
@@ -850,61 +859,64 @@ export class CheckerAgent extends DurableObject<Env> {
       });
       return errorReturn;
     } finally {
-      //trigger voting block
-      try {
-        const response = await this.env.CHECKERS_WEBHOOK_SERVICE.fetch(
-          new Request("https://internal/polls/webhook", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-api-key": this.env.CHECKERS_APP_API_KEY,
-            },
-            body: JSON.stringify({
-              checkId: this.id,
-              text: this.text ?? null,
-              imageUrl: this.imageUrl ?? null,
-              caption: this.caption ?? null,
-              longformResponse: longformReport,
-              shortformResponse: communityNote,
+      if (triggerPoll && checkInserted) {
+        //trigger voting block
+        try {
+          const response = await this.env.CHECKERS_WEBHOOK_SERVICE.fetch(
+            new Request("https://internal/polls/webhook", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-key": this.env.CHECKERS_APP_API_KEY,
+              },
+              body: JSON.stringify({
+                checkId: this.id,
+                text: this.text ?? null,
+                imageUrl: this.imageUrl ?? null,
+                caption: this.caption ?? null,
+                longformResponse: longformReport,
+                shortformResponse: communityNote,
+              }),
             }),
-          })
-        );
-
-        let pollId: string | null = null;
-
-        if (response.status === 409) {
-          const result = (await response.json()) as { id?: string };
-          pollId = result.id ?? null;
-          this.logger.warn(
-            { checkId: this.id, existingPollId: pollId },
-            "Poll already exists for this check"
           );
-        } else if (!response.ok) {
-          const error = await response.json();
-          throw new Error(`Webhook failed: ${JSON.stringify(error)}`);
-        } else {
-          const result = (await response.json()) as { id?: string };
-          pollId = result.id ?? null;
-        }
 
-        this.state.waitUntil(
-          this.env.DATABASE_SERVICE.updateCheck(this.id, {
-            isVoteTriggered: true,
-            pollId,
-          }).catch((error) => {
-            this.logger.error("Failed to update check");
-            throw error;
-          })
-        );
-      } catch (error) {
-        this.logger.error(
-          {
-            err: error,
-            errorMessage: error instanceof Error ? error.message : String(error),
-            errorStack: error instanceof Error ? error.stack : undefined,
-          },
-          "Voting failed to trigger"
-        );
+          let pollId: string | null = null;
+
+          if (response.status === 409) {
+            const result = (await response.json()) as { id?: string };
+            pollId = result.id ?? null;
+            this.logger.warn(
+              { checkId: this.id, existingPollId: pollId },
+              "Poll already exists for this check",
+            );
+          } else if (!response.ok) {
+            const error = await response.json();
+            throw new Error(`Webhook failed: ${JSON.stringify(error)}`);
+          } else {
+            const result = (await response.json()) as { id?: string };
+            pollId = result.id ?? null;
+          }
+
+          this.state.waitUntil(
+            this.env.DATABASE_SERVICE.updateCheck(this.id, {
+              isVoteTriggered: true,
+              pollId,
+            }).catch((error) => {
+              this.logger.error("Failed to update check");
+              throw error;
+            }),
+          );
+        } catch (error) {
+          this.logger.error(
+            {
+              err: error,
+              errorMessage:
+                error instanceof Error ? error.message : String(error),
+              errorStack: error instanceof Error ? error.stack : undefined,
+            },
+            "Voting failed to trigger",
+          );
+        }
       }
       this.state.waitUntil(this.langfuse.flushAsync());
     }
