@@ -876,6 +876,7 @@ export class CheckerAgent extends DurableObject<Env> {
                 caption: this.caption ?? null,
                 longformResponse: longformReport,
                 shortformResponse: communityNote,
+                isReport: request.isReport ?? false,
               }),
             }),
           );
