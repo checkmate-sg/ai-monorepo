@@ -5,7 +5,7 @@ CATEGORY_SCORES = {
 }
 
 
-def get_score(output, context):
+def get_assert(output, context):
     """
     output        – the transformed value (output.broadCategory)
     context       – dict containing { vars, prompt, ... }
