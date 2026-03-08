@@ -55,6 +55,11 @@ defaultTest:
       transform: output.broadCategory
       value: "{{expert_broad_category}}"
 
+    - type: python
+      weight: 5
+      value: file://grader.py
+      transform: output.broadCategory
+
     - type: equals
       weight: 0
       transform: output.numRetries
