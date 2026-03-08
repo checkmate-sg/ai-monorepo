@@ -37,6 +37,7 @@ export const agentRequestSchema = {
             // Common properties
             model: z.string().optional(),
             findSimilar: z.boolean().optional(),
+            isReport: z.boolean().optional(),
           })
           .describe(
             "Request body schema. For text, pass 'text' only. For image, pass 'imageUrl' or 'caption'. Leave 'model' blank for default."
@@ -81,6 +82,7 @@ export async function handleAgentRequest(
       caption?: string | null;
       model?: string;
       findSimilar?: boolean;
+      isReport?: boolean;
     };
   },
   loggerInstance = logger,
@@ -89,7 +91,7 @@ export async function handleAgentRequest(
   // Extract request ID from headers
   const requestId = data.headers?.["x-request-id"] || crypto.randomUUID();
   const childLogger = loggerInstance.child({ requestId });
-  const { text, imageUrl, caption, model, findSimilar } = data.body;
+  const { text, imageUrl, caption, model, findSimilar, isReport } = data.body;
   let agentRequest: AgentRequest;
   if (text) {
     agentRequest = {
@@ -119,6 +121,9 @@ export async function handleAgentRequest(
     agentRequest.findSimilar = false;
   } else {
     agentRequest.findSimilar = true;
+  }
+  if (isReport) {
+    agentRequest.isReport = true;
   }
 
   try {

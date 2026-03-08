@@ -78,6 +78,7 @@ interface BaseAgentRequest {
   model?: string;
   consumerName?: string;
   findSimilar?: boolean;
+  isReport?: boolean;
 }
 
 // Text-only request
