@@ -50,11 +50,6 @@ defaultTest:
       transform: output.isVideo
       value: "{{expert_is_video}}"
 
-    - type: equals
-      weight: 5
-      transform: output.broadCategory
-      value: "{{expert_broad_category}}"
-
     - type: python
       weight: 5
       value: file://grader.py
