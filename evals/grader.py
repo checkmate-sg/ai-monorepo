@@ -18,7 +18,7 @@ def get_assert(output, context):
         passed = predicted == expert
         return {
             "pass": passed,
-            "score": 1.0 if passed else 0.0,
+            "score": 1.0 if passed else 0.25,
             "reason": f"Binary match (expert='nothing'): predicted='{predicted}'",
         }
 
@@ -41,7 +41,8 @@ def get_assert(output, context):
 
     diff  = abs(predicted_val - expert_val)   # |x|
     score = max(0.0, -0.5 * diff + 1)         # y = -0.5x + 1, clamped to [0, 1]
-
+#score is from 0 to 1
+#disparity is the x
     return {
         "pass": score > 0.0,
         "score": score,
