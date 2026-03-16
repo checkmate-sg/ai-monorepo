@@ -20,6 +20,8 @@ tests: "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz
 outputPath:
   - "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz6FYef120tIU/edit?gid=2046898546#gid=2046898546"
 
+
+
 defaultTest:
   threshold: 0.7
   assert:
@@ -50,10 +52,53 @@ defaultTest:
       transform: output.isVideo
       value: "{{expert_is_video}}"
 
-    - type: python
+
+    # - type: equals
+    #   weight: 5
+    #   transform: output.broadCategory
+    #   value: "{{expert_broad_category}}"
+
+    - type: javascript
       weight: 5
-      value: file://grader.py
-      transform: output.broadCategory
+      value: |
+        const emojiMap = {
+          '🚨': 'bad', '❌': 'bad',
+          '✅': 'good', '🟢': 'good',
+          '⚠️': 'caution', '❗': 'caution', '❓': 'caution',
+          '🎭': 'satire',
+          '📝': 'nothing'
+        };
+
+        // 1. Identify what the AI said by looking at the emoji
+        const firstChar = output.trim().substring(0, 2);
+        let outputCategory = 'unknown';
+        for (const [emoji, category] of Object.entries(emojiMap)) {
+          if (firstChar.startsWith(emoji)) {
+            outputCategory = category;
+            break;
+          }
+        }
+
+        const expected = (vars.expert_broad_category || '').toLowerCase().trim();
+        const actual = outputCategory;
+
+        // 2. Continuous Scoring Logic (The "Nuance")
+        if (actual === expected) {
+          return { pass: true, score: 1, reason: `Perfect match: ${actual}` };
+        }
+
+        // Distance logic: Is it a "near miss"?
+        // We define Caution as being between Good and Bad.
+        const distanceMap = { 'good': 1, 'caution': 2, 'bad': 3 };
+        const diff = Math.abs(distanceMap[actual] - distanceMap[expected]);
+
+        if (diff === 1) {
+          // This gives the "continuous" 0.5 score for being close
+          return { pass: true, score: 0.5, reason: `Near miss: AI said ${actual}, Expert said ${expected}.` };
+        }
+
+        return { pass: false, score: 0, reason: `Complete miss: AI said ${actual}, Expert said ${expected}.` };
+
 
     - type: equals
       weight: 0
