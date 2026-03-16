@@ -7,12 +7,8 @@ on:
     branches: [auto-eval]
   workflow_dispatch:
     inputs:
-      filter_first_n:
-        description: 'Only run first N test cases (leave empty for all)'
-        required: false
-        type: string
-      filter_pattern:
-        description: 'Filter tests by pattern'
+      tests:
+        description: 'Tests source URL (Google Sheet or file path). Leave empty to use default from config.'
         required: false
         type: string
 
@@ -20,7 +16,7 @@ jobs:
   eval:
     runs-on: ubuntu-latest
     environment: eval
-    timeout-minutes: 30
+    timeout-minutes: 90
 
     steps:
       - name: Checkout code
@@ -40,10 +36,11 @@ jobs:
         run: |
           MISSING=""
           
-          [ -z "${{ secrets.ML_SERVER_API_KEY }}" ] && MISSING="$MISSING ML_SERVER_API_KEY"
           [ -z "${{ secrets.OPENAI_API_KEY }}" ] && MISSING="$MISSING OPENAI_API_KEY"
           [ -z "${{ secrets.EVALS_GOOGLE_SHEET_URL }}" ] && MISSING="$MISSING EVALS_GOOGLE_SHEET_URL"
           [ -z "${{ secrets.GOOGLE_CREDENTIALS_JSON_B64 }}" ] && MISSING="$MISSING GOOGLE_CREDENTIALS_JSON_B64"
+          [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ] && MISSING="$MISSING CLOUDFLARE_API_TOKEN"
+          [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ] && MISSING="$MISSING CLOUDFLARE_ACCOUNT_ID"
           
           if [ -n "$MISSING" ]; then
             echo "❌ Missing required secrets:$MISSING"
@@ -70,7 +67,7 @@ jobs:
         run: |
           cat > evals/.env << EOF
           ML_SERVER_URL=http://localhost:8787
-          ML_SERVER_API_KEY=${{ secrets.ML_SERVER_API_KEY }}
+          ML_SERVER_API_KEY=placeholder-will-be-updated
           OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
           EVALS_GOOGLE_SHEET_URL=${{ secrets.EVALS_GOOGLE_SHEET_URL }}
           GOOGLE_APPLICATION_CREDENTIALS=${{ github.workspace }}/evals/credentials/google-credentials.json
@@ -100,21 +97,60 @@ jobs:
           timeout 120 bash -c 'until curl -s http://localhost:8787/docs > /dev/null 2>&1; do sleep 2; done'
           echo "✅ Server is ready!"
 
-      - name: Run evaluations
+      - name: Create eval consumer and get API key
+        id: create-consumer
         run: |
-          EXTRA_ARGS=""
-          if [ -n "${{ github.event.inputs.filter_first_n }}" ]; then
-            EXTRA_ARGS="$EXTRA_ARGS --filter-first-n ${{ github.event.inputs.filter_first_n }}"
-          fi
-          if [ -n "${{ github.event.inputs.filter_pattern }}" ]; then
-            EXTRA_ARGS="$EXTRA_ARGS --filter-pattern ${{ github.event.inputs.filter_pattern }}"
+          echo "Creating auto-eval consumer..."
+          
+          RESPONSE=$(curl -s -X POST http://localhost:8787/consumers \
+            -H "Content-Type: application/json" \
+            -d '{
+              "name": "auto-eval",
+              "allowedAPIs": ["getCommunityNote", "getEmbedding", "getAgentResult", "getNeedsChecking"],
+              "millisecondsPerRequest": 1000,
+              "capacity": 100,
+              "millisecondsForUpdates": 10000
+            }')
+          
+          echo "Response: $RESPONSE"
+          
+          # Check if successful
+          SUCCESS=$(echo "$RESPONSE" | jq -r '.success')
+          if [ "$SUCCESS" != "true" ]; then
+            echo "❌ Failed to create consumer"
+            exit 1
           fi
           
+          # Extract API key
+          API_KEY=$(echo "$RESPONSE" | jq -r '.result.apiKey')
+          echo "✅ Consumer created successfully"
+          
+          # Mask the API key in logs
+          echo "::add-mask::$API_KEY"
+          
+          # Set as output for subsequent steps
+          echo "api_key=$API_KEY" >> $GITHUB_OUTPUT
+          
+          # Update the .env file with the new API key
+          sed -i "s/ML_SERVER_API_KEY=.*/ML_SERVER_API_KEY=$API_KEY/" evals/.env
+          echo "✅ Updated evals/.env with new API key"
+
+      - name: Run evaluations
+        run: |
           cd evals
-          npx promptfoo eval -c ./eval.g-eval-runner.yaml --env-file .env --no-cache --max-concurrency 1 --output "output/$(date +%Y%m%d-%H%M%S)-results.json" $EXTRA_ARGS
+          
+          TESTS_ARG=""
+          if [ -n "${{ github.event.inputs.tests }}" ]; then
+            TESTS_ARG="--tests ${{ github.event.inputs.tests }}"
+            echo "Using custom tests source: ${{ github.event.inputs.tests }}"
+          else
+            echo "Using default tests source from config"
+          fi
+          
+          npx promptfoo eval -c ./eval.g-eval-runner.yaml --env-file .env --no-cache --max-concurrency 1 --output "output/$(date +%Y%m%d-%H%M%S)-results.json" $TESTS_ARG
         env:
           ML_SERVER_URL: http://localhost:8787
-          ML_SERVER_API_KEY: ${{ secrets.ML_SERVER_API_KEY }}
+          ML_SERVER_API_KEY: ${{ steps.create-consumer.outputs.api_key }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Upload eval results
