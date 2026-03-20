@@ -15,10 +15,10 @@ providers:
       maxRetries: 3
       retryDelay: 1000
 
-tests: "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz6FYef120tIU/edit?gid=1200356343#gid=1200356343"
+tests: "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz6FYef120tIU/edit?gid=1747667773#gid=1747667773"
 
 outputPath:
-  - "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz6FYef120tIU/edit?gid=2046898546#gid=2046898546"
+  - "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz6FYef120tIU/edit?gid=1747667773#gid=1747667773"
 
 
 
@@ -58,46 +58,30 @@ defaultTest:
     #   transform: output.broadCategory
     #   value: "{{expert_broad_category}}"
 
-    - type: javascript
+    - type: g-eval
+      transform: output.en
       weight: 5
       value: |
-        const emojiMap = {
-          '🚨': 'bad', '❌': 'bad',
-          '✅': 'good', '🟢': 'good',
-          '⚠️': 'caution', '❗': 'caution', '❓': 'caution',
-          '🎭': 'satire',
-          '📝': 'nothing'
-        };
+        The expert's ground truth category for this claim is: '{{expert_broad_category}}'.
+        (Definitions: 'bad' = confirmed scam/fake, 'good' = confirmed legitimate, 'caution' = unverified/suspicious/mixed).
 
-        // 1. Identify what the AI said by looking at the emoji
-        const firstChar = output.trim().substring(0, 2);
-        let outputCategory = 'unknown';
-        for (const [emoji, category] of Object.entries(emojiMap)) {
-          if (firstChar.startsWith(emoji)) {
-            outputCategory = category;
-            break;
-          }
-        }
+        Evaluate if the AI response matches the expert's stance:
+        1. **Verdict Alignment**: Does the AI's conclusion match the '{{expert_broad_category}}' label?
+        2. **Tone & Confidence**: 
+           - If 'bad': The AI should be firm and warn the user.
+           - If 'good': The AI should be reassuring and confirm legitimacy.
+           - If 'caution': The AI **MUST NOT** state the claim is 100% true or 100% false. It must use hedging language (e.g., "unable to confirm," "treat with caution," "verify directly").
 
-        const expected = (vars.expert_broad_category || '').toLowerCase().trim();
-        const actual = outputCategory;
+        **Strict Penalty Rule**: 
+        - If the AI gives a definitive verdict (e.g., "This is a scam") when the category is 'caution', the score must be **0.4 or lower**.
+        - If the AI provides the wrong category entirely (e.g., calls a 'good' link 'bad'), the score must be **0.0**.
 
-        // 2. Continuous Scoring Logic (The "Nuance")
-        if (actual === expected) {
-          return { pass: true, score: 1, reason: `Perfect match: ${actual}` };
-        }
-
-        // Distance logic: Is it a "near miss"?
-        // We define Caution as being between Good and Bad.
-        const distanceMap = { 'good': 1, 'caution': 2, 'bad': 3 };
-        const diff = Math.abs(distanceMap[actual] - distanceMap[expected]);
-
-        if (diff === 1) {
-          // This gives the "continuous" 0.5 score for being close
-          return { pass: true, score: 0.5, reason: `Near miss: AI said ${actual}, Expert said ${expected}.` };
-        }
-
-        return { pass: false, score: 0, reason: `Complete miss: AI said ${actual}, Expert said ${expected}.` };
+        Scoring:
+        - 1.0: Perfect alignment in both verdict and nuance.
+        - 0.7-0.9: Correct verdict but slightly too aggressive or slightly too timid.
+        - 0.5: Correct verdict but missed the required nuance/hedging entirely.
+        - 0.0: Categorically wrong verdict.
+      provider: openai:gpt-4.1
 
 
     - type: equals
