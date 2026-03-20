@@ -58,31 +58,29 @@ defaultTest:
     #   transform: output.broadCategory
     #   value: "{{expert_broad_category}}"
 
-    - type: g-eval
-      transform: output.en
+    - type: python
+      label: "Symmetric Broad Category Check"
       weight: 5
       value: |
-        The expert's ground truth category for this claim is: '{{expert_broad_category}}'.
-        (Definitions: 'bad' = confirmed scam/fake, 'good' = confirmed legitimate, 'caution' = unverified/suspicious/mixed).
+        def get_assert(output_text, context):
+            # 1. Grab values from Sheet and AI Output
+            expert = context['vars'].get('expert_broad_category', '').lower().strip()
+            # Note: Ensure runner.ts sets 'broadCategory' in the output object
+            ai = context['providerResponse']['output'].get('broadCategory', '').lower().strip()
 
-        Evaluate if the AI response matches the expert's stance:
-        1. **Verdict Alignment**: Does the AI's conclusion match the '{{expert_broad_category}}' label?
-        2. **Tone & Confidence**: 
-           - If 'bad': The AI should be firm and warn the user.
-           - If 'good': The AI should be reassuring and confirm legitimacy.
-           - If 'caution': The AI **MUST NOT** state the claim is 100% true or 100% false. It must use hedging language (e.g., "unable to confirm," "treat with caution," "verify directly").
+            # 2. Perfect Match = 1.0
+            if expert == ai:
+                return 1.0
 
-        **Strict Penalty Rule**: 
-        - If the AI gives a definitive verdict (e.g., "This is a scam") when the category is 'caution', the score must be **0.4 or lower**.
-        - If the AI provides the wrong category entirely (e.g., calls a 'good' link 'bad'), the score must be **0.0**.
+            # 3. Symmetric Partial Credit (0.5)
+            # This covers: (bad, caution), (bad, satire), (satire, caution) and their reverses
+            shady_pool = {'bad', 'caution', 'satire'}
+            if expert in shady_pool and ai in shady_pool:
+                return 0.5
 
-        Scoring:
-        - 1.0: Perfect alignment in both verdict and nuance.
-        - 0.7-0.9: Correct verdict but slightly too aggressive or slightly too timid.
-        - 0.5: Correct verdict but missed the required nuance/hedging entirely.
-        - 0.0: Categorically wrong verdict.
-      provider: openai:gpt-4.1
-
+            # 4. All other mismatches = 0.0
+            # (e.g., Good vs Bad, Good vs Caution, Nothing vs anything)
+            return 0.0
 
     - type: equals
       weight: 0
