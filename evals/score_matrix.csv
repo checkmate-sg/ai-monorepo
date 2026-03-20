@@ -1,0 +1,6 @@
+actual,good,caution,bad,nothing,satire
+good,1.0,0.5,0.0,0.25,0.0
+caution,0.25,1.0,0.5,0.0,0.0
+bad,0.0,0.5,1.0,0.0,0.0
+nothing,0.5,0.25,0.0,1.0,0.5
+satire,0.25,0.0,0.0,0.5,1.0
