@@ -15,10 +15,10 @@ providers:
       maxRetries: 3
       retryDelay: 1000
 
-tests: "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz6FYef120tIU/edit?usp=sharing"
+tests: "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz6FYef120tIU/edit?gid=1206739314#gid=1206739314"
 
 outputPath:
-  - "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz6FYef120tIU/edit"
+  - "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz6FYef120tIU/edit?gid=2046898546#gid=2046898546"
 
 defaultTest:
   threshold: 0.7
@@ -32,6 +32,36 @@ defaultTest:
         {{expert_pointers}}
         ## End of Expert Pointers ##
         Give a score depending on how many of the expert pointers are contained in the response, but also consider the relative importance of the pointers, which are listed in descending order of importance.
+
+      provider: openai:gpt-4.1
+
+    - type: g-eval
+      transform: output.en
+      weight: 5
+      value: |
+        You are evaluating a fact-checking bot. The bot is given a claim to verify, and it produces a response that includes a broad category (good, bad, or caution) and an explanation.
+        
+        ## Data ##
+        - Ground Truth Category: {{expert_broad_category}}
+        - Bot's Predicted Category: {{output.broadCategory}}
+        - Bot's Explanation: {{output.en}}
+        The ground truth category for this claim is: '{{expert_broad_category}}'.
+        (Key: 'bad' = false/scam/hoax, 'good' = true/legitimate, 'caution' = mixed/misleading/outdated).
+
+        Evaluate the provided response based on its stance and confidence:
+        1. Alignment: Does the text clearly align with the ground truth category? 
+        2. Confidence: Is the confidence level appropriate? 
+           - For 'bad' (scams/fakes), the bot should be firm, unambiguous, and warn the user.
+           - For 'good' (legitimate), the bot should confirm it clearly without unnecessary fear-mongering.
+           - For 'caution' (mixed/unverified), the bot should express appropriate nuance, explaining what is true and what is false.
+        
+        Scoring Guidelines:
+        - Output a single float score from 0 to 1, where:
+          - 1.0 = Perfectly aligned with the ground truth category and appropriate confidence.
+          - 0.5 = Partially aligned or somewhat appropriate confidence.
+          - 0.0 = Not aligned and/or inappropriate confidence.
+          - Use intermediate decimal values (e.g., 0.7, 0.4, 0.9) to penalize minor issues, such as slight hesitation on a confirmed scam, or overly aggressive tone on a legitimate message.
+        - Do not give a score of more than 0.5 if the broad category provided by the response does not match the expert broad category, even if some of the expert pointers are mentioned.
 
       provider: openai:gpt-4.1
 
@@ -50,10 +80,10 @@ defaultTest:
       transform: output.isVideo
       value: "{{expert_is_video}}"
 
-    - type: equals
+    - type: python
       weight: 5
+      value: file://grader.py
       transform: output.broadCategory
-      value: "{{expert_broad_category}}"
 
     - type: equals
       weight: 0

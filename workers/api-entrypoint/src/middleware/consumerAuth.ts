@@ -5,10 +5,11 @@ const logger = createLogger("Consumer Auth Middleware");
 
 export async function consumerAuth(c: Context<{ Bindings: Env }>, next: Next) {
   try {
-    // if (c.env.ENVIRONMENT === "development") {
-    //   await next();
-    //   return;
-    // }
+    if (c.env.ENVIRONMENT === "development") {
+      c.set("consumerName", "Local Developer");
+      await next();
+      return;
+    }
     // Get the API key from the X-API-Key header (case-insensitive)
     // Try the standard format first, then fallback to checking headers case-insensitively
     let apiKey = c.req.header("X-API-Key");

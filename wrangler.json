@@ -1,0 +1,13 @@
+{
+  "name": "your-worker-name",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-01-19",
+
+  "kv_namespaces": [
+    {
+      "binding": "CONSUMER_KV",
+      "id": "04d865e2c76a4ee0901c83dbb123c01a",
+      "preview_id": "30c5d92b658f417faf91f4da18e879a1"
+    }
+  ]
+}

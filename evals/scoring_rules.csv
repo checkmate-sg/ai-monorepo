@@ -1,0 +1,17 @@
+expert,predicted,score
+bad,bad,1.0
+bad,caution,0.2
+bad,good,0.0
+bad,nothing,0.0
+caution,bad,0.6
+caution,caution,1.0
+caution,good,0.4
+caution,nothing,0.0
+good,bad,0.0
+good,caution,0.8
+good,good,1.0
+good,nothing,0.0
+nothing,nothing,1.0
+nothing,bad,0.0
+nothing,caution,0.0
+nothing,good,0.0
