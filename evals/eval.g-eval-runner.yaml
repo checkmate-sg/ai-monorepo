@@ -53,34 +53,34 @@ defaultTest:
       value: "{{expert_is_video}}"
 
 
-    # - type: equals
-    #   weight: 5
-    #   transform: output.broadCategory
-    #   value: "{{expert_broad_category}}"
-
-    - type: python
-      label: "Symmetric Broad Category Check"
+    - type: equals
       weight: 5
-      value: |
-        def get_assert(output_text, context):
-            # 1. Grab values from Sheet and AI Output
-            expert = context['vars'].get('expert_broad_category', '').lower().strip()
-            # Note: Ensure runner.ts sets 'broadCategory' in the output object
-            ai = context['providerResponse']['output'].get('broadCategory', '').lower().strip()
+      transform: output.broadCategory
+      value: "{{expert_broad_category}}"
 
-            # 2. Perfect Match = 1.0
-            if expert == ai:
-                return 1.0
+    # - type: python
+    #   label: "Symmetric Broad Category Check"
+    #   weight: 5
+    #   value: |
+    #     def get_assert(output_text, context):
+    #         # 1. Grab values from Sheet and AI Output
+    #         expert = context['vars'].get('expert_broad_category', '').lower().strip()
+    #         # Note: Ensure runner.ts sets 'broadCategory' in the output object
+    #         ai = context['providerResponse']['output'].get('broadCategory', '').lower().strip()
 
-            # 3. Symmetric Partial Credit (0.5)
-            # This covers: (bad, caution), (bad, satire), (satire, caution) and their reverses
-            shady_pool = {'bad', 'caution', 'satire'}
-            if expert in shady_pool and ai in shady_pool:
-                return 0.5
+    #         # 2. Perfect Match = 1.0
+    #         if expert == ai:
+    #             return 1.0
 
-            # 4. All other mismatches = 0.0
-            # (e.g., Good vs Bad, Good vs Caution, Nothing vs anything)
-            return 0.0
+    #         # 3. Symmetric Partial Credit (0.5)
+    #         # This covers: (bad, caution), (bad, satire), (satire, caution) and their reverses
+    #         shady_pool = {'bad', 'caution', 'satire'}
+    #         if expert in shady_pool and ai in shady_pool:
+    #             return 0.5
+
+    #         # 4. All other mismatches = 0.0
+    #         # (e.g., Good vs Bad, Good vs Caution, Nothing vs anything)
+    #         return 0.0
 
     - type: equals
       weight: 0
