@@ -518,6 +518,7 @@ export class CheckerAgent extends DurableObject<Env> {
             approvedBy: null,
             notificationId: null,
             communityNoteNotificationId: null,
+            isReport: request.isReport ?? false,
           },
           id, // Pass the ObjectId to use as the document _id
         );

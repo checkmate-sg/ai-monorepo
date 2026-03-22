@@ -104,6 +104,9 @@ export async function createCheck(
         isVoteTriggered: false,
         isApprovedForPublishing: false,
         approvedBy: null,
+        notificationId: null,
+        communityNoteNotificationId: null,
+        isReport: request.isReport ?? false,
       },
       id
     );
