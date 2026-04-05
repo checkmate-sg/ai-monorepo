@@ -78,6 +78,7 @@ interface BaseAgentRequest {
   model?: string;
   consumerName?: string;
   findSimilar?: boolean;
+  isReport?: boolean;
 }
 
 // Text-only request
@@ -179,6 +180,7 @@ export interface Check {
   approvedBy: number | null;
   notificationId: number | null;
   communityNoteNotificationId: number | null;
+  isReport: boolean;
 }
 
 export interface Submission {

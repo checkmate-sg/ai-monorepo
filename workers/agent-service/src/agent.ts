@@ -518,6 +518,7 @@ export class CheckerAgent extends DurableObject<Env> {
             approvedBy: null,
             notificationId: null,
             communityNoteNotificationId: null,
+            isReport: request.isReport ?? false,
           },
           id, // Pass the ObjectId to use as the document _id
         );
@@ -876,6 +877,7 @@ export class CheckerAgent extends DurableObject<Env> {
                 caption: this.caption ?? null,
                 longformResponse: longformReport,
                 shortformResponse: communityNote,
+                isReport: request.isReport ?? false,
               }),
             }),
           );
