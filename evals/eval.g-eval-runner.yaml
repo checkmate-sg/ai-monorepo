@@ -8,13 +8,15 @@ prompts:
   - "[The source text is not provided, but for context, it is a submission to CheckMate, an information verification service in Singapore. It is either a text message, an image (optionally with a caption), or a link.]"
 
 providers:
-  - id: file://runner.ts
-    label: "API runner with try catch"
-    config:
-      method: "POST"
-      maxRetries: 3
-      retryDelay: 1000
-
+  # - id: file://runner.ts
+  #   label: "API runner with try catch"
+  #   config:
+  #     method: "POST"
+  #     maxRetries: 3
+  #     retryDelay: 1000
+    - id: file://passthrough.ts
+      label: "Frozen output passthrough"
+      
 tests: "https://docs.google.com/spreadsheets/d/1JnU9_GmWkww5LZqgUBQVh8ijkrLxhocz6FYef120tIU/edit?gid=1200356343#gid=1200356343"
 
 outputPath:
