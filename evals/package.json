@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "eval": "promptfoo eval -c ./eval.g-eval-runner.yaml --env-file .env --no-cache --max-concurrency 12 --repeat 2",
+    "eval": "promptfoo eval -c ./eval.g-eval-runner.yaml --env-file .env --no-cache --max-concurrency 12 --repeat 1",
     "viewer": "node server.js"
   },
   "dependencies": {
