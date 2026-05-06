@@ -147,7 +147,7 @@ jobs:
             echo "Using default tests source from config"
           fi
           
-          npx promptfoo eval -c ./eval.g-eval-runner.yaml --env-file .env --no-cache --max-concurrency 1 --output "output/$(date +%Y%m%d-%H%M%S)-results.json" $TESTS_ARG
+          npx promptfoo eval -c ./eval.g-eval-runner.yaml --env-file .env --no-cache --max-concurrency 12 --repeat 2 --output "output/$(date +%Y%m%d-%H%M%S)-results.json" $TESTS_ARG
         env:
           ML_SERVER_URL: http://localhost:8787
           ML_SERVER_API_KEY: ${{ steps.create-consumer.outputs.api_key }}
