@@ -12,6 +12,17 @@ import { Check, Submission } from "@workspace/shared-types";
 // Shared logger
 const logger = createLogger("database-service");
 
+// Convert a raw Mongo check document into a Check safe to send over RPC.
+// Workers RPC structured-clone rejects ObjectId, so every ObjectId-typed
+// field on the document must be stringified before returning.
+function serializeCheck(check: Record<string, any>): Check {
+  return {
+    ...check,
+    _id: check._id.toString(),
+    pollId: check.pollId ? check.pollId.toString() : null,
+  } as Check;
+}
+
 /**
  * DatabaseDurableObject maintains a persistent MongoDB connection
  * This significantly improves performance by avoiding connection overhead
@@ -76,13 +87,9 @@ export class DatabaseDurableObject extends DurableObject<Env> {
         };
       }
 
-      // Convert _id to string for the external interface
       return {
         success: true,
-        data: {
-          ...check,
-          _id: check._id.toString(),
-        } as Check,
+        data: serializeCheck(check),
       };
     } catch (error) {
       const errorMessage =
@@ -111,13 +118,9 @@ export class DatabaseDurableObject extends DurableObject<Env> {
         };
       }
 
-      // Convert _id to string for the external interface
       return {
         success: true,
-        data: {
-          ...check,
-          _id: check._id.toString(),
-        } as Check,
+        data: serializeCheck(check),
       };
     } catch (error) {
       const errorMessage =
@@ -161,13 +164,9 @@ export class DatabaseDurableObject extends DurableObject<Env> {
         };
       }
 
-      // Convert _id to string for the external interface
       return {
         success: true,
-        data: {
-          ...check,
-          _id: check._id.toString(),
-        } as Check,
+        data: serializeCheck(check),
       };
     } catch (error) {
       const errorMessage =
