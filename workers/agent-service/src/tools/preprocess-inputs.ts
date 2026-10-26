@@ -8,7 +8,7 @@ import normalizeUrl from "normalize-url";
 import { extractImageUrlsTool } from "./extract-image-urls";
 
 const configObject = {
-  model: "gpt-4.1-mini",
+  model: "gpt-5.4-mini",
   temperature: 0,
   seed: 11,
   response_format: {
@@ -228,7 +228,7 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
         // Make the API call to review the report
         const response = await withTimeout(
           observedClient.chat.completions.create({
-            model: config.model || "gpt-4o",
+            model: config.model || configObject.model,
             temperature: config.temperature || 0.0,
             seed: config.seed || 11,
             messages: messages as any[],

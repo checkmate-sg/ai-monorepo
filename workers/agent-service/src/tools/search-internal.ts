@@ -37,7 +37,7 @@ const logger = createLogger("search-internal");
 export type SearchInternalResult = SearchInternalResponse | ErrorResponse;
 
 const configObject = {
-  model: "gpt-4.1-mini",
+  model: "gpt-5.4-mini",
   temperature: 0,
   seed: 11,
   response_format: {
@@ -394,7 +394,7 @@ async function searchTextSubmission(
         }) as any[];
         const response = await withTimeout(
           observedClient.chat.completions.create({
-            model: config.model || "gpt-4.1-mini",
+            model: config.model || configObject.model,
             temperature: config.temperature || 0.0,
             seed: config.seed || 11,
             messages: messages as any[],
