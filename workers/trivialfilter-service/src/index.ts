@@ -17,7 +17,7 @@ import { Langfuse, observeOpenAI } from "langfuse";
 import { createClient } from "@workspace/shared-llm-client";
 
 const configObject = {
-  model: "gpt-4o",
+  model: "gpt-5.4-nano",
   temperature: 0,
   seed: 11,
   response_format: {
@@ -135,7 +135,7 @@ export default class extends WorkerEntrypoint<Env> {
       this.logger.info(this.logContext, "Calling LLM api");
 
       const response = await observedClient.chat.completions.create({
-        model: config.model || "gpt-4o",
+        model: config.model || configObject.model,
         temperature: config.temperature || 0,
         seed: config.seed || 11,
         messages: messages as any[],

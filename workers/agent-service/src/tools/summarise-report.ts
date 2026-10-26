@@ -10,7 +10,7 @@ export interface SummariseReportParams {
 }
 
 const configObject = {
-  model: "gpt-4o",
+  model: "gpt-5.4-mini",
   temperature: 0,
   seed: 11,
   response_format: {
@@ -150,7 +150,7 @@ export const summariseReportTool: Tool<
         // Make the API call to review the report
         const response = await withTimeout(
           observedClient.chat.completions.create({
-            model: config.model || "gpt-4o",
+            model: config.model || configObject.model,
             temperature: config.temperature || 0.0,
             seed: config.seed || 11,
             response_format: config.response_format,
