@@ -11,7 +11,7 @@ export interface SubmitReportForReviewParams {
 }
 
 const configObject = {
-  model: "o3-mini",
+  model: "gpt-5.4-mini",
   reasoning_effort: "medium",
   response_format: {
     type: "json_schema" as const,
@@ -121,12 +121,12 @@ export const submitReportForReviewTool: Tool<
           formatted_sources: formattedSources,
         });
 
-        context.logger.info("Starting O3 API call with timeout");
+        context.logger.info("Starting review API call with timeout");
 
         // Make the API call to review the report with timeout
         const response = await withTimeout(
           observedClient.chat.completions.create({
-            model: config.model || "o3-mini",
+            model: config.model || configObject.model,
             reasoning_effort: (config.reasoning_effort || "medium") as
               | "low"
               | "medium"
@@ -135,10 +135,10 @@ export const submitReportForReviewTool: Tool<
             response_format: config.response_format,
           }),
           30000, // 30 seconds timeout
-          "O3 API call"
+          "Review API call"
         );
 
-        context.logger.info("O3 API call completed");
+        context.logger.info("Review API call completed");
 
         // Parse the result - handle null case
         const content = response.choices[0].message.content || "{}";

@@ -10,7 +10,7 @@ export interface ExtractImageUrlsParams {
 }
 
 const configObject = {
-  model: "gpt-4o-mini",
+  model: "gpt-5.4-mini",
   temperature: 0,
   seed: 11,
   response_format: {
@@ -115,7 +115,7 @@ export const extractImageUrlsTool: Tool<
         // Make the API call to extract image URLs
         const response = await withTimeout(
           observedClient.chat.completions.create({
-            model: config.model || "gpt-4o",
+            model: config.model || configObject.model,
             temperature: config.temperature || 0.0,
             seed: config.seed || 11,
             response_format: config.response_format,

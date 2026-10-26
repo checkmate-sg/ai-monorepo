@@ -169,7 +169,7 @@ The services fall into five tiers:
 
 When a full check is requested (`POST /getAgentResult` → `AGENT_SERVICE.check(request)`), the `CheckerAgent` Durable Object runs roughly this sequence:
 
-1. **Resolve model & provider.** Default model is **`gpt-4.1-mini`**; a request can override it. The provider is inferred from the model name (`gpt*` → OpenAI, `gemini*` → Vertex AI, `llama*` → Groq) and all calls route through the **Portkey** gateway, traced in **Langfuse**.
+1. **Resolve model & provider.** The model comes from the `model` field in the `agent_system_prompt` Langfuse config (falling back to **`gpt-4.1-mini`**); a request can override it. Every other LLM step likewise takes its model from its own Langfuse prompt config, so models can be swapped without a deploy. The provider is inferred from the model name (`gpt*` → OpenAI, `gemini*` → Vertex AI, `llama*` → Groq) and all calls route through the **Portkey** gateway, traced in **Langfuse**.
 2. **Insert a `pending` check** into MongoDB, computing hashes up front — `textHash`, `captionHash`, `imageHash`, and a PDQ vector for images — so identical content can be de-duplicated later. (In staging/production, image submissions are first turned into a **presigned R2 URL**.)
 3. **Notify** the reviewer channel that a new check has arrived.
 4. **Embed** the text (or image caption) via `embedder-service` and store the vector in the background.
@@ -191,10 +191,10 @@ If any stage throws, the check is marked with a specific error status (`error-pr
 
 The loop lives in `agent-service/src/agent.ts` (`CheckerAgent.agentLoop`). Conceptually:
 
-- **Setup.** The system prompt is **fetched from Langfuse** (`agent_system_prompt`, labelled per environment) and compiled with the current datetime and the remaining search/screenshot budgets. The conversation starts as `[system prompt, user content]`, where the user content is what `preprocess_inputs` prepared (the text and/or the image).
+- **Setup.** The system prompt is **fetched from Langfuse** (`agent_system_prompt`, labelled per environment) and compiled **once per check** with the current datetime and the starting search/screenshot budgets. Keeping it fixed for the whole check keeps the request prefix identical across turns, so OpenAI's prompt cache can serve it. The conversation starts as `[system prompt, user content]`, where the user content is what `preprocess_inputs` prepared (the text and/or the image).
 - **Decode settings.** Each turn calls the chat-completions API with `temperature: 0` and a fixed `seed` for reproducibility, and crucially **`tool_choice: "required"`** — the model *must* call a tool every turn; it cannot reply with free-form prose.
 - **Iterate.** On each turn the model picks one or more tools. All tool calls in a turn run **in parallel**; their results are appended to the conversation (tool-role messages first, then any image/user messages — important so screenshots attach correctly).
-- **Budgets.** The agent starts with **5 Google searches** and **5 screenshots**. As each budget is exhausted, that tool is *removed* from the tool list for subsequent turns, nudging the model toward concluding.
+- **Budgets.** The agent starts with **5 Google searches** and **5 screenshots**. The remaining count is appended to each `search_google` / `get_website_screenshot` result. As each budget is exhausted, that tool is *removed* from the tool list for subsequent turns, nudging the model toward concluding.
 - **Termination.** The loop ends when the model calls **`submit_report_for_review`** and the report passes an internal review gate. At that point the loop returns the final `report`, `sources`, and `is_controversial` flag. As a safety valve, the loop also hard-stops if the conversation exceeds 50 messages (treated as a failure).
 
 **Which tools the model actually sees.** Even though the codebase defines nine tools, the loop deliberately exposes only **four** to the model:

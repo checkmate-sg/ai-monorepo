@@ -38,6 +38,9 @@ interface AgentOutputs {
   is_controversial: boolean;
 }
 
+// Used when agent_system_prompt's Langfuse config doesn't set a model
+const DEFAULT_AGENT_MODEL = "gpt-4.1-mini";
+
 const providerMap = {
   openai: "gpt-4o",
   "vertex-ai": "gemini-2.0-flash",
@@ -126,8 +129,8 @@ export class CheckerAgent extends DurableObject<Env> {
 
     this.tools = createTools(toolContext);
 
-    // Call the async initialization method
-    this.initialize();
+    // Load the prompt before handling any request, since check() reads the model from its config
+    ctx.blockConcurrencyWhile(() => this.initialize());
   }
 
   private async initialize() {
@@ -141,6 +144,9 @@ export class CheckerAgent extends DurableObject<Env> {
               ? "cf-production"
               : this.env.ENVIRONMENT, //TODO: revert after google version deprecated
           type: "text",
+          // Stay well inside blockConcurrencyWhile's 30s limit
+          fetchTimeoutMs: 5000,
+          maxRetries: 1,
         },
       );
     } catch (error) {
@@ -297,7 +303,9 @@ export class CheckerAgent extends DurableObject<Env> {
         parent: span,
       });
 
-      let systemPrompt = this.prompt.compile({
+      // Compiled once per check so the prefix stays identical across turns and hits the
+      // prompt cache. Remaining budgets are reported in the tool results instead.
+      const systemPrompt = this.prompt.compile({
         datetime: new Date().toISOString(),
         remaining_searches: this.searchesRemaining.toString(),
         remaining_screenshots: this.screenshotsRemaining.toString(),
@@ -320,14 +328,8 @@ export class CheckerAgent extends DurableObject<Env> {
       let toolCalls: ChatCompletionMessageToolCall[];
 
       while (!completed && messages.length < 50) {
-        systemPrompt = this.prompt.compile({
-          datetime: new Date().toISOString(),
-          remaining_searches: this.searchesRemaining.toString(),
-          remaining_screenshots: this.screenshotsRemaining.toString(),
-        });
-        messages[0].content = systemPrompt;
         completion = await observedClient.chat.completions.create({
-          model: this.model || "gpt-4.1-mini",
+          model: this.model || DEFAULT_AGENT_MODEL,
           messages: messages as any[],
           temperature: 0.0,
           seed: 11,
@@ -340,6 +342,7 @@ export class CheckerAgent extends DurableObject<Env> {
           const toolCallResults = await Promise.all(
             toolCalls.map((toolCall) => this.callTool(toolCall)),
           );
+          this.appendRemainingBudgets(toolCalls, toolCallResults);
           // Sort and flatten the results before adding to messages
           const sortedResults = this.sortToolCallResults(toolCallResults);
           //check if should end
@@ -399,7 +402,7 @@ export class CheckerAgent extends DurableObject<Env> {
     let slug: string | null = null;
     let generationStatus: string = "pending";
     let checkInserted = false;
-    const model = request.model || "gpt-4.1-mini"; //default is gpt-4.1-mini
+    const model = request.model || this.configuredModel;
     const provider = getProviderFromModel(model);
     const consumerName = request.consumerName || "unknown consumer";
     const triggerPoll = request.consumerName === "checkmate-whatsapp";
@@ -958,6 +961,51 @@ export class CheckerAgent extends DurableObject<Env> {
         return true;
       })
       .map(([_, tool]) => tool.definition);
+  }
+
+  /**
+   * The agent loop model, taken from the agent_system_prompt config in Langfuse.
+   */
+  private get configuredModel(): string {
+    const model = (this.prompt?.config as { model?: string } | undefined)
+      ?.model;
+    if (!model) {
+      return DEFAULT_AGENT_MODEL;
+    }
+    try {
+      getProviderFromModel(model);
+      return model;
+    } catch {
+      this.logger.error(
+        { model },
+        "Unsupported model in agent_system_prompt config, using default",
+      );
+      return DEFAULT_AGENT_MODEL;
+    }
+  }
+
+  /**
+   * Appends the remaining search/screenshot budget to those tools' results,
+   * so the system prompt never changes mid-check.
+   */
+  private appendRemainingBudgets(
+    toolCalls: ChatCompletionMessageToolCall[],
+    results: any[],
+  ) {
+    const budgetNotes: Record<string, () => string> = {
+      search_google: () => `Remaining searches: ${this.searchesRemaining}`,
+      get_website_screenshot: () =>
+        `Remaining screenshots: ${this.screenshotsRemaining}`,
+    };
+    toolCalls.forEach((toolCall, i) => {
+      const note = budgetNotes[toolCall.function.name]?.();
+      const toolMessage = [results[i]]
+        .flat()
+        .find((msg) => msg.role === "tool");
+      if (note && toolMessage) {
+        toolMessage.content += `\n\n${note}`;
+      }
+    });
   }
 
   /**
