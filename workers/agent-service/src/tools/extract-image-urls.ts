@@ -1,6 +1,6 @@
 import { Tool } from "./types";
 import { createClient } from "@workspace/shared-llm-client";
-import { observeOpenAI } from "langfuse";
+import { getChatPrompt, observeOpenAI } from "@workspace/shared-langfuse";
 import { withLangfuseSpan, withTimeout } from "./utils";
 import { ExtractImageUrlsResult } from "./types";
 import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
@@ -62,33 +62,17 @@ export const extractImageUrlsTool: Tool<
   },
   execute: withLangfuseSpan<ExtractImageUrlsParams, ExtractImageUrlsResult>(
     "extract-image-urls",
-    async (params, context, span) => {
+    async (params, context) => {
       const client = await createClient("openai", context.env);
 
       try {
         if (!params.url) {
           throw new Error("URL is required");
         }
-        const extractUrlsPrompt = await context.langfuse.getPrompt(
-          "extract_urls_from_image",
-          undefined,
-          {
-            label:
-              context.env.ENVIRONMENT === "production"
-                ? "cf-production"
-                : context.env.ENVIRONMENT, //TODO: revert after google version deprecated
-            type: "chat",
-          }
-        );
+        const extractUrlsPrompt = await getChatPrompt(context.env, "extract_urls_from_image");
 
         const observedClient = observeOpenAI(client, {
-          clientInitParams: {
-            publicKey: context.env.LANGFUSE_PUBLIC_KEY,
-            secretKey: context.env.LANGFUSE_SECRET_KEY,
-            baseUrl: context.env.LANGFUSE_HOST,
-          },
           langfusePrompt: extractUrlsPrompt,
-          parent: span,
         });
         context.logger.info(params, "Executing extract image URLs tool");
 

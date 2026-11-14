@@ -1,10 +1,8 @@
 import type { Logger } from "pino";
-import type { Langfuse } from "langfuse";
 import type { LLMProvider } from "@workspace/shared-types";
 export interface ToolContext {
   logger: Logger;
   getId: () => string;
-  getTraceId: () => string;
   env: Env;
   // For search-google and get-website-screenshot
   getSearchesRemaining: () => number;
@@ -17,8 +15,6 @@ export interface ToolContext {
   getText: () => string | undefined;
   getIntent: () => string | undefined;
   getType: () => "text" | "image" | undefined;
-  langfuse: Langfuse;
-  getSpan: () => ReturnType<Langfuse["span"]> | undefined;
   getModelAndProvider: () => {
     model: string | undefined;
     provider: LLMProvider | undefined;

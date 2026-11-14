@@ -1,9 +1,9 @@
 import { Logger } from "pino";
-import { Langfuse } from "langfuse";
 
 export interface CheckContext {
   env: Env;
   logger: Logger;
-  trace: ReturnType<Langfuse["trace"]> | null;
+  /** MongoDB check ID; also seeds the Langfuse trace ID */
+  checkId: string | null;
   ctx: ExecutionContext;
 }

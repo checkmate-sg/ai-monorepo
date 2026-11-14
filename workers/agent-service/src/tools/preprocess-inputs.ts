@@ -1,6 +1,10 @@
 import { Tool, PreprocessResult } from "./types";
 import { createClient } from "@workspace/shared-llm-client";
-import { observeOpenAI } from "langfuse";
+import {
+  observeOpenAI,
+  getChatPrompt,
+  withSpan,
+} from "@workspace/shared-langfuse";
 import { withLangfuseSpan, getOpenAIContent, withTimeout } from "./utils";
 import { AgentRequest } from "@workspace/shared-types";
 import urlRegexSafe from "url-regex-safe";
@@ -93,7 +97,7 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
   },
   execute: withLangfuseSpan<AgentRequest, PreprocessResult>(
     "preprocess-inputs",
-    async (params, context, span) => {
+    async (params, context) => {
       const client = await createClient("openai", context.env);
 
       try {
@@ -151,38 +155,28 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
 
         //get screenshot from URLs
         const screenshots = await Promise.all(
-          urls.map(async (url) => {
-            const screenshotSpan = span.span({
-              name: "screenshot",
-              input: { url },
-            });
-            try {
-              const result = await context.env.SCREENSHOT_SERVICE.screenshot({
-                url,
-                id: context.getId(),
-              });
-              screenshotSpan.end({
-                output: result,
-                metadata: { success: true },
-              });
-              return {
-                ...result,
-                url,
-              };
-            } catch (error) {
-              const returnError = {
-                success: false,
-                error: {
-                  message:
-                    error instanceof Error ? error.message : String(error),
-                },
-              };
-              screenshotSpan.end({
-                metadata: returnError,
-              });
-              return returnError;
-            }
-          })
+          urls.map((url) =>
+            withSpan("screenshot", { url }, async () => {
+              try {
+                const result = await context.env.SCREENSHOT_SERVICE.screenshot({
+                  url,
+                  id: context.getId(),
+                });
+                return {
+                  ...result,
+                  url,
+                };
+              } catch (error) {
+                return {
+                  success: false as const,
+                  error: {
+                    message:
+                      error instanceof Error ? error.message : String(error),
+                  },
+                };
+              }
+            })
+          )
         );
 
         //get openAI-formatted content for screenshots
@@ -191,26 +185,10 @@ export const preprocessInputsTool: Tool<AgentRequest, PreprocessResult> = {
         //extend userContent with screenshotContent
         userContent = [...userContent, ...screenshotContent];
 
-        const preprocessPrompt = await context.langfuse.getPrompt(
-          "preprocess_inputs",
-          undefined,
-          {
-            label:
-              context.env.ENVIRONMENT === "production"
-                ? "cf-production"
-                : context.env.ENVIRONMENT, //TODO: revert after google version deprecated
-            type: "chat",
-          }
-        );
+        const preprocessPrompt = await getChatPrompt(context.env, "preprocess_inputs");
 
         const observedClient = observeOpenAI(client, {
-          clientInitParams: {
-            publicKey: context.env.LANGFUSE_PUBLIC_KEY,
-            secretKey: context.env.LANGFUSE_SECRET_KEY,
-            baseUrl: context.env.LANGFUSE_HOST,
-          },
           langfusePrompt: preprocessPrompt,
-          parent: span, // Set this span as parent
         });
         context.logger.info(params, "Executing preprocess inputs tool");
 

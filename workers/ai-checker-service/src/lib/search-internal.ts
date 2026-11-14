@@ -12,6 +12,7 @@ import {
 } from "@workspace/shared-utils";
 import { CheckContext } from "../types";
 import { generateObject } from "ai";
+import { withSpanOrTrace } from "@workspace/shared-langfuse";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
@@ -255,27 +256,40 @@ async function searchTextSubmission(
           "Confirming same claim with LLM"
         );
 
-        const { object } = await (generateObject as any)({
-          model: google("gemini-2.5-flash"),
-          schema: z.object({
-            are_variants_of_same_claim: z.boolean(),
-            reasoning: z.string(),
-          }),
-          system: confirmSameClaimPrompt,
-          prompt: `# Text 1
+        // Runs before the check's trace starts, so this gets a trace of its own
+        const { object } = await withSpanOrTrace<{
+          object: { are_variants_of_same_claim: boolean; reasoning: string };
+        }>(
+          env,
+          {
+            name: "confirm-same-claim",
+            input: { text1, text2 },
+            tags: [
+              env.ENVIRONMENT,
+              "single-call",
+              "confirm-same-claim",
+              "cloudflare-workers",
+            ],
+          },
+          () =>
+            (generateObject as any)({
+              model: google("gemini-2.5-flash"),
+              schema: z.object({
+                are_variants_of_same_claim: z.boolean(),
+                reasoning: z.string(),
+              }),
+              system: confirmSameClaimPrompt,
+              prompt: `# Text 1
 ${text1}
 
 # Text 2
 ${text2}`,
-          experimental_telemetry: {
-            isEnabled: true,
-            functionId: "confirm-same-claim",
-            metadata: {
-              langfuseTraceId: checkCtx.trace?.id ?? "",
-              langfuseUpdateParent: false,
-            },
-          },
-        });
+              experimental_telemetry: {
+                isEnabled: true,
+                functionId: "confirm-same-claim",
+              },
+            })
+        );
 
         logger.debug(
           {

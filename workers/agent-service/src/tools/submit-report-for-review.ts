@@ -1,7 +1,7 @@
 import { Tool } from "./types";
 import type { ReviewResult } from "./types";
 import { createClient } from "@workspace/shared-llm-client";
-import { observeOpenAI } from "langfuse";
+import { getChatPrompt, observeOpenAI } from "@workspace/shared-langfuse";
 import { withLangfuseSpan, withTimeout } from "./utils";
 
 export interface SubmitReportForReviewParams {
@@ -80,30 +80,14 @@ export const submitReportForReviewTool: Tool<
   },
   execute: withLangfuseSpan<SubmitReportForReviewParams, ReviewResult>(
     "submit-report-for-review",
-    async (params, context, span) => {
+    async (params, context) => {
       const client = await createClient("openai", context.env);
 
       try {
-        const prompt = await context.langfuse.getPrompt(
-          "review_report",
-          undefined,
-          {
-            label:
-              context.env.ENVIRONMENT === "production"
-                ? "cf-production"
-                : context.env.ENVIRONMENT, //TODO: revert after google version deprecated
-            type: "chat",
-          }
-        );
+        const prompt = await getChatPrompt(context.env, "review_report");
 
         const observedClient = observeOpenAI(client, {
-          clientInitParams: {
-            publicKey: context.env.LANGFUSE_PUBLIC_KEY,
-            secretKey: context.env.LANGFUSE_SECRET_KEY,
-            baseUrl: context.env.LANGFUSE_HOST,
-          },
           langfusePrompt: prompt,
-          parent: span, // Set this span as parent
         });
         context.logger.info(params, "Executing submit report tool");
 

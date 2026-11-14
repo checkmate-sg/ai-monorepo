@@ -39,10 +39,6 @@ export async function translateText(
       experimental_telemetry: {
         isEnabled: true,
         functionId: "translate-text",
-        metadata: {
-          langfuseTraceId: checkCtx.trace?.id ?? "",
-          langfuseUpdateParent: false,
-        },
       },
     });
 

@@ -105,13 +105,13 @@ export async function runAgentLoop(
 
   // Create tool instances
   const scanUrlTool = createScanUrlTool(checkCtx, {
-    id: checkCtx.trace?.id || undefined,
+    id: checkCtx.checkId ?? undefined,
   });
   const urlScreenshotTool = createUrlScreenshotTool(checkCtx, {
     screenshotsRemaining,
   });
   const searchGoogleTool = createSearchGoogleTool(checkCtx, {
-    id: checkCtx.trace?.id || undefined,
+    id: checkCtx.checkId ?? undefined,
   });
   const reviewReportTool = createReviewReportTool({
     checkCtx,
@@ -260,10 +260,6 @@ export async function runAgentLoop(
     experimental_telemetry: {
       isEnabled: true,
       functionId: "agent-loop",
-      metadata: {
-        langfuseTraceId: checkCtx.trace?.id ?? "",
-        langfuseUpdateParent: false,
-      },
     },
   });
 
