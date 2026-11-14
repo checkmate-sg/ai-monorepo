@@ -1,6 +1,7 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { InlineKeyboardMarkup } from "grammy/types";
 import { AgentRequest, CommunityNote } from "@workspace/shared-types";
+import { traceUrlForCheck } from "@workspace/shared-langfuse/trace-id";
 
 export interface CommunityNoteNotificationParams {
   id: string;
@@ -59,14 +60,16 @@ export class TelegramNotificationHandler {
         throw new Error("ADMIN_CHAT_ID or MESSAGE_FEED_TOPIC_ID is not set");
       }
       let notificationText = "";
-      const langfuseBaseURL = this.env.LANGFUSE_HOST;
-      const langfuseProjectId = this.env.LANGFUSE_PROJECT_ID;
       let replyMarkup: InlineKeyboardMarkup = {
         inline_keyboard: [
           [
             {
               text: "View on LangFuse",
-              url: `${langfuseBaseURL}/project/${langfuseProjectId}/traces/${id}`,
+              url: await traceUrlForCheck(
+                this.env.LANGFUSE_HOST,
+                this.env.LANGFUSE_PROJECT_ID,
+                id
+              ),
             },
           ],
         ],

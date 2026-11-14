@@ -31,9 +31,7 @@ export const searchGoogleTool: Tool<SearchGoogleParams, SearchResult> = {
     "search-google",
     async (
       params: SearchGoogleParams,
-      context: ToolContext,
-      span
-    ): Promise<SearchResult> => {
+      context: ToolContext): Promise<SearchResult> => {
       if (context.getSearchesRemaining() <= 0) {
         throw new Error("Search limit reached");
       }

@@ -11,6 +11,7 @@ import {
 import { WorkerEntrypoint } from "cloudflare:workers";
 export { CheckerAgent } from "./agent";
 import { searchInternal } from "./tools/search-internal";
+import { flushLangfuse } from "@workspace/shared-langfuse";
 /**
  * Welcome to Cloudflare Workers! This is your first Durable Objects application.
  *
@@ -132,14 +133,17 @@ export default class extends WorkerEntrypoint<Env> {
       };
       //find matching check
       if (request.findSimilar) {
-        const searchResult = await searchInternal(
-          request,
-          this.env,
-          null,
-          null,
-          this.logger,
-          true
-        );
+        let searchResult;
+        try {
+          searchResult = await searchInternal(
+            request,
+            this.env,
+            this.logger,
+            true
+          );
+        } finally {
+          this.ctx.waitUntil(flushLangfuse());
+        }
 
         if (
           searchResult.success &&

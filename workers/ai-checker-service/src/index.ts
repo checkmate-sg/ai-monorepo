@@ -19,9 +19,11 @@ import {
 } from "@workspace/shared-types";
 import { extractUrls } from "./steps/extract-urls";
 import { downloadImage } from "./steps/download-image";
-import { NodeSDK } from "@opentelemetry/sdk-node";
-import { LangfuseExporter } from "langfuse-vercel";
-import { Langfuse } from "langfuse";
+import {
+  addTraceTags,
+  flushLangfuse,
+  withTrace,
+} from "@workspace/shared-langfuse";
 import { CheckContext } from "./types";
 import { findSimilar } from "./steps/find-similar";
 import { getCheck } from "./lib/get-check";
@@ -43,7 +45,7 @@ export default class extends WorkerEntrypoint<Env> {
       const checkCtx: CheckContext = {
         env: this.env,
         logger: this.logger,
-        trace: null as any,
+        checkId: null,
         ctx: this.ctx,
       };
 
@@ -141,14 +143,16 @@ export default class extends WorkerEntrypoint<Env> {
     const checkCtx: CheckContext = {
       env: this.env,
       logger,
-      trace: null as any,
+      checkId: null,
       ctx: this.ctx,
     };
 
     // Check for similar submissions
     try {
       if (request.findSimilar) {
-        const findSimilarResult = await findSimilar(request, checkCtx);
+        const findSimilarResult = await findSimilar(request, checkCtx).finally(
+          () => this.ctx.waitUntil(flushLangfuse())
+        );
         if (findSimilarResult.success) {
           if (
             findSimilarResult.result?.isMatch &&
@@ -200,23 +204,6 @@ export default class extends WorkerEntrypoint<Env> {
       );
     }
 
-    // Initialize Langfuse
-    const langfuse = new Langfuse({
-      environment: this.env.ENVIRONMENT,
-      publicKey: this.env.LANGFUSE_PUBLIC_KEY,
-      secretKey: this.env.LANGFUSE_SECRET_KEY,
-      baseUrl: this.env.LANGFUSE_HOST,
-    });
-
-    const sdk = new NodeSDK({
-      traceExporter: new LangfuseExporter({
-        publicKey: this.env.LANGFUSE_PUBLIC_KEY,
-        secretKey: this.env.LANGFUSE_SECRET_KEY,
-        baseUrl: this.env.LANGFUSE_HOST,
-      }),
-    });
-    sdk.start();
-
     try {
       const result = await this.env.DATABASE_SERVICE.insertSubmission(
         submission
@@ -250,261 +237,265 @@ export default class extends WorkerEntrypoint<Env> {
 
       notificationId = createCheckResult.result.notificationId;
 
-      // Create Langfuse trace
-      const trace = langfuse.trace({
-        name: "ai-checker-service-check",
-        input: request,
-        id: checkId,
-      });
+      checkCtx.checkId = checkId;
+      const tracedCheckId = checkId;
+      return await withTrace(
+        this.env,
+        {
+          name: "ai-checker-service-check",
+          traceSeed: tracedCheckId,
+          input: requestWithoutBase64,
+          tags: [
+            this.env.ENVIRONMENT,
+            "agent-generation",
+            "cloudflare-workers",
+            request.consumerName ?? "unknown consumer",
+          ],
+        },
+        async () => {
+          try {
+            // Step 0: Download image
+            if (request.imageUrl) {
+              checkCtx.logger.info("Step 0: Downloading image");
+              const downloadImageResult = await downloadImage(
+                {
+                  imageUrl: request.imageUrl,
+                  id: tracedCheckId,
+                },
+                checkCtx
+              );
+              if (downloadImageResult.success) {
+                request.imageBase64 = downloadImageResult.result.base64;
+              }
+            }
 
-      checkCtx.trace = trace;
+            // Step 1: Extract URLs
+            checkCtx.logger.info("Step 1: Extracting URLs");
+            const extractionResult = await extractUrls(request, checkCtx);
+            if (!extractionResult.success) {
+              checkCtx.logger.error("Failed to extract URLs");
+            }
 
-      // Step 0: Download image
-      if (request.imageUrl) {
-        checkCtx.logger.info("Step 0: Downloading image");
-        const downloadImageResult = await downloadImage(
-          {
-            imageUrl: request.imageUrl,
-            id: checkId,
-          },
-          checkCtx
-        );
-        if (downloadImageResult.success) {
-          request.imageBase64 = downloadImageResult.result.base64;
+            // Step 2: Preprocess inputs
+            checkCtx.logger.info("Step 2: Preprocessing inputs");
+            const preprocessingRequest = {
+              ...request,
+              extractedUrls: extractionResult.urls,
+            };
+            const preprocessingResponse = await preprocessInputs(
+              preprocessingRequest,
+              checkCtx
+            );
+            if (!preprocessingResponse.success) {
+              logger.error("Failed to preprocess inputs");
+            }
+            logger.info(
+              truncateBase64({ preprocessingResponse }),
+              "Preprocessing response"
+            );
+            if (!("result" in preprocessingResponse)) {
+              logger.error("No preprocessing result");
+              return {
+                success: false,
+                error: {
+                  message: "No preprocessing result",
+                },
+              };
+            }
+            const preprocessingResult = preprocessingResponse.result;
+
+            const intent = preprocessingResult.intent;
+            const startingContent = preprocessingResult.startingContent;
+            isAccessBlocked = preprocessingResult.isAccessBlocked;
+            isVideo = preprocessingResult.isVideo;
+            title = preprocessingResult.title;
+            slug = title ? getSlugFromTitle(title, tracedCheckId) : null;
+
+            this.logger.info(
+              truncateBase64({ preprocessingResult }),
+              "Preprocessing result"
+            );
+
+            // Update check with preprocessing results as a background operation
+            await updateCheck(
+              tracedCheckId,
+              {
+                isAccessBlocked: isAccessBlocked,
+                isVideo: isVideo,
+                machineCategory: null,
+                title: title,
+                slug: slug,
+              },
+              checkCtx,
+              this.ctx.waitUntil.bind(this.ctx)
+            );
+
+            // Step 3: Agent loop
+            this.logger.info("Step 3: Running agent loop");
+            const agentLoopResult = await runAgentLoop(
+              {
+                startingMessages: startingContent,
+                intent: intent,
+              },
+              checkCtx
+            );
+
+            this.logger.info({ agentLoopResult }, "Agent loop result");
+
+            isControversial = agentLoopResult.isControversial;
+            const report = agentLoopResult.report;
+            const sources = agentLoopResult.sources;
+
+            longformReport = {
+              en: report,
+              cn: null,
+              links: sources,
+              timestamp: timestamp,
+            };
+
+            await updateCheck(
+              tracedCheckId,
+              {
+                isControversial,
+                longformResponse: {
+                  en: report,
+                  cn: null,
+                  ms: null,
+                  id: null,
+                  ta: null,
+                  links: sources,
+                  timestamp: timestamp,
+                },
+              },
+              checkCtx,
+              this.ctx.waitUntil.bind(this.ctx)
+            );
+
+            // Step 4: Summarize report
+            this.logger.info("Step 4: Summarizing report");
+            const summary = await summarizeReport(
+              {
+                startingMessages: startingContent,
+                intent: intent,
+                report: agentLoopResult.report,
+              },
+              checkCtx
+            );
+
+            this.logger.info({ summary }, "Summary");
+
+            // Step 5: Translate summary into all languages
+            this.logger.info("Step 5: Translating summary");
+            const [
+              translationChinese,
+              translationMalay,
+              translationIndonesian,
+              translationTamil,
+            ] = await Promise.all([
+              translateText({ text: summary, targetLanguage: "Chinese" }, checkCtx),
+              translateText(
+                { text: summary, targetLanguage: "Bahasa Melayu" },
+                checkCtx
+              ),
+              translateText(
+                { text: summary, targetLanguage: "Bahasa Indonesia" },
+                checkCtx
+              ),
+              translateText({ text: summary, targetLanguage: "Tamil" }, checkCtx),
+            ]);
+            generationStatus = "completed";
+            // Update check with completion results as a background operation
+            await updateCheck(
+              tracedCheckId,
+              {
+                generationStatus: generationStatus,
+                shortformResponse: {
+                  en: summary,
+                  cn: translationChinese,
+                  ms: translationMalay,
+                  id: translationIndonesian,
+                  ta: translationTamil,
+                  downvoted: false,
+                  links: sources,
+                  timestamp: timestamp,
+                },
+              },
+              checkCtx,
+              this.ctx.waitUntil.bind(this.ctx)
+            );
+
+            communityNote = {
+              en: summary,
+              cn: translationChinese,
+              ms: translationMalay,
+              id: translationIndonesian,
+              ta: translationTamil,
+              links: agentLoopResult.sources,
+              timestamp: timestamp,
+            };
+            const agentResponse: AgentResponse = {
+              success: true,
+              id: tracedCheckId,
+              result: {
+                report: {
+                  en: agentLoopResult.report,
+                  cn: null,
+                  ms: null,
+                  id: null,
+                  ta: null,
+                  links: agentLoopResult.sources,
+                  timestamp: timestamp,
+                },
+                generationStatus: generationStatus,
+                communityNote: communityNote,
+                humanNote: null,
+                isControversial: agentLoopResult.isControversial,
+                text: "text" in request ? request.text ?? null : null,
+                imageUrl: "imageUrl" in request ? request.imageUrl ?? null : null,
+                caption: "imageUrl" in request ? request.caption ?? null : null,
+                isVideo: preprocessingResult.isVideo,
+                isAccessBlocked: preprocessingResult.isAccessBlocked,
+                title: preprocessingResult.title,
+                slug: null,
+                timestamp: new Date(),
+                isHumanAssessed: false,
+                isVoteTriggered: false,
+                crowdsourcedCategory: null,
+              },
+            };
+
+            //notify block
+            try {
+              sendCommunityNoteNotification(
+                {
+                  id: tracedCheckId,
+                  replyId: notificationId,
+                  communityNote: communityNote,
+                },
+                checkCtx,
+                this.ctx.waitUntil.bind(this.ctx)
+              );
+            } catch (error) {
+              logger.error("Failed to send community note notification");
+            }
+
+            //Update submission with completed status
+            this.ctx.waitUntil(
+              this.env.DATABASE_SERVICE.updateSubmission(submissionId, {
+                checkStatus: "completed",
+              }).catch((error) => {
+                this.logger.error("Failed to update submission");
+                throw error;
+              })
+            );
+
+            return agentResponse;
+          } catch (error) {
+            addTraceTags(["error"]);
+            throw error;
+          }
         }
-      }
-
-      // Step 1: Extract URLs
-      checkCtx.logger.info("Step 1: Extracting URLs");
-      const extractionResult = await extractUrls(request, checkCtx);
-      if (!extractionResult.success) {
-        checkCtx.logger.error("Failed to extract URLs");
-      }
-
-      // Step 2: Preprocess inputs
-      checkCtx.logger.info("Step 2: Preprocessing inputs");
-      const preprocessingRequest = {
-        ...request,
-        extractedUrls: extractionResult.urls,
-      };
-      const preprocessingResponse = await preprocessInputs(
-        preprocessingRequest,
-        checkCtx
       );
-      if (!preprocessingResponse.success) {
-        logger.error("Failed to preprocess inputs");
-      }
-      logger.info(
-        truncateBase64({ preprocessingResponse }),
-        "Preprocessing response"
-      );
-      if (!("result" in preprocessingResponse)) {
-        logger.error("No preprocessing result");
-        return {
-          success: false,
-          error: {
-            message: "No preprocessing result",
-          },
-        };
-      }
-      const preprocessingResult = preprocessingResponse.result;
-
-      const intent = preprocessingResult.intent;
-      const startingContent = preprocessingResult.startingContent;
-      isAccessBlocked = preprocessingResult.isAccessBlocked;
-      isVideo = preprocessingResult.isVideo;
-      title = preprocessingResult.title;
-      slug = title ? getSlugFromTitle(title, checkId) : null;
-
-      this.logger.info(
-        truncateBase64({ preprocessingResult }),
-        "Preprocessing result"
-      );
-
-      // Update check with preprocessing results as a background operation
-      await updateCheck(
-        checkId,
-        {
-          isAccessBlocked: isAccessBlocked,
-          isVideo: isVideo,
-          machineCategory: null,
-          title: title,
-          slug: slug,
-        },
-        checkCtx,
-        this.ctx.waitUntil.bind(this.ctx)
-      );
-
-      // Step 3: Agent loop
-      this.logger.info("Step 3: Running agent loop");
-      const agentLoopResult = await runAgentLoop(
-        {
-          startingMessages: startingContent,
-          intent: intent,
-        },
-        checkCtx
-      );
-
-      this.logger.info({ agentLoopResult }, "Agent loop result");
-
-      isControversial = agentLoopResult.isControversial;
-      const report = agentLoopResult.report;
-      const sources = agentLoopResult.sources;
-
-      longformReport = {
-        en: report,
-        cn: null,
-        links: sources,
-        timestamp: timestamp,
-      };
-
-      await updateCheck(
-        checkId,
-        {
-          isControversial,
-          longformResponse: {
-            en: report,
-            cn: null,
-            ms: null,
-            id: null,
-            ta: null,
-            links: sources,
-            timestamp: timestamp,
-          },
-        },
-        checkCtx,
-        this.ctx.waitUntil.bind(this.ctx)
-      );
-
-      // Step 4: Summarize report
-      this.logger.info("Step 4: Summarizing report");
-      const summary = await summarizeReport(
-        {
-          startingMessages: startingContent,
-          intent: intent,
-          report: agentLoopResult.report,
-        },
-        checkCtx
-      );
-
-      this.logger.info({ summary }, "Summary");
-
-      // Step 5: Translate summary into all languages
-      this.logger.info("Step 5: Translating summary");
-      const [
-        translationChinese,
-        translationMalay,
-        translationIndonesian,
-        translationTamil,
-      ] = await Promise.all([
-        translateText({ text: summary, targetLanguage: "Chinese" }, checkCtx),
-        translateText(
-          { text: summary, targetLanguage: "Bahasa Melayu" },
-          checkCtx
-        ),
-        translateText(
-          { text: summary, targetLanguage: "Bahasa Indonesia" },
-          checkCtx
-        ),
-        translateText({ text: summary, targetLanguage: "Tamil" }, checkCtx),
-      ]);
-      generationStatus = "completed";
-      // Update check with completion results as a background operation
-      await updateCheck(
-        checkId,
-        {
-          generationStatus: generationStatus,
-          shortformResponse: {
-            en: summary,
-            cn: translationChinese,
-            ms: translationMalay,
-            id: translationIndonesian,
-            ta: translationTamil,
-            downvoted: false,
-            links: sources,
-            timestamp: timestamp,
-          },
-        },
-        checkCtx,
-        this.ctx.waitUntil.bind(this.ctx)
-      );
-
-      communityNote = {
-        en: summary,
-        cn: translationChinese,
-        ms: translationMalay,
-        id: translationIndonesian,
-        ta: translationTamil,
-        links: agentLoopResult.sources,
-        timestamp: timestamp,
-      };
-      const agentResponse: AgentResponse = {
-        success: true,
-        id: checkId,
-        result: {
-          report: {
-            en: agentLoopResult.report,
-            cn: null,
-            ms: null,
-            id: null,
-            ta: null,
-            links: agentLoopResult.sources,
-            timestamp: timestamp,
-          },
-          generationStatus: generationStatus,
-          communityNote: communityNote,
-          humanNote: null,
-          isControversial: agentLoopResult.isControversial,
-          text: "text" in request ? request.text ?? null : null,
-          imageUrl: "imageUrl" in request ? request.imageUrl ?? null : null,
-          caption: "imageUrl" in request ? request.caption ?? null : null,
-          isVideo: preprocessingResult.isVideo,
-          isAccessBlocked: preprocessingResult.isAccessBlocked,
-          title: preprocessingResult.title,
-          slug: null,
-          timestamp: new Date(),
-          isHumanAssessed: false,
-          isVoteTriggered: false,
-          crowdsourcedCategory: null,
-        },
-      };
-
-      //notify block
-      try {
-        sendCommunityNoteNotification(
-          {
-            id: checkId,
-            replyId: notificationId,
-            communityNote: communityNote,
-          },
-          checkCtx,
-          this.ctx.waitUntil.bind(this.ctx)
-        );
-      } catch (error) {
-        logger.error("Failed to send community note notification");
-      }
-
-      //Update submission with completed status
-      this.ctx.waitUntil(
-        this.env.DATABASE_SERVICE.updateSubmission(submissionId, {
-          checkStatus: "completed",
-        }).catch((error) => {
-          this.logger.error("Failed to update submission");
-          throw error;
-        })
-      );
-
-      trace.update({
-        output: agentResponse,
-        tags: [
-          this.env.ENVIRONMENT,
-          "agent-generation",
-          "cloudflare-workers",
-          request.consumerName ?? "unknown consumer",
-        ],
-      });
-
-      return agentResponse;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
@@ -563,16 +554,6 @@ export default class extends WorkerEntrypoint<Env> {
         error: { message: errorMessage },
         success: false as const,
       };
-      checkCtx.trace?.update({
-        output: errorReturn,
-        tags: [
-          this.env.ENVIRONMENT,
-          "agent-generation",
-          "cloudflare-workers",
-          "error",
-          request.consumerName ?? "unknown consumer",
-        ],
-      });
       return errorReturn;
     } finally {
       // Trigger voting
@@ -595,8 +576,7 @@ export default class extends WorkerEntrypoint<Env> {
         this.logger.error({ error }, "Failed to trigger voting");
       }
 
-      await langfuse.flushAsync();
-      await sdk.shutdown();
+      this.ctx.waitUntil(flushLangfuse());
     }
   }
 }

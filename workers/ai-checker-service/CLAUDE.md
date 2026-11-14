@@ -121,7 +121,7 @@ const result = await agent.run({
 - `ai` - Vercel AI SDK
 - `@ai-sdk/google` - Gemini provider
 - `zod` - Schema validation for tools
-- `langfuse` - Observability (same as agent-service)
+- `@workspace/shared-langfuse` - Langfuse tracing via OpenTelemetry (same as agent-service); AI SDK calls are traced through `experimental_telemetry`
 - `@workspace/shared-utils` - Shared utilities
 - `@workspace/shared-types` - Shared types
 - `@workspace/shared-llm-client` - May not need if using Vercel AI SDK directly

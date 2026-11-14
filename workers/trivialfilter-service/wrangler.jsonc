@@ -7,6 +7,8 @@
   "name": "trivialfilter-service",
   "main": "src/index.ts",
   "compatibility_date": "2025-02-24",
+  // Langfuse tracing needs AsyncLocalStorage for span context
+  "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
   },

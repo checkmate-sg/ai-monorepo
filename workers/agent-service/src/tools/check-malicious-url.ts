@@ -36,7 +36,7 @@ export const checkMaliciousUrlTool: Tool<
   },
   execute: withLangfuseSpan<CheckMaliciousUrlParams, URLScanResult>(
     "check-malicious-url",
-    async (params, context, span) => {
+    async (params, context) => {
       context.logger.info({ url: params.url }, "Executing urlscan tool");
 
       return await context.env.URLSCAN_SERVICE.urlScan({
