@@ -364,6 +364,8 @@ Deployments rely on Cloudflare and provider secrets being configured in the GitH
 ## Observability
 
 - **Langfuse** traces every LLM interaction end-to-end: one trace per check, with spans per tool call, the prompt version used, and accumulated cost. System prompts are also **managed in Langfuse** and fetched at runtime (labelled per environment), so prompt changes don't require a redeploy.
+  - Tracing uses the OpenTelemetry-based Langfuse JS/TS SDK v6, set up once in `shared/langfuse` (`@workspace/shared-langfuse`): wrap a request in `withTrace`, nest work with `withSpan`, and `waitUntil(flushLangfuse())` when done. Workers using it need the `nodejs_compat` flag.
+  - A check's trace ID is a SHA-256 hash of its MongoDB ID (`traceIdForCheck`), since OpenTelemetry trace IDs are 32 hex characters. Traces from before the Langfuse v4 migration use the raw check ID.
 - **Portkey** (self-hosted at `portkey.checkmate.sg`, the `portkey-service` worker) sits in front of the LLM providers as a unified gateway/router; the shared LLM client targets it via `PORTKEY_ENDPOINT`.
 - **Pino** provides structured logging across all workers, and a tail-consumer worker is bound in production for log streaming.
 
@@ -374,6 +376,7 @@ Deployments rely on Cloudflare and provider secrets being configured in the GitH
 ```
 /
 ├── shared/
+│   ├── langfuse/    # @workspace/shared-langfuse — Langfuse v6 tracing (OpenTelemetry) + prompt client
 │   ├── llmClient/   # @workspace/shared-llm-client — Portkey-fronted OpenAI client (OpenAI / Vertex / Groq)
 │   ├── types/       # @workspace/shared-types — CheckRequest, AgentRequest/Response, Check, Submission, ...
 │   └── utils/       # @workspace/shared-utils — logger, hashing (text/image/PDQ), Google auth, slugs, provider lookup

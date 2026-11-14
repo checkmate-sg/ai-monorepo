@@ -1,0 +1,23 @@
+{
+  "name": "@workspace/shared-langfuse",
+  "version": "1.0.0",
+  "description": "Shared Langfuse (JS/TS SDK v6, OpenTelemetry) tracing and prompt setup for all services",
+  "main": "index.ts",
+  "types": "index.ts",
+  "private": true,
+  "dependencies": {
+    "@langfuse/client": "^6.1.1",
+    "@langfuse/openai": "^6.1.1",
+    "@langfuse/otel": "^6.1.1",
+    "@langfuse/tracing": "^6.1.1",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/context-async-hooks": "2.8.0",
+    "@opentelemetry/core": "2.8.0",
+    "@opentelemetry/exporter-trace-otlp-http": "0.219.0",
+    "@opentelemetry/otlp-exporter-base": "0.219.0",
+    "@opentelemetry/sdk-trace-base": "2.8.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

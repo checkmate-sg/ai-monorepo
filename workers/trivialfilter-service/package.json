@@ -15,7 +15,5 @@
     "typescript": "^5.5.2",
     "vitest": "~2.1.9"
   },
-  "dependencies": {
-    "langfuse": "^3.37.1"
-  }
+  "dependencies": {}
 }

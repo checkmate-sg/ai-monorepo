@@ -15,7 +15,6 @@
     "typescript": "^5.5.2"
   },
   "dependencies": {
-    "langfuse": "^3.37.1",
     "normalize-url": "^8.0.1",
     "url-regex-safe": "^4.0.0"
   }

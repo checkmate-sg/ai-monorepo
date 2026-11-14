@@ -11,7 +11,11 @@ import {
 } from "@workspace/shared-utils";
 import { Embedding } from "openai/resources/embeddings";
 import { createClient } from "@workspace/shared-llm-client";
-import { Langfuse, observeOpenAI } from "langfuse";
+import {
+  getChatPrompt,
+  observeOpenAI,
+  withSpanOrTrace,
+} from "@workspace/shared-langfuse";
 export interface SearchInternalParams {
   text: string;
   llmCheck: boolean;
@@ -94,8 +98,7 @@ export const searchInternalTool: Tool<
     "search-internal",
     async (
       params: SearchInternalParams,
-      context: ToolContext,
-      span
+      context: ToolContext
     ): Promise<SearchInternalResult> => {
       // Create a minimal AgentRequest from the tool params
       const request: AgentRequest = {
@@ -107,8 +110,6 @@ export const searchInternalTool: Tool<
       return searchInternal(
         request,
         context.env,
-        context.langfuse,
-        span,
         context.logger,
         params.llmCheck
       );
@@ -119,8 +120,6 @@ export const searchInternalTool: Tool<
 export async function searchInternal(
   request: AgentRequest,
   env: Env,
-  langfuse: Langfuse | null,
-  span: ReturnType<Langfuse["span"]> | null,
   logger: ReturnType<typeof createLogger>,
   llmCheck: boolean = false
 ): Promise<SearchInternalResult> {
@@ -142,8 +141,6 @@ export async function searchInternal(
       return await searchTextSubmission(
         text,
         env,
-        langfuse,
-        span,
         logger,
         llmCheck
       );
@@ -151,8 +148,6 @@ export async function searchInternal(
       return await searchImageOnlySubmission(
         imageUrl,
         env,
-        langfuse,
-        span,
         logger
       );
     } else if (hasImage && hasCaption) {
@@ -160,8 +155,6 @@ export async function searchInternal(
         imageUrl,
         caption,
         env,
-        langfuse,
-        span,
         logger
       );
     } else {
@@ -190,8 +183,6 @@ export async function searchInternal(
 async function searchTextSubmission(
   text: string,
   env: Env,
-  langfuse: Langfuse | null,
-  span: ReturnType<Langfuse["span"]> | null,
   logger: ReturnType<typeof createLogger>,
   llmCheck: boolean
 ): Promise<SearchInternalResult> {
@@ -337,49 +328,10 @@ async function searchTextSubmission(
     );
 
     if (llmCheck && isMatch) {
-      let trace;
-      if (!langfuse) {
-        langfuse = new Langfuse({
-          environment: env.ENVIRONMENT,
-          publicKey: env.LANGFUSE_PUBLIC_KEY,
-          secretKey: env.LANGFUSE_SECRET_KEY,
-          baseUrl: env.LANGFUSE_HOST,
-        });
-        trace = langfuse.trace({
-          name: "confirm-same-claim",
-          input: {
-            text1: topResult.text,
-            text2: text,
-          },
-          id: crypto.randomUUID(),
-        });
-      }
-
       const text1 = topResult.text;
       const text2 = text;
 
       try {
-        const client = await createClient("openai", env);
-        const confirm_same_claim_prompt = await langfuse.getPrompt(
-          "confirm_same_claim",
-          undefined,
-          {
-            label:
-              env.ENVIRONMENT === "production"
-                ? "cf-production"
-                : env.ENVIRONMENT,
-            type: "chat",
-          }
-        );
-        const observedClient = observeOpenAI(client, {
-          clientInitParams: {
-            publicKey: env.LANGFUSE_PUBLIC_KEY,
-            secretKey: env.LANGFUSE_SECRET_KEY,
-            baseUrl: env.LANGFUSE_HOST,
-          },
-          langfusePrompt: confirm_same_claim_prompt,
-          parent: span ? span : trace,
-        });
         logger.info(
           {
             text1,
@@ -387,24 +339,20 @@ async function searchTextSubmission(
           },
           "Confirming same claim"
         );
-        const config = confirm_same_claim_prompt.config as typeof configObject;
-        const messages = confirm_same_claim_prompt.compile({
-          text1,
-          text2,
-        }) as any[];
-        const response = await withTimeout(
-          observedClient.chat.completions.create({
-            model: config.model || configObject.model,
-            temperature: config.temperature || 0.0,
-            seed: config.seed || 11,
-            messages: messages as any[],
-            response_format: config.response_format,
-          }),
-          30000, // 30 seconds timeout
-          "Confirm same claim LLM call"
+        const result = await withSpanOrTrace(
+          env,
+          {
+            name: "confirm-same-claim",
+            input: { text1, text2 },
+            tags: [
+              env.ENVIRONMENT,
+              "single-call",
+              "confirm-same-claim",
+              "cloudflare-workers",
+            ],
+          },
+          () => confirmSameClaim(env, text1, text2)
         );
-        const content = response.choices[0].message.content;
-        const result = JSON.parse(content || "{}");
 
         logger.debug(
           {
@@ -414,18 +362,6 @@ async function searchTextSubmission(
           },
           "LLM same claim check completed"
         );
-
-        if (trace) {
-          trace.update({
-            output: result,
-            tags: [
-              env.ENVIRONMENT,
-              "single-call",
-              "confirm-same-claim",
-              "cloudflare-workers",
-            ],
-          });
-        }
 
         if (result.are_variants_of_same_claim != null) {
           logger.info(
@@ -437,9 +373,6 @@ async function searchTextSubmission(
             "Final match decision after LLM check"
           );
 
-          // Flush Langfuse trace before returning
-          await langfuse.flushAsync();
-
           return {
             success: true,
             result: {
@@ -447,7 +380,7 @@ async function searchTextSubmission(
               similarityScore: topResult.score,
               imageHammingDistance: null,
               isMatch: result.are_variants_of_same_claim,
-              reasoning: result.reasoning,
+              reasoning: result.reasoning ?? null,
               text,
               matchType: result.are_variants_of_same_claim ? "text" : null,
               communityNote,
@@ -467,11 +400,6 @@ async function searchTextSubmission(
           error instanceof Error ? error.message : "Unknown error occurred";
 
         logger.error({ error, errorMessage }, "Error confirming same claim");
-
-        // Flush Langfuse trace even on error
-        if (langfuse) {
-          await langfuse.flushAsync();
-        }
 
         return {
           success: false,
@@ -529,8 +457,6 @@ async function searchTextSubmission(
 async function searchImageOnlySubmission(
   imageUrl: string,
   env: Env,
-  langfuse: Langfuse | null,
-  span: ReturnType<Langfuse["span"]> | null,
   logger: ReturnType<typeof createLogger>
 ): Promise<SearchInternalResult> {
   try {
@@ -671,8 +597,6 @@ async function searchImageWithCaptionSubmission(
   imageUrl: string,
   caption: string,
   env: Env,
-  langfuse: Langfuse | null,
-  span: ReturnType<Langfuse["span"]> | null,
   logger: ReturnType<typeof createLogger>
 ): Promise<SearchInternalResult> {
   try {
@@ -827,4 +751,29 @@ async function searchImageWithCaptionSubmission(
       },
     };
   }
+}
+
+// Asks the LLM whether two texts are variants of the same claim
+async function confirmSameClaim(
+  env: Env,
+  text1: string,
+  text2: string
+): Promise<{ are_variants_of_same_claim?: boolean; reasoning?: string }> {
+  const client = await createClient("openai", env);
+  const prompt = await getChatPrompt(env, "confirm_same_claim");
+  const observedClient = observeOpenAI(client, { langfusePrompt: prompt });
+  const config = prompt.config as typeof configObject;
+  const messages = prompt.compile({ text1, text2 }) as any[];
+  const response = await withTimeout(
+    observedClient.chat.completions.create({
+      model: config.model || configObject.model,
+      temperature: config.temperature || 0.0,
+      seed: config.seed || 11,
+      messages,
+      response_format: config.response_format,
+    }),
+    30000, // 30 seconds timeout
+    "Confirm same claim LLM call"
+  );
+  return JSON.parse(response.choices[0].message.content || "{}");
 }

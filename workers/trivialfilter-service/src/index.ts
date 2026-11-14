@@ -13,7 +13,12 @@ import {
 } from "@workspace/shared-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import { createLogger } from "@workspace/shared-utils";
-import { Langfuse, observeOpenAI } from "langfuse";
+import {
+  flushLangfuse,
+  getChatPrompt,
+  observeOpenAI,
+  withTrace,
+} from "@workspace/shared-langfuse";
 import { createClient } from "@workspace/shared-llm-client";
 
 const configObject = {
@@ -81,37 +86,37 @@ export default class extends WorkerEntrypoint<Env> {
       "Received needs checking assessment request"
     );
 
-    let langfuse: Langfuse | undefined;
+    try {
+      return await withTrace(
+        this.env,
+        {
+          name: "needs-checking",
+          traceSeed: request.id,
+          input: request,
+          metadata: { provider: "openai" },
+          tags: [
+            this.env.ENVIRONMENT,
+            "single-call",
+            "trivial-filter",
+            "cloudflare-workers",
+          ],
+        },
+        () => this.assessNeedsChecking(request)
+      );
+    } finally {
+      this.ctx.waitUntil(flushLangfuse());
+    }
+  }
 
+  private async assessNeedsChecking(
+    request: TrivialFilterRequest
+  ): Promise<TrivialFilterResult> {
     try {
       const provider = "openai";
-      langfuse = new Langfuse({
-        environment: this.env.ENVIRONMENT,
-        publicKey: this.env.LANGFUSE_PUBLIC_KEY,
-        secretKey: this.env.LANGFUSE_SECRET_KEY,
-        baseUrl: this.env.LANGFUSE_HOST,
-      });
-
-      if (!langfuse) {
-        this.logger.error(this.logContext, "Langfuse is not configured");
-      }
-
-      const trace = langfuse.trace({
-        name: "needs-checking",
-        input: request,
-        id: request.id || crypto.randomUUID(),
-        metadata: {
-          provider: provider,
-        },
-      });
-
-      const needsCheckingPrompt = await langfuse.getPrompt(
+      const needsCheckingPrompt = await getChatPrompt(
+        this.env,
         "trivial_filter",
-        undefined,
-        {
-          label: this.env.ENVIRONMENT,
-          type: "chat",
-        }
+        this.env.ENVIRONMENT
       );
 
       // Compile the prompt with the report and formatted sources
@@ -123,13 +128,7 @@ export default class extends WorkerEntrypoint<Env> {
       const client = await createClient(provider, this.env);
 
       const observedClient = observeOpenAI(client, {
-        clientInitParams: {
-          publicKey: this.env.LANGFUSE_PUBLIC_KEY,
-          secretKey: this.env.LANGFUSE_SECRET_KEY,
-          baseUrl: this.env.LANGFUSE_HOST,
-        },
         langfusePrompt: needsCheckingPrompt,
-        parent: trace,
       });
 
       this.logger.info(this.logContext, "Calling LLM api");
@@ -152,15 +151,6 @@ export default class extends WorkerEntrypoint<Env> {
           },
           id: request.id,
         };
-        trace.update({
-          output: returnObject,
-          tags: [
-            this.env.ENVIRONMENT,
-            "single-call",
-            "trivial-filter",
-            "cloudflare-workers",
-          ],
-        });
         return returnObject;
       } else {
         throw new Error("No needs_checking in result");
@@ -179,10 +169,6 @@ export default class extends WorkerEntrypoint<Env> {
         id: request.id,
         success: false,
       };
-    } finally {
-      if (langfuse) {
-        this.ctx.waitUntil(langfuse.flushAsync());
-      }
     }
   }
 }

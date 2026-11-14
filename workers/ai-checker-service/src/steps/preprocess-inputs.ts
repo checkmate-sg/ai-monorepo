@@ -36,7 +36,6 @@ export async function preprocessInputs(
 ): Promise<PreprocessResult> {
   const childLogger = checkCtx.logger.child({ step: "preprocess-inputs" });
   const env = checkCtx.env;
-  const trace = checkCtx.trace;
   try {
     const google = createGoogleGenerativeAI({
       apiKey: env.GEMINI_API_KEY,
@@ -154,10 +153,6 @@ export async function preprocessInputs(
       experimental_telemetry: {
         isEnabled: true,
         functionId: "preprocess-inputs-generation",
-        metadata: {
-          langfuseTraceId: trace?.id,
-          langfuseUpdateParent: false,
-        },
       },
     });
 

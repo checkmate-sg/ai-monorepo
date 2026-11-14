@@ -1,6 +1,6 @@
 import { Tool } from "./types";
 import { createClient } from "@workspace/shared-llm-client";
-import { observeOpenAI } from "langfuse";
+import { getChatPrompt, observeOpenAI } from "@workspace/shared-langfuse";
 import { withLangfuseSpan, withTimeout } from "./utils";
 import { TranslateTextResult } from "./types";
 
@@ -41,7 +41,7 @@ export const translateTextTool: Tool<TranslateTextParams, TranslateTextResult> =
     },
     execute: withLangfuseSpan<TranslateTextParams, TranslateTextResult>(
       "translate-text",
-      async (params, context, span) => {
+      async (params, context) => {
         const client = await createClient("openai", context.env);
 
         try {
@@ -51,26 +51,10 @@ export const translateTextTool: Tool<TranslateTextParams, TranslateTextResult> =
           if (!params.language) {
             throw new Error("Language is required");
           }
-          const translatePrompt = await context.langfuse.getPrompt(
-            "translation",
-            undefined,
-            {
-              label:
-                context.env.ENVIRONMENT === "production"
-                  ? "cf-production"
-                  : context.env.ENVIRONMENT, //TODO: revert after google version deprecated
-              type: "chat",
-            }
-          );
+          const translatePrompt = await getChatPrompt(context.env, "translation");
 
           const observedClient = observeOpenAI(client, {
-            clientInitParams: {
-              publicKey: context.env.LANGFUSE_PUBLIC_KEY,
-              secretKey: context.env.LANGFUSE_SECRET_KEY,
-              baseUrl: context.env.LANGFUSE_HOST,
-            },
             langfusePrompt: translatePrompt,
-            parent: span, // Set this span as parent
           });
           context.logger.info(params, "Executing translate text tool");
 

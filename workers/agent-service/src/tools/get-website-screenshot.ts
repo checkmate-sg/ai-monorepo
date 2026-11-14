@@ -29,7 +29,7 @@ export const websiteScreenshotTool: Tool<ScreenshotParams, ScreenshotResult> = {
   },
   execute: withLangfuseSpan<ScreenshotParams, ScreenshotResult>(
     "get-website-screenshot",
-    async (params, context, span) => {
+    async (params, context) => {
       if (context.getScreenshotsRemaining() <= 0) {
         throw new Error("Screenshot limit reached");
       }

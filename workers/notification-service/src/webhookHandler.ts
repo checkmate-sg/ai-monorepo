@@ -1,5 +1,6 @@
 import { Bot, webhookCallback } from "grammy";
 import { createLogger } from "@workspace/shared-utils";
+import { traceUrlForCheck } from "@workspace/shared-langfuse/trace-id";
 
 const logger = createLogger("webhook-handler");
 
@@ -63,14 +64,21 @@ export function setupTelegramBot(env: Env) {
       }
 
       // Update the message to show the new button state
-      const langfuseBaseURL = env.LANGFUSE_HOST;
-      const langfuseProjectId = env.LANGFUSE_PROJECT_ID;
+      // Keep the message's existing Langfuse link: checks traced before the
+      // Langfuse v4 migration use the raw check ID as their trace ID
+      const existingLink = ctx.callbackQuery.message?.reply_markup?.inline_keyboard
+        .flat()
+        .find((b): b is { text: string; url: string } => "url" in b);
       const updatedKeyboard: Array<
         { text: string } & ({ url: string } | { callback_data: string })
       > = [
-        {
+        existingLink ?? {
           text: "View on LangFuse",
-          url: `${langfuseBaseURL}/project/${langfuseProjectId}/traces/${messageId}`,
+          url: await traceUrlForCheck(
+            env.LANGFUSE_HOST,
+            env.LANGFUSE_PROJECT_ID,
+            messageId
+          ),
         },
       ];
 

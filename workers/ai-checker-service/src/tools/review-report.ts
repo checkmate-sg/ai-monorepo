@@ -88,10 +88,6 @@ ${formattedSources}`,
           experimental_telemetry: {
             isEnabled: true,
             functionId: "review-report",
-            metadata: {
-              langfuseTraceId: checkCtx.trace?.id ?? "",
-              langfuseUpdateParent: false,
-            },
           },
         });
 

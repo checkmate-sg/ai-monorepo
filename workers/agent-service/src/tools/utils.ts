@@ -1,5 +1,5 @@
 import type { ToolContext } from "./types";
-import type { Langfuse } from "langfuse";
+import { withSpan, type LangfuseSpan } from "@workspace/shared-langfuse";
 import { ScreenshotResult, LLMProvider } from "@workspace/shared-types";
 
 // Timeout utility for LLM calls
@@ -19,50 +19,13 @@ export function withTimeout<T>(
   ]);
 }
 
-// Updated decorator that passes the span to the function. Does the same as @observe in langfuse python sdk
+// Wraps a tool in a Langfuse span under the active observation. Does the same as @observe in langfuse python sdk
 export function withLangfuseSpan<T, R>(
   spanName: string,
-  fn: (
-    params: T,
-    context: ToolContext,
-    span: ReturnType<Langfuse["span"]>
-  ) => Promise<R>
+  fn: (params: T, context: ToolContext, span: LangfuseSpan) => Promise<R>
 ): (params: T, context: ToolContext) => Promise<R> {
-  return async (params: T, context: ToolContext): Promise<R> => {
-    const langfuse = context.langfuse;
-    let span: ReturnType<Langfuse["span"]>;
-    const parentSpan = context.getSpan();
-    if (parentSpan) {
-      span = parentSpan.span({
-        name: spanName,
-        input: params,
-      });
-    } else {
-      span = langfuse.span({
-        name: spanName,
-        input: params,
-        traceId: context.getTraceId(),
-      });
-    }
-    try {
-      const result = await fn(params, context, span);
-      span.end({
-        output: result,
-        metadata: {
-          success: true,
-        },
-      });
-      return result;
-    } catch (error) {
-      span.end({
-        metadata: {
-          success: false,
-          error: error instanceof Error ? error.message : String(error),
-        },
-      });
-      throw error;
-    }
-  };
+  return (params: T, context: ToolContext): Promise<R> =>
+    withSpan(spanName, params, (span) => fn(params, context, span));
 }
 type EnhancedScreenshotResult = ScreenshotResult & { url?: string };
 

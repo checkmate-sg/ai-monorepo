@@ -1,6 +1,6 @@
 import { Tool } from "./types";
 import { createClient } from "@workspace/shared-llm-client";
-import { observeOpenAI } from "langfuse";
+import { getChatPrompt, observeOpenAI } from "@workspace/shared-langfuse";
 import { withLangfuseSpan, withTimeout } from "./utils";
 import { SummariseReportResult } from "./types";
 import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
@@ -63,33 +63,17 @@ export const summariseReportTool: Tool<
   },
   execute: withLangfuseSpan<SummariseReportParams, SummariseReportResult>(
     "summarise-report",
-    async (params, context, span) => {
+    async (params, context) => {
       const client = await createClient("openai", context.env);
 
       try {
         if (!params.report) {
           throw new Error("Report is required");
         }
-        const summarisePrompt = await context.langfuse.getPrompt(
-          "summarise_report",
-          undefined,
-          {
-            label:
-              context.env.ENVIRONMENT === "production"
-                ? "cf-production"
-                : context.env.ENVIRONMENT, //TODO: revert after google version deprecated
-            type: "chat",
-          }
-        );
+        const summarisePrompt = await getChatPrompt(context.env, "summarise_report");
 
         const observedClient = observeOpenAI(client, {
-          clientInitParams: {
-            publicKey: context.env.LANGFUSE_PUBLIC_KEY,
-            secretKey: context.env.LANGFUSE_SECRET_KEY,
-            baseUrl: context.env.LANGFUSE_HOST,
-          },
           langfusePrompt: summarisePrompt,
-          parent: span, // Set this span as parent
         });
         context.logger.info(params, "Executing summarise report tool");
 

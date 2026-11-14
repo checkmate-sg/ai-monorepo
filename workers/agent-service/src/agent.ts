@@ -28,7 +28,16 @@ import type {
   ChatCompletionTool,
 } from "openai/resources";
 import { createTools, ToolContext } from "./tools";
-import { Langfuse, TextPromptClient, observeOpenAI } from "langfuse";
+import {
+  addTraceTags,
+  flushLangfuse,
+  getLangfuseClient,
+  observeOpenAI,
+  promptLabel,
+  withSpan,
+  withTrace,
+  type TextPromptClient,
+} from "@workspace/shared-langfuse";
 
 const logger = createLogger("agent");
 
@@ -37,6 +46,10 @@ interface AgentOutputs {
   sources: string[];
   is_controversial: boolean;
 }
+
+type AgentLoopResult =
+  | (AgentOutputs & { success: true })
+  | { error: { message: string }; success: false };
 
 // Used when agent_system_prompt's Langfuse config doesn't set a model
 const DEFAULT_AGENT_MODEL = "gpt-4.1-mini";
@@ -52,7 +65,6 @@ export class CheckerAgent extends DurableObject<Env> {
   private searchesRemaining: number;
   private screenshotsRemaining: number;
   private id: string;
-  private langfuseTraceId: string;
   private provider?: LLMProvider;
   private model?: string;
   private totalCost: number;
@@ -67,10 +79,7 @@ export class CheckerAgent extends DurableObject<Env> {
   private totalTime?: number;
   private title?: string | null;
   private type?: "text" | "image";
-  private langfuse: Langfuse;
   private prompt: TextPromptClient;
-  private trace?: ReturnType<Langfuse["trace"]>;
-  private span?: ReturnType<Langfuse["span"]>;
   private tools: ReturnType<typeof createTools>;
   private state: DurableObjectState;
   /**
@@ -83,30 +92,19 @@ export class CheckerAgent extends DurableObject<Env> {
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    this.span = undefined;
     this.state = ctx;
     this.searchesRemaining = 5;
     this.screenshotsRemaining = 5;
     this.id = "pending-initialization";
-    this.langfuseTraceId = "pending-initialization";
     this.logger = logger;
     this.logger.info("Agent created");
     this.totalCost = 0;
     this.totalTime = 0;
-    this.langfuse = new Langfuse({
-      environment: this.env.ENVIRONMENT,
-      publicKey: this.env.LANGFUSE_PUBLIC_KEY,
-      secretKey: this.env.LANGFUSE_SECRET_KEY,
-      baseUrl: this.env.LANGFUSE_HOST,
-    });
     this.prompt = null as any; // Temporary initialization
     const toolContext: ToolContext = {
       logger: this.logger,
       getId: () => this.id,
-      getTraceId: () => this.langfuseTraceId,
       env: this.env,
-      langfuse: this.langfuse,
-      getSpan: () => this.span,
       getSearchesRemaining: () => this.searchesRemaining,
       getScreenshotsRemaining: () => this.screenshotsRemaining,
       decrementSearches: () => {
@@ -135,14 +133,10 @@ export class CheckerAgent extends DurableObject<Env> {
 
   private async initialize() {
     try {
-      this.prompt = await this.langfuse.getPrompt(
+      this.prompt = await getLangfuseClient(this.env).prompt.get(
         "agent_system_prompt",
-        undefined,
         {
-          label:
-            this.env.ENVIRONMENT === "production"
-              ? "cf-production"
-              : this.env.ENVIRONMENT, //TODO: revert after google version deprecated
+          label: promptLabel(this.env),
           type: "text",
           // Stay well inside blockConcurrencyWhile's 30s limit
           fetchTimeoutMs: 5000,
@@ -275,32 +269,26 @@ export class CheckerAgent extends DurableObject<Env> {
     }
   }
 
-  private async agentLoop(startingContent: any[]) {
+  private agentLoop(startingContent: any[]): Promise<AgentLoopResult> {
+    return withSpan("agent-loop", undefined, () =>
+      this.runAgentLoop(startingContent),
+    );
+  }
+
+  private async runAgentLoop(
+    startingContent: any[],
+  ): Promise<AgentLoopResult> {
     const logger = this.logger.child({
       function: "agentLoop",
     });
-    let span: ReturnType<Langfuse["span"]> | undefined;
     try {
       if (!this.client) {
         throw new Error("Client not initialized");
       }
-      if (!this.trace) {
-        throw new Error("Trace not initialized");
-      }
-      span = this.trace.span({
-        name: "agent-loop",
-      });
-      this.span = span;
 
       // Rest of the agent loop implementation
       const observedClient = observeOpenAI(this.client, {
-        clientInitParams: {
-          publicKey: this.env.LANGFUSE_PUBLIC_KEY,
-          secretKey: this.env.LANGFUSE_SECRET_KEY,
-          baseUrl: this.env.LANGFUSE_HOST,
-        },
         langfusePrompt: this.prompt,
-        parent: span,
       });
 
       // Compiled once per check so the prefix stays identical across turns and hits the
@@ -349,17 +337,10 @@ export class CheckerAgent extends DurableObject<Env> {
           for (const result of sortedResults) {
             if (result.completed) {
               const agentOutputs: AgentOutputs = result.agentOutputs;
-              const returnObject = {
+              return {
                 ...agentOutputs,
                 success: true as const,
               };
-              span.end({
-                output: returnObject,
-                metadata: {
-                  success: true,
-                },
-              });
-              return returnObject;
             }
           }
           messages.push(...sortedResults);
@@ -376,24 +357,48 @@ export class CheckerAgent extends DurableObject<Env> {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
       logger.error({ error, errorMessage }, "Error in agent loop");
-      if (span) {
-        span.end({
-          output: {
-            error: { message: errorMessage },
-            success: false,
-          },
-        });
-      }
       return {
         error: { message: errorMessage },
         success: false,
       };
-    } finally {
-      this.span = undefined;
     }
   }
 
   async check(request: AgentRequest, id: string): Promise<AgentResult> {
+    if (!id) {
+      throw new Error("ID is required");
+    }
+    const model = request.model || this.configuredModel;
+    const provider = getProviderFromModel(model);
+    request.id = id; // to log consistently with mongoDB ID as checkId,
+    try {
+      return await withTrace(
+        this.env,
+        {
+          name: "agent-check",
+          traceSeed: id,
+          input: request,
+          metadata: { provider, mongoId: id },
+          tags: [
+            this.env.ENVIRONMENT,
+            "agent-generation",
+            "cloudflare-workers",
+            request.consumerName || "unknown consumer",
+          ],
+        },
+        () => this.runCheck(request, id, model, provider),
+      );
+    } finally {
+      this.state.waitUntil(flushLangfuse());
+    }
+  }
+
+  private async runCheck(
+    request: AgentRequest,
+    id: string,
+    model: string,
+    provider: LLMProvider,
+  ): Promise<AgentResult> {
     let notificationId: number | null = null;
     let communityNoteNotificationId: number | null = null;
     let communityNote: CommunityNote | null = null;
@@ -402,28 +407,9 @@ export class CheckerAgent extends DurableObject<Env> {
     let slug: string | null = null;
     let generationStatus: string = "pending";
     let checkInserted = false;
-    const model = request.model || this.configuredModel;
-    const provider = getProviderFromModel(model);
-    const consumerName = request.consumerName || "unknown consumer";
     const triggerPoll = request.consumerName === "checkmate-whatsapp";
-    if (!id) {
-      throw new Error("ID is required");
-    }
     this.id = id;
-    this.langfuseTraceId = id;
     this.logger = this.logger.child({ id, requestId: request.id });
-    request.id = id; // to log consistently with mongoDB ID as checkId,
-    const trace = this.langfuse.trace({
-      name: "agent-check",
-      input: request,
-      id: this.langfuseTraceId,
-      metadata: {
-        provider,
-        mongoId: id,
-        requestId: request.id,
-      },
-    });
-    this.trace = trace;
     this.provider = provider;
     this.model = model;
     try {
@@ -660,7 +646,7 @@ export class CheckerAgent extends DurableObject<Env> {
         120000, // 2 minutes timeout for entire agent loop
         "Agent loop",
       );
-      if (!agentLoopResult.success || "error" in agentLoopResult) {
+      if (!agentLoopResult.success) {
         // Don't update status here, just throw the error to be caught in the final catch block
         throw new Error(`Agent loop failed: ${agentLoopResult.error.message}`);
       }
@@ -794,15 +780,6 @@ export class CheckerAgent extends DurableObject<Env> {
         this.logger.error("Failed to send community note notification");
       }
 
-      trace.update({
-        output: agentResponse,
-        tags: [
-          this.env.ENVIRONMENT,
-          "agent-generation",
-          "cloudflare-workers",
-          consumerName,
-        ],
-      });
       return agentResponse;
     } catch (error: unknown) {
       const errorMessage =
@@ -851,16 +828,7 @@ export class CheckerAgent extends DurableObject<Env> {
         error: { message: errorMessage },
         success: false as const,
       };
-      trace.update({
-        output: errorReturn,
-        tags: [
-          this.env.ENVIRONMENT,
-          "agent-generation",
-          "cloudflare-workers",
-          "error",
-          consumerName,
-        ],
-      });
+      addTraceTags(["error"]);
       return errorReturn;
     } finally {
       if (triggerPoll && checkInserted) {
@@ -923,7 +891,6 @@ export class CheckerAgent extends DurableObject<Env> {
           );
         }
       }
-      this.state.waitUntil(this.langfuse.flushAsync());
     }
   }
 

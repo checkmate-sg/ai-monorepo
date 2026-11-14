@@ -71,10 +71,6 @@ export async function summarizeReport(
       experimental_telemetry: {
         isEnabled: true,
         functionId: "summarize-report",
-        metadata: {
-          langfuseTraceId: checkCtx.trace?.id ?? "",
-          langfuseUpdateParent: false,
-        },
       },
     });
     return object.summary;
